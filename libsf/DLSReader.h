@@ -1,5 +1,5 @@
 
-/** $VER: DLSReader.h (2025.03.14) P. Stuer **/
+/** $VER: DLSReader.h (2025.03.15) P. Stuer **/
 
 #pragma once
 
@@ -7,7 +7,7 @@
 
 #include "SoundFont.h"
 
-#include <libriff.h>
+#include "..\libriff\libriff.h"
 
 #define FOURCC_DLS  mmioFOURCC('D','L','S',' ')                     // Collection
 

@@ -1,5 +1,5 @@
 
-/** $VER: Stream.h (2025.03.14) P. Stuer **/
+/** $VER: Stream.h (2025.03.15) P. Stuer **/
 
 #pragma once
 
@@ -84,7 +84,7 @@ public:
         if (_Curr + size > _Tail)
             throw riff::exception("Insufficient data");
 
-        ::memcpy(data, _Curr, size);
+        ::memcpy(data, _Curr, (size_t) size);
         _Curr += size;
     }
 
