@@ -1,10 +1,12 @@
 
 # libsf
 
-[libsf]() is a library class for reading and writing soundfonts.
+[libsf](https://github.com/stuerp/libsf) is a library for reading and writing soundfonts.
 
 * Read and write SoundFont 2.0-3.1 sound fonts.
 * Read and write DLS sound fonts.
+
+WARNING: This is very tightly coupled with foo_midi. The API will change several times before it becomes stable.
 
 ## References
 
