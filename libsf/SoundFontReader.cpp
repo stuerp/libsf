@@ -135,7 +135,7 @@ void soundfont_reader_t::Process(const soundfont_reader_options_t & options, sou
                 Read(&sf.Major, sizeof(sf.Major));
                 Read(&sf.Minor, sizeof(sf.Minor));
 
-                #ifdef _TRACE
+                #ifdef __TRACE
                 ::printf("%*sSoundFont specification version: %d.%d\n", __TRACE_LEVEL * 2, "", sf.Major, sf.Minor);
                 #endif
 
@@ -153,7 +153,7 @@ void soundfont_reader_t::Process(const soundfont_reader_options_t & options, sou
 
                 Read((void *) sf.SoundEngine.c_str(), ch.Size);
 
-                #ifdef _TRACE
+                #ifdef __TRACE
                 ::printf("%*sSound Engine: \"%s\"\n", __TRACE_LEVEL * 2, "", sf.SoundEngine.c_str());
                 #endif
 
@@ -171,7 +171,7 @@ void soundfont_reader_t::Process(const soundfont_reader_options_t & options, sou
 
                 Read((void *) sf.ROM.c_str(), ch.Size);
 
-                #ifdef _TRACE
+                #ifdef __TRACE
                 ::printf("%*sROM: \"%s\"\n", __TRACE_LEVEL * 2, "", sf.ROM.c_str());
                 #endif
 
@@ -188,7 +188,7 @@ void soundfont_reader_t::Process(const soundfont_reader_options_t & options, sou
                 Read(&sf.ROMMajor, sizeof(sf.ROMMajor));
                 Read(&sf.ROMMinor, sizeof(sf.ROMMinor));
 
-                #ifdef _TRACE
+                #ifdef __TRACE
                 ::printf("%*sROM Version: %d.%d\n", __TRACE_LEVEL * 2, "", sf.ROMMajor, sf.ROMMinor);
                 #endif
 
@@ -239,7 +239,7 @@ void soundfont_reader_t::Process(const soundfont_reader_options_t & options, sou
 
                     sf.Presets.push_back({ Name, PresetHeader.Bank, PresetHeader.Preset, PresetHeader.ZoneIndex });
 
-                    #ifdef _TRACE
+                    #ifdef __TRACE
                     ::printf("%*s%5zu. %-20s, Bank %3d, Preset %3d, Zone %6d\n", __TRACE_LEVEL * 2, "", i + 1, Name.c_str(), PresetHeader.Bank, PresetHeader.Preset, PresetHeader.ZoneIndex);
                     #endif
                 }
@@ -263,8 +263,8 @@ void soundfont_reader_t::Process(const soundfont_reader_options_t & options, sou
 
                     sf.PresetZones.push_back({ Zone.GeneratorIndex, Zone.ModulatorIndex });
 
-                    #ifdef _TRACE
-                    ::printf("%*s%5zu. Generator %5d, Modulator %5d\n", __TRACE_LEVEL * 2, "", i + 1, PresetZone.GeneratorIndex, PresetZone.ModulatorIndex);
+                    #ifdef __TRACE
+                    ::printf("%*s%5zu. Generator %5d, Modulator %5d\n", __TRACE_LEVEL * 2, "", i + 1, Zone.GeneratorIndex, Zone.ModulatorIndex);
                     #endif
                 }
 
@@ -287,7 +287,7 @@ void soundfont_reader_t::Process(const soundfont_reader_options_t & options, sou
 
                     sf.PresetZoneModulators.push_back({ Modulator.SrcOperator, Modulator.DstOperator, Modulator.Amount, Modulator.AmountSource, Modulator.SourceTransform });
 
-                    #ifdef _TRACE
+                    #ifdef __TRACE
                     ::printf("%*s%5zu. Src Op: 0x%04X, Dst Op: %2d, Amount: %6d, Amount Source: 0x%04X, Source Transform: 0x%04X, %s\n", __TRACE_LEVEL * 2, "", i + 1,
                         Modulator.SrcOperator, Modulator.DstOperator, Modulator.Amount, Modulator.AmountSource, Modulator.SourceTransform,
                         DescribeModulatorController(Modulator.SrcOperator).c_str());
@@ -313,7 +313,7 @@ void soundfont_reader_t::Process(const soundfont_reader_options_t & options, sou
 
                     sf.PresetZoneGenerators.push_back({ Generator.Operator, Generator.Amount });
 
-                    #ifdef _TRACE
+                    #ifdef __TRACE
                     ::printf("%*s%5zu. Operator: 0x%04X, Amount: 0x%04X, %s\n", __TRACE_LEVEL * 2, "", i + 1,
                         Generator.Operator, Generator.Amount,
                         DescribeGeneratorController(Generator.Operator).c_str());
@@ -341,7 +341,7 @@ void soundfont_reader_t::Process(const soundfont_reader_options_t & options, sou
 
                     sf.Instruments.push_back({ Name, Instrument.ZoneIndex });
 
-                    #ifdef _TRACE
+                    #ifdef __TRACE
                     ::printf("%*s%5zu. \"%-20s\", Zone %5d\n", __TRACE_LEVEL * 2, "", i + 1, Name.c_str(), Instrument.ZoneIndex);
                     #endif
                 }
@@ -365,8 +365,8 @@ void soundfont_reader_t::Process(const soundfont_reader_options_t & options, sou
 
                     sf.InstrumentZones.push_back({ Zone.GeneratorIndex, Zone.ModulatorIndex });
 
-                    #ifdef _TRACE
-                    ::printf("%*s%5zu. Generator %5d, Modulator %5d\n", __TRACE_LEVEL * 2, "", i + 1, InstrumentZone.GeneratorIndex, InstrumentZone.Modulatorndex);
+                    #ifdef __TRACE
+                    ::printf("%*s%5zu. Generator %5d, Modulator %5d\n", __TRACE_LEVEL * 2, "", i + 1, Zone.GeneratorIndex, Zone.ModulatorIndex);
                     #endif
                 }
 
@@ -389,7 +389,7 @@ void soundfont_reader_t::Process(const soundfont_reader_options_t & options, sou
 
                     sf.InstrumentZoneModulators.push_back({ Modulator.SrcOperator, Modulator.DstOperator, Modulator.Amount, Modulator.AmountSource, Modulator.SourceTransform });
 
-                    #ifdef _TRACE
+                    #ifdef __TRACE
                     ::printf("%*s%5zu. Src Op: 0x%04X, Dst Op: %2d, Amount: %6d, Amount Source: 0x%04X, Source Transform: 0x%04X, Src: %s, Dst: %s\n", __TRACE_LEVEL * 2, "", i + 1,
                         Modulator.SrcOperator, Modulator.DstOperator, Modulator.Amount, Modulator.AmountSource, Modulator.SourceTransform,
                         DescribeModulatorController(Modulator.SrcOperator).c_str(),
@@ -416,7 +416,7 @@ void soundfont_reader_t::Process(const soundfont_reader_options_t & options, sou
 
                     sf.InstrumentZoneGenerators.push_back({ Generator.Operator, Generator.Amount });
 
-                    #ifdef _TRACE
+                    #ifdef __TRACE
                     ::printf("%*s%5zu. Operator: 0x%04X, Amount: 0x%04X, %s\n", __TRACE_LEVEL * 2, "", i + 1,
                         Generator.Operator, Generator.Amount,
                         DescribeGeneratorController(Generator.Operator).c_str());
@@ -446,7 +446,7 @@ void soundfont_reader_t::Process(const soundfont_reader_options_t & options, sou
                         SampleHeader.SampleRate, SampleHeader.Pitch, SampleHeader.PitchCorrection,
                         SampleHeader.SampleType, SampleHeader.SampleLink });
 
-                    #ifdef _TRACE
+                    #ifdef __TRACE
                     ::printf("%*s%5zu. \"%-20s\", %9d-%9d, Loop: %9d-%9d, %6dHz, Pitch: %3d, Pitch Correction: %3d, Type: 0x%04X, Link: %5d\n", __TRACE_LEVEL * 2, "", i + 1,
                         Name.c_str(), SampleHeader.Start, SampleHeader.End, SampleHeader.LoopStart, SampleHeader.LoopEnd,
                         SampleHeader.SampleRate, SampleHeader.Pitch, SampleHeader.PitchCorrection,
@@ -526,7 +526,7 @@ bool soundfont_reader_t::HandleIxxx(uint32_t chunkId, uint32_t chunkSize, soundf
 
     sf.Tags.insert({ Name, Text });
 
-    #ifdef _TRACE
+    #ifdef __TRACE
     ::printf("%*s%s: \"%s\"\n", __TRACE_LEVEL * 2, "", Name, Text.c_str());
     #endif
 

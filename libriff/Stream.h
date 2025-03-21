@@ -1,5 +1,5 @@
 
-/** $VER: Stream.h (2025.03.15) P. Stuer **/
+/** $VER: Stream.h (2025.03.19) P. Stuer **/
 
 #pragma once
 
@@ -21,9 +21,7 @@ namespace riff
 class stream_t
 {
 public:
-    virtual ~stream_t()
-    {
-    }
+    virtual ~stream_t() { }
 
     virtual void Close() noexcept = 0;
 
@@ -44,7 +42,7 @@ public:
 class file_stream_t : public stream_t
 {
 public:
-    file_stream_t() : _hFile(INVALID_HANDLE_VALUE)
+    file_stream_t() noexcept : _hFile(INVALID_HANDLE_VALUE)
     {
     }
 
@@ -69,7 +67,7 @@ protected:
 class memory_stream_t : public stream_t
 {
 public:
-    memory_stream_t() : _hFile(INVALID_HANDLE_VALUE), _hMap(), _Data(), _Curr(), _Tail()
+    memory_stream_t() noexcept : _hFile(INVALID_HANDLE_VALUE), _hMap(), _Data(), _Curr(), _Tail()
     {
     }
 

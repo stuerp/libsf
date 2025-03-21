@@ -1,5 +1,5 @@
 
-/** $VER: RIFFReader.h (2025.03.14) P. Stuer **/
+/** $VER: RIFFReader.h (2025.03.19) P. Stuer **/
 
 #pragma once
 
@@ -28,7 +28,7 @@ struct chunk_header_t
 class reader_t
 {
 public:
-    reader_t() : _Stream(), _Options(), _Header()
+    reader_t() noexcept : _Stream(), _Options(), _Header()
     {
     }
 
@@ -76,7 +76,7 @@ public:
     }
 
 protected:
-    virtual bool HasMandatory()
+    virtual bool HasMandatory() noexcept
     {
         return false;
     }

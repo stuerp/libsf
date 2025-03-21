@@ -1,5 +1,5 @@
 
-/** $VER: SoundFont.h (2025.03.14) P. Stuer **/
+/** $VER: SoundFont.h (2025.03.21) P. Stuer **/
 
 #pragma once
 
@@ -9,6 +9,8 @@
 
 namespace sf
 {
+
+#pragma warning(disable: 4820) // x bytes padding
 
 class soundfont_base_t
 {
@@ -133,5 +135,7 @@ public:
 
 private:
 };
+
+#pragma warning(default: 4820) // x bytes padding
 
 }

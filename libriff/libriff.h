@@ -14,7 +14,7 @@ extern uint32_t __TRACE_LEVEL;
 #define TRACE_CHUNK(id, size)   { char s[5]; *(uint32_t *) s = id; s[4] = 0; ::printf("%*s%s, %u bytes\n", __TRACE_LEVEL * 2, "", s, size); }
 #define TRACE_UNINDENT()        { __TRACE_LEVEL--; ::printf("%*s}\n", __TRACE_LEVEL * 2, ""); }
 
-#endif
+#else
 
 #define TRACE_RESET()           {  }
 #define TRACE_INDENT()          {  }
@@ -22,6 +22,8 @@ extern uint32_t __TRACE_LEVEL;
 #define TRACE_LIST(type, size)  {  }
 #define TRACE_CHUNK(id, size)   {  }
 #define TRACE_UNINDENT()        {  }
+
+#endif
 
 #include "RIFFReader.h"
 #include "Exception.h"

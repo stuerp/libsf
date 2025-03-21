@@ -36,6 +36,9 @@
     <ClInclude Include="SoundFont.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Win32Exception.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -45,6 +48,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="SoundFontReader.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Win32Exception.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

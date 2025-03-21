@@ -3,8 +3,11 @@
 
 #include "pch.h"
 
+#define __TRACE
+
 #include "DLSReader.h"
 #include "Exception.h"
+#include "Encoding.h"
 
 #include <functional>
 
@@ -60,7 +63,7 @@ void dls_reader_t::Process()
 
                 Read(&InstrumentCount, sizeof(InstrumentCount));
 
-                #ifdef _TRACE
+                #ifdef __TRACE
                 ::printf("%*s%d instruments\n", __TRACE_LEVEL * 2, "", InstrumentCount);
                 #endif
 
@@ -84,7 +87,7 @@ void dls_reader_t::Process()
                 Read(&Revision, sizeof(Revision));
                 Read(&Build, sizeof(Build));
 
-                #ifdef _TRACE
+                #ifdef __TRACE
                 ::printf("%*sVersion: %d.%d.%d.%d\n", __TRACE_LEVEL * 2, "", Major, Minor, Revision, Build);
                 #endif
 
@@ -109,7 +112,7 @@ void dls_reader_t::Process()
 
                 (void) ::StringFromGUID2(Id, Text, _countof(Text));
 
-                #ifdef _TRACE
+                #ifdef __TRACE
                 ::printf("%*sId: %s\n", __TRACE_LEVEL * 2, "", WideToUTF8(Text).c_str());
                 #endif
 
@@ -134,7 +137,7 @@ void dls_reader_t::Process()
 
                 bool IsPercussion = ((Bank & F_INSTRUMENT_DRUMS) != 0);
 
-                #ifdef _TRACE
+                #ifdef __TRACE
                 ::printf("%*sRegions: %d, Bank: CC0 0x%02X CC32 0x%02X (MMA %d), Is Percussion: %s, Program: %d\n", __TRACE_LEVEL * 2, "", RegionCount, (Bank >> 8) & 0x7F, Bank & 0x7F, (((Bank >> 8) & 0x7F) * 128 + (Bank & 0x7F)), IsPercussion ? "true" : "false", Patch & 0x7F);
                 #endif
 
@@ -162,7 +165,7 @@ void dls_reader_t::Process()
                 Read(&NonExclusive, sizeof(NonExclusive));
                 Read(&KeyGroup, sizeof(KeyGroup));
 
-                #ifdef _TRACE
+                #ifdef __TRACE
                 ::printf("%*sKey: %3d - %3d, Velocity: %3d - %3d, Non exclusive: %d, Key Group: %d\n", __TRACE_LEVEL * 2, "", LowKey, HighKey, LowVelocity, HighVelocity, NonExclusive, KeyGroup);
                 #endif
 
@@ -193,7 +196,7 @@ void dls_reader_t::Process()
                     Read(&Options, sizeof(Options));
                     Read(&LoopCount, sizeof(LoopCount));
 
-                    #ifdef _TRACE
+                    #ifdef __TRACE
                     ::printf("%*sUnityNote: %d, FineTune: %d, Attenuation: %d, Options: 0x%08X, Loops: %d\n", __TRACE_LEVEL * 2, "", UnityNote, FineTune, Attenuation, Options, LoopCount);
                     #endif
 
@@ -217,7 +220,7 @@ void dls_reader_t::Process()
                         Read(&LoopStart, sizeof(LoopStart));
                         Read(&LoopLength, sizeof(LoopLength));
 
-                        #ifdef _TRACE
+                        #ifdef __TRACE
                         ::printf("%*sLoop Type: %d, Start: %6d, Length: %6d\n", __TRACE_LEVEL * 2, "", LoopType, LoopStart, LoopLength);
                         #endif
 
@@ -249,7 +252,7 @@ void dls_reader_t::Process()
                 Read(&Channel, sizeof(Channel));
                 Read(&TableIndex, sizeof(TableIndex));
 
-                #ifdef _TRACE
+                #ifdef __TRACE
                 ::printf("%*sOptions: 0x%08X, PhaseGroup: %d, Channel: %d, TableIndex: %d\n", __TRACE_LEVEL * 2, "", Options, PhaseGroup, Channel, TableIndex);
                 #endif
 
@@ -269,7 +272,7 @@ void dls_reader_t::Process()
                 Read(&Size, sizeof(Size));
                 Read(&ConnectionBlockCount, sizeof(ConnectionBlockCount));
 
-                #ifdef _TRACE
+                #ifdef __TRACE
                 ::printf("%*sConnection Blocks: %d\n", __TRACE_LEVEL * 2, "", ConnectionBlockCount);
                 #endif
 
@@ -290,7 +293,7 @@ void dls_reader_t::Process()
                         Read(&Transform, sizeof(Transform));
                         Read(&Scale, sizeof(Scale));
 
-                        #ifdef _TRACE
+                        #ifdef __TRACE
                         ::printf("%*sSource: %d, Control: %3d, Destination: %3d, Transform: %d, Scale: %10d\n", __TRACE_LEVEL * 2, "", Source, Control, Destination, Transform, Scale);
                         #endif
 
@@ -316,7 +319,7 @@ void dls_reader_t::Process()
                 Read(&Size, sizeof(Size));
                 Read(&ConnectionBlockCount, sizeof(ConnectionBlockCount));
 
-                #ifdef _TRACE
+                #ifdef __TRACE
                 ::printf("%*sConnection Blocks: %d\n", __TRACE_LEVEL * 2, "", ConnectionBlockCount);
                 #endif
 
@@ -337,7 +340,7 @@ void dls_reader_t::Process()
                         Read(&Transform, sizeof(Transform));
                         Read(&Scale, sizeof(Scale));
 
-                        #ifdef _TRACE
+                        #ifdef __TRACE
                         ::printf("%*sSource: %d, Control: %3d, Destination: %3d, Transform: %d, Scale: %11d\n", __TRACE_LEVEL * 2, "", Source, Control, Destination, Transform, Scale);
                         #endif
 
@@ -363,7 +366,7 @@ void dls_reader_t::Process()
                 Read(&Size, sizeof(Size));
                 Read(&CueCount, sizeof(CueCount));
 
-                #ifdef _TRACE
+                #ifdef __TRACE
                 ::printf("%*sCues: %d\n", __TRACE_LEVEL * 2, "", CueCount);
                 #endif
 
@@ -376,7 +379,7 @@ void dls_reader_t::Process()
 
                         Read(&Offset, sizeof(Offset));
 
-                        #ifdef _TRACE
+                        #ifdef __TRACE
                         ::printf("%*sOffset: %8d\n", __TRACE_LEVEL * 2, "", Offset);
                         #endif
 
@@ -413,7 +416,7 @@ void dls_reader_t::Process()
 
                 Size -= sizeof(Common);
 
-                #ifdef _TRACE
+                #ifdef __TRACE
                 ::printf("%*sFormat: 0x%04X, Channels: %d, SamplesPerSec: %d, AvgBytesPerSec: %d, BlockAlign: %d\n", __TRACE_LEVEL * 2, "",
                     Common.FormatTag, Common.Channels, Common.SamplesPerSec, Common.AvgBytesPerSec, Common.BlockAlign);
                 #endif
@@ -426,7 +429,9 @@ void dls_reader_t::Process()
 
                     Size -= sizeof(BitsPerSample);
 
+                    #ifdef __TRACE
                     ::printf("%*sBitsPerSample: %d\n", __TRACE_LEVEL * 2, "", BitsPerSample);
+                    #endif
                 }
                 else
                     throw sf::exception("Unknown wave data format");
@@ -517,7 +522,7 @@ bool dls_reader_t::HandleIxxx(uint32_t chunkId, uint32_t chunkSize)
 
     Text[chunkSize] = 0;
 
-    #ifdef _TRACE
+    #ifdef __TRACE
     ::printf("%*s%s: \"%s\"\n", __TRACE_LEVEL * 2, "", Name, Text.c_str());
     #endif
 

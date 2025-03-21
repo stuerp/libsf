@@ -160,6 +160,7 @@
     <ClCompile Include="OS.cpp" />
     <ClCompile Include="RIFFReader.cpp" />
     <ClCompile Include="Stream.cpp" />
+    <ClCompile Include="Win32Exception.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Encoding.h" />
@@ -171,6 +172,7 @@
     <ClInclude Include="OS.h" />
     <ClInclude Include="Exception.h" />
     <ClInclude Include="Stream.h" />
+    <ClInclude Include="Win32Exception.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

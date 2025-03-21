@@ -3,8 +3,6 @@
 
 #include "pch.h"
 
-#include "framework.h"
-
 #include <pathcch.h>
 #include <shlwapi.h>
 
@@ -12,6 +10,8 @@
 #pragma comment(lib, "shlwapi")
 
 #include <libsf.h>
+
+#include "Encoding.h"
 
 static void ProcessDirectory(const std::wstring & directoryPath, const std::wstring & searchPattern);
 static void ProcessFile(const std::wstring & filePath, uint64_t fileSize);
@@ -34,7 +34,7 @@ int wmain(int argc, wchar_t * argv[])
 
     if (!::PathFileExistsW(FilePath.c_str()))
     {
-        ::printf("Failed to access \"%s\": path does not exist.\n", WideToUTF8(FilePath).c_str());
+        ::printf("Failed to access \"%s\": path does not exist.\n", ::WideToUTF8(FilePath).c_str());
         return -1;
     }
 
@@ -42,7 +42,7 @@ int wmain(int argc, wchar_t * argv[])
 
     if (::GetFullPathNameW(FilePath.c_str(), _countof(DirectoryPath), DirectoryPath, nullptr) == 0)
     {
-        ::printf("Failed to expand \"%s\": Error %u.\n", WideToUTF8(FilePath).c_str(), (uint32_t) ::GetLastError());
+        ::printf("Failed to expand \"%s\": Error %u.\n", ::WideToUTF8(FilePath).c_str(), (uint32_t) ::GetLastError());
         return -1;
     }
 
@@ -63,7 +63,7 @@ int wmain(int argc, wchar_t * argv[])
 /// </summary>
 static void ProcessDirectory(const std::wstring & directoryPath, const std::wstring & searchPattern)
 {
-    ::printf("\"%s\"\n", WideToUTF8(directoryPath).c_str());
+    ::printf("\"%s\"\n", ::WideToUTF8(directoryPath).c_str());
 
     WCHAR PathName[MAX_PATH];
 
@@ -112,7 +112,7 @@ static void ProcessDirectory(const std::wstring & directoryPath, const std::wstr
 /// </summary>
 static void ProcessFile(const std::wstring & filePath, uint64_t fileSize)
 {
-    ::printf("\n\"%s\", %llu bytes\n", WideToUTF8(filePath).c_str(), fileSize);
+    ::printf("\n\"%s\", %llu bytes\n", ::WideToUTF8(filePath).c_str(), fileSize);
 
     const WCHAR * FileExtension;
 

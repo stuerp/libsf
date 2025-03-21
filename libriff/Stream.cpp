@@ -1,9 +1,11 @@
 
-/** $VER: Stream.cpp (2025.03.14) P. Stuer **/
+/** $VER: Stream.cpp (2025.03.20) P. Stuer **/
 
 #include "pch.h"
 
 #include "Stream.h"
+#include "Encoding.h"
+#include "Win32Exception.h"
 
 namespace riff
 {
@@ -16,7 +18,7 @@ bool file_stream_t::Open(const std::wstring & filePath)
     _hFile = ::CreateFileW(filePath.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, 0);
 
     if (_hFile == INVALID_HANDLE_VALUE)
-        throw riff::win32_exception();
+        throw win32_exception(::FormatText("Failed to open file \"%s\" for reading", filePath.c_str()));
 
     return true;
 }
@@ -41,10 +43,10 @@ void file_stream_t::Read(void * data, uint64_t size)
     DWORD BytesRead;
 
     if (::ReadFile(_hFile, data, (DWORD) size, &BytesRead, nullptr) == 0)
-        throw riff::win32_exception();
+        throw win32_exception(::FormatText("Failed to read %llu bytes", size));
 
     if (BytesRead != size)
-        throw riff::win32_exception("Insufficient data");
+        throw win32_exception(::FormatText("Failed to read %llu bytes, got %u bytes", size, BytesRead));
 }
 
 /// <summary>
@@ -60,7 +62,7 @@ void file_stream_t::Skip(uint64_t size)
     FilePointer.QuadPart = (LONGLONG) size;
 
     if (::SetFilePointerEx(_hFile, FilePointer, (LARGE_INTEGER *) &FilePointer, FILE_CURRENT) == 0)
-        throw riff::win32_exception("Insufficient data");
+        throw win32_exception(::FormatText("Failed to skip %llu bytes", size));
 }
 
 /// <summary>
@@ -71,12 +73,12 @@ bool memory_stream_t::Open(const std::wstring & filePath, uint64_t offset, uint6
     _hFile = ::CreateFileW(filePath.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, 0);
 
     if (_hFile == INVALID_HANDLE_VALUE)
-        throw riff::win32_exception();
+        throw win32_exception(::FormatText("Failed to open file \"%s\" for reading", filePath.c_str()));
 
     _hMap = ::CreateFileMappingW(_hFile, NULL, PAGE_READONLY, 0, 0, NULL);
 
     if (_hMap == NULL)
-        throw riff::win32_exception();
+        throw win32_exception("Failed to create file mapping");
 
     {
         ULARGE_INTEGER li = { };
@@ -86,7 +88,7 @@ bool memory_stream_t::Open(const std::wstring & filePath, uint64_t offset, uint6
         _Data = (uint8_t *) ::MapViewOfFile(_hMap, FILE_MAP_READ, li.HighPart, li.LowPart, (SIZE_T) size);
 
         if (_Data == nullptr)
-            throw riff::win32_exception();
+            throw win32_exception("Failed to map view of file");
     }
 
     if (size == 0)
@@ -94,7 +96,7 @@ bool memory_stream_t::Open(const std::wstring & filePath, uint64_t offset, uint6
         LARGE_INTEGER li = { };
 
         if (!::GetFileSizeEx(_hFile, &li))
-            throw riff::win32_exception();
+            throw win32_exception("Failed to get file size");
 
         size = (uint64_t) li.QuadPart;
     }

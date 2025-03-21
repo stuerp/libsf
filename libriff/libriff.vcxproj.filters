@@ -7,6 +7,7 @@
     <ClCompile Include="Encoding.cpp" />
     <ClCompile Include="libriff.cpp" />
     <ClCompile Include="Stream.cpp" />
+    <ClCompile Include="Win32Exception.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="RIFFReader.h" />
@@ -18,5 +19,6 @@
     <ClInclude Include="libriff.h" />
     <ClInclude Include="Encoding.h" />
     <ClInclude Include="Stream.h" />
+    <ClInclude Include="Win32Exception.h" />
   </ItemGroup>
 </Project>

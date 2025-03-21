@@ -161,6 +161,7 @@
     <ClInclude Include="pch.h" />
     <ClInclude Include="SoundFontReader.h" />
     <ClInclude Include="SoundFont.h" />
+    <ClInclude Include="Win32Exception.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DLSReader.cpp" />
@@ -170,6 +171,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="SoundFontReader.cpp" />
+    <ClCompile Include="Win32Exception.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\LibRIFF\LibRIFF.vcxproj">
