@@ -1,5 +1,5 @@
 
-/** $VER: FOURCC.h (2024.09.15) P. Stuer **/
+/** $VER: FOURCC.h (2025.03.22) P. Stuer **/
 
 #pragma once
 
@@ -40,4 +40,6 @@
 #define FOURCC_ITCH mmioFOURCC('I','T','C','H')
 
 #define FOURCC_DISP mmioFOURCC('D','I','S','P') // Microsoft
+
+#define FOURCC_isng mmioFOURCC('i','s','n','g')
 #define FOURCC_SMPL mmioFOURCC('s','m','p','l') // Digidesign, Sonic Foundary, Turtle Beach

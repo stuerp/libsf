@@ -1,5 +1,5 @@
 ﻿
-/** $VER: main.cpp (2025.03.14) P. Stuer **/
+/** $VER: main.cpp (2025.03.22) P. Stuer **/
 
 #include "pch.h"
 
@@ -15,6 +15,8 @@
 
 static void ProcessDirectory(const std::wstring & directoryPath, const std::wstring & searchPattern);
 static void ProcessFile(const std::wstring & filePath, uint64_t fileSize);
+static void ProcessSF(const std::wstring & filePath);
+static void ProcessDLS(const std::wstring & filePath);
 
 std::wstring FilePath;
 
@@ -124,132 +126,175 @@ static void ProcessFile(const std::wstring & filePath, uint64_t fileSize)
     try
     {
         if (::_wcsicmp(FileExtension, L".dls") == 0)
-        {
-            riff::file_stream_t fs;
-
-            if (fs.Open(filePath))
-            {
-                sf::dls_reader_t dr;
-
-                if (dr.Open(&fs, riff::reader_t::option_t::None))
-                    dr.Process();
-
-                fs.Close();
-            }
-        }
+            ProcessDLS(filePath);
         else
         if ((::_wcsicmp(FileExtension, L".sf2") == 0) || (::_wcsicmp(FileExtension, L".sf3") == 0))
-        {
-            sf::soundfont_t sf;
-
-            riff::memory_stream_t ms;
-
-            if (ms.Open(filePath, 0, 0))
-            {
-                sf::soundfont_reader_t sr;
-
-                if (sr.Open(&ms, riff::reader_t::option_t::None))
-                    sr.Process({ false }, sf);
-
-                ms.Close();
-            }
-
-            #ifdef _DEBUG
-            uint32_t __TRACE_LEVEL = 0;
-
-            ::printf("%*sSoundFont specification version: %d.%d\n", __TRACE_LEVEL * 2, "", sf.Major, sf.Minor);
-            ::printf("%*sSound Engine: %s\n", __TRACE_LEVEL * 2, "", sf.SoundEngine.c_str());
-            ::printf("%*sSound Data ROM: %s v%d.%d\n", __TRACE_LEVEL * 2, "", sf.ROM.c_str(), sf.ROMMajor, sf.ROMMinor);
-
-            {
-                ::printf("%*sTags\n", __TRACE_LEVEL * 2, "");
-                __TRACE_LEVEL++;
-
-                size_t i = 0;
-
-                for (const auto & Item : sf.Tags)
-                {
-                    ::printf("%*s%s: %s\n", __TRACE_LEVEL * 2, "", Item.first.c_str(), Item.second.c_str());
-                }
-
-                __TRACE_LEVEL--;
-            }
-
-            ::printf("%*sSample Data: %zu bytes\n", __TRACE_LEVEL * 2, "", sf.SampleData.size());
-
-            {
-                ::printf("%*sPresets\n", __TRACE_LEVEL * 2, "");
-                __TRACE_LEVEL++;
-
-                size_t i = 0;
-
-                for (const auto & Preset : sf.Presets)
-                {
-                    ::printf("%*s%5zu. %-20s, Zone %6d, Bank %3d, Preset %3d\n", __TRACE_LEVEL * 2, "", ++i, Preset.Name.c_str(), Preset.ZoneIndex, Preset.Bank, Preset.Program);
-                }
-
-                __TRACE_LEVEL--;
-            }
-
-            {
-                ::printf("%*sPreset Zones: %zu\n", __TRACE_LEVEL * 2, "", sf.PresetZones.size());
-            }
-
-            {
-                ::printf("%*sPreset Zone Modulators: %zu\n", __TRACE_LEVEL * 2, "", sf.PresetZoneModulators.size());
-            }
-
-            {
-                ::printf("%*sPreset Zone Generators: %zu\n", __TRACE_LEVEL * 2, "", sf.PresetZoneGenerators.size());
-            }
-
-            {
-                ::printf("%*sInstruments\n", __TRACE_LEVEL * 2, "");
-                __TRACE_LEVEL++;
-
-                size_t i = 0;
-
-                for (const auto & Instrument : sf.Instruments)
-                {
-                    ::printf("%*s%5zu. %-20s, Zone %6d\n", __TRACE_LEVEL * 2, "", ++i, Instrument.Name.c_str(), Instrument.ZoneIndex);
-                }
-
-                __TRACE_LEVEL--;
-            }
-
-            {
-                ::printf("%*sInstrument Zones: %zu\n", __TRACE_LEVEL * 2, "", sf.InstrumentZones.size());
-            }
-
-            {
-                ::printf("%*sInstrument Zone Modulators: %zu\n", __TRACE_LEVEL * 2, "", sf.InstrumentZoneModulators.size());
-            }
-
-            {
-                ::printf("%*sInstrument Zone Generators: %zu\n", __TRACE_LEVEL * 2, "", sf.InstrumentZoneGenerators.size());
-            }
-
-            {
-                ::printf("%*sSamples\n", __TRACE_LEVEL * 2, "");
-                __TRACE_LEVEL++;
-
-                size_t i = 0;
-
-                for (const auto & Sample : sf.Samples)
-                {
-                    ::printf("%*s%5zu. \"%-20s\", %9d-%9d, Loop: %9d-%9d, %6dHz, Pitch: %3d, Pitch Correction: %3d, Type: 0x%04X, Link: %5d\n", __TRACE_LEVEL * 2, "", ++i,
-                        Sample.Name.c_str(), Sample.Start, Sample.End, Sample.LoopStart, Sample.LoopEnd,
-                        Sample.SampleRate, Sample.Pitch, Sample.PitchCorrection,
-                        Sample.SampleType, Sample.SampleLink);
-                }
-
-                __TRACE_LEVEL--;
-            }
-            #endif
-        }
+            ProcessSF(filePath);
     }
     catch (sf::exception e)
     {
-        ::printf("SoundFont exception: %s\n\n", e.what());
+        ::printf("Failed to process sound font: %s\n\n", e.what());
     }
+}
+
+/// <summary>
+/// Processes a DLS sound font.
+/// </summary>
+static void ProcessDLS(const std::wstring & filePath)
+{
+    sf::dls::soundfont_t sf;
+
+    riff::file_stream_t fs;
+
+    if (fs.Open(filePath))
+    {
+        sf::dls::reader_t dr;
+
+        if (dr.Open(&fs, riff::reader_t::option_t::None))
+            dr.Process({ false }, sf);
+
+        fs.Close();
+    }
+
+#ifdef _DEBUG
+    uint32_t __TRACE_LEVEL = 0;
+
+    ::printf("%*sContent Version: %d.%d.%d.%d\n", __TRACE_LEVEL * 2, "", sf.Major, sf.Minor, sf.Revision, sf.Build);
+
+    ::printf("%*s%llu instruments\n", __TRACE_LEVEL * 2, "", sf.Instruments.size());
+
+    size_t i = 1;
+
+    for (const auto & Instrument : sf.Instruments)
+        ::printf("%*s%4llu. Regions: %3llu, Articulators: %3llu, Bank: CC0 0x%02X CC32 0x%02X (MMA %5d), Program: %3d, Is Percussion: %s\n", __TRACE_LEVEL * 2, "", i++,
+            Instrument.Regions.size(), Instrument.Articulators.size(), Instrument.BankMSB, Instrument.BankLSB, ((uint16_t) Instrument.BankMSB << 7) + Instrument.BankLSB, Instrument.Program, Instrument.IsPercussion ? "true" : "false");
+
+    ::printf("%*s%llu waves\n", __TRACE_LEVEL * 2, "", sf.Waves.size());
+
+    i = 1;
+
+    for (const auto & Wave : sf.Waves)
+        ::printf("%*s%4llu. Channels: %d, %5d samples/s, %5d avg. bytes/s, Block Align: %5d\n", __TRACE_LEVEL * 2, "", i++,
+            Wave.Channels, Wave.SamplesPerSec, Wave.AvgBytesPerSec, Wave.BlockAlign);
+
+    ::printf("%*sInfo:\n", __TRACE_LEVEL * 2, "");
+
+    i = 1;
+
+    for (const auto & [ Name, Value ] : sf.Infos)
+        ::printf("%*s%4llu. %s: %s\n", __TRACE_LEVEL * 2, "", i++, Name.c_str(), Value.c_str());
+#endif
+}
+
+/// <summary>
+/// Processes an SF sound font.
+/// </summary>
+static void ProcessSF(const std::wstring & filePath)
+{
+    sf::soundfont_t sf;
+
+    riff::memory_stream_t ms;
+
+    if (ms.Open(filePath, 0, 0))
+    {
+        sf::soundfont_reader_t sr;
+
+        if (sr.Open(&ms, riff::reader_t::option_t::None))
+            sr.Process({ false }, sf);
+
+        ms.Close();
+    }
+
+#ifdef _DEBUG
+    uint32_t __TRACE_LEVEL = 0;
+
+    ::printf("%*sSoundFont specification version: %d.%d\n", __TRACE_LEVEL * 2, "", sf.Major, sf.Minor);
+    ::printf("%*sSound Engine: %s\n", __TRACE_LEVEL * 2, "", sf.SoundEngine.c_str());
+    ::printf("%*sSound Data ROM: %s v%d.%d\n", __TRACE_LEVEL * 2, "", sf.ROM.c_str(), sf.ROMMajor, sf.ROMMinor);
+
+    {
+        ::printf("%*sTags\n", __TRACE_LEVEL * 2, "");
+        __TRACE_LEVEL++;
+
+        size_t i = 0;
+
+        for (const auto & Item : sf.Tags)
+        {
+            ::printf("%*s%s: %s\n", __TRACE_LEVEL * 2, "", Item.first.c_str(), Item.second.c_str());
+        }
+
+        __TRACE_LEVEL--;
+    }
+
+    ::printf("%*sSample Data: %zu bytes\n", __TRACE_LEVEL * 2, "", sf.SampleData.size());
+
+    {
+        ::printf("%*sPresets\n", __TRACE_LEVEL * 2, "");
+        __TRACE_LEVEL++;
+
+        size_t i = 0;
+
+        for (const auto & Preset : sf.Presets)
+        {
+            ::printf("%*s%5zu. %-20s, Zone %6d, Bank %3d, Preset %3d\n", __TRACE_LEVEL * 2, "", ++i, Preset.Name.c_str(), Preset.ZoneIndex, Preset.Bank, Preset.Program);
+        }
+
+        __TRACE_LEVEL--;
+    }
+
+    {
+        ::printf("%*sPreset Zones: %zu\n", __TRACE_LEVEL * 2, "", sf.PresetZones.size());
+    }
+
+    {
+        ::printf("%*sPreset Zone Modulators: %zu\n", __TRACE_LEVEL * 2, "", sf.PresetZoneModulators.size());
+    }
+
+    {
+        ::printf("%*sPreset Zone Generators: %zu\n", __TRACE_LEVEL * 2, "", sf.PresetZoneGenerators.size());
+    }
+
+    {
+        ::printf("%*sInstruments\n", __TRACE_LEVEL * 2, "");
+        __TRACE_LEVEL++;
+
+        size_t i = 0;
+
+        for (const auto & Instrument : sf.Instruments)
+        {
+            ::printf("%*s%5zu. %-20s, Zone %6d\n", __TRACE_LEVEL * 2, "", ++i, Instrument.Name.c_str(), Instrument.ZoneIndex);
+        }
+
+        __TRACE_LEVEL--;
+    }
+
+    {
+        ::printf("%*sInstrument Zones: %zu\n", __TRACE_LEVEL * 2, "", sf.InstrumentZones.size());
+    }
+
+    {
+        ::printf("%*sInstrument Zone Modulators: %zu\n", __TRACE_LEVEL * 2, "", sf.InstrumentZoneModulators.size());
+    }
+
+    {
+        ::printf("%*sInstrument Zone Generators: %zu\n", __TRACE_LEVEL * 2, "", sf.InstrumentZoneGenerators.size());
+    }
+
+    {
+        ::printf("%*sSamples\n", __TRACE_LEVEL * 2, "");
+        __TRACE_LEVEL++;
+
+        size_t i = 0;
+
+        for (const auto & Sample : sf.Samples)
+        {
+            ::printf("%*s%5zu. \"%-20s\", %9d-%9d, Loop: %9d-%9d, %6dHz, Pitch: %3d, Pitch Correction: %3d, Type: 0x%04X, Link: %5d\n", __TRACE_LEVEL * 2, "", ++i,
+                Sample.Name.c_str(), Sample.Start, Sample.End, Sample.LoopStart, Sample.LoopEnd,
+                Sample.SampleRate, Sample.Pitch, Sample.PitchCorrection,
+                Sample.SampleType, Sample.SampleLink);
+        }
+
+        __TRACE_LEVEL--;
+    }
+#endif
 }

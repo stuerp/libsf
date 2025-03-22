@@ -164,6 +164,9 @@
       <Project>{f228afa2-be24-4416-9f4c-5bd927f0aa0f}</Project>
     </ProjectReference>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="LICENSE" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

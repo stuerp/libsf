@@ -1,11 +1,11 @@
 
-/** $VER: DLSReader.h (2025.03.15) P. Stuer **/
+/** $VER: DLSReader.h (2025.03.22) P. Stuer - Implements a reader for a DLS-compliant sound font. **/
 
 #pragma once
 
 #include "pch.h"
 
-#include "SoundFont.h"
+#include "DLS.h"
 
 #include "..\libriff\libriff.h"
 
@@ -29,33 +29,47 @@
 #define FOURCC_PTBL mmioFOURCC('p','t','b','l')                     // Pool Table
 #define FOURCC_VERS mmioFOURCC('v','e','r','s')                     // Version (Optional)
 #define FOURCC_WVPL mmioFOURCC('w','v','p','l')                     // Wave Pool
-//  #define FOURCC_WAVE mmioFOURCC('w','a','v','e')                 // Wave
+    #define FOURCC_wave mmioFOURCC('w','a','v','e')                 // Wave
 //      #define FOURCC_WAVE mmioFOURCC('w','s','m','p')             // Wave Sample
         #define FOURCC_FMT  mmioFOURCC('f','m','t',' ')             // Format of the wave data
         #define FOURCC_DATA mmioFOURCC('d','a','t','a')             // Wave data
 #define FOURCC_COLH mmioFOURCC('c','o','l','h')                     // Collection Header
 
-namespace sf
+namespace sf::dls
 {
 
-// "insh" chunk
-struct _MIDILOCALE
+struct reader_options_t
 {
-    ULONG ulBank;
-    ULONG ulInstrument;
+    bool ReadSampleData = true;
 };
 
 constexpr uint32_t F_INSTRUMENT_DRUMS = 0x08000000;
 
-class dls_reader_t : public riff::reader_t
+class reader_t : public riff::reader_t
 {
 public:
-    dls_reader_t() { }
+    reader_t() { }
 
-    void Process();
+    void Process(const reader_options_t & options, soundfont_t & dls);
 
 private:
-    bool HandleIxxx(uint32_t chunkId, uint32_t chunkSize);
+    void ReadInstruments(const riff::chunk_header_t & ch, std::vector<instrument_t> & instruments);
+    void ReadInstrument(const riff::chunk_header_t & ch, instrument_t & instrument);
+
+    void ReadRegions(const riff::chunk_header_t & ch, std::vector<region_t> & regions);
+    void ReadRegion(const riff::chunk_header_t & ch, region_t & region);
+
+    void ReadArticulators(const riff::chunk_header_t & ch, std::vector<articulator_t> & articulators);
+
+    void ReadWaves(const riff::chunk_header_t & ch, std::vector<wave_t> & waves);
+    void ReadWave(const riff::chunk_header_t & ch, wave_t & wave);
+
+    void ReadWaveSample(const riff::chunk_header_t & ch, wave_sample_t & ws);
+
+    bool HandleIxxx(uint32_t chunkId, uint32_t chunkSize, std::unordered_map<std::string, std::string> & infos);
+
+private:
+    reader_options_t _Options;
 };
 
 }

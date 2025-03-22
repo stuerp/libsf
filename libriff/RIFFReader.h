@@ -1,5 +1,5 @@
 
-/** $VER: RIFFReader.h (2025.03.19) P. Stuer **/
+/** $VER: RIFFReader.h (2025.03.22) P. Stuer **/
 
 #pragma once
 
@@ -50,6 +50,14 @@ public:
 
     template <typename T> bool ReadChunks(T&& processChunk);
     template <typename T> bool ReadChunks(uint32_t parentID, uint32_t parentSize, T&& processChunk);
+
+    /// <summary>
+    /// Reads a value.
+    /// </summary>
+    template <typename T> void Read(T & data)
+    {
+        _Stream->Read(&data, sizeof(data));
+    }
 
     /// <summary>
     /// Reads a number of bytes into a buffer.

@@ -1,5 +1,5 @@
 
-/** $VER: SFxReader.h (2025.03.15) P. Stuer **/
+/** $VER: SoundFontReader.h (2025.03.22) P. Stuer **/
 
 #pragma once
 

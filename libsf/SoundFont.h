@@ -1,5 +1,5 @@
 
-/** $VER: SoundFont.h (2025.03.21) P. Stuer **/
+/** $VER: SoundFont.h (2025.03.22) P. Stuer - SoundFont data types **/
 
 #pragma once
 
@@ -7,14 +7,12 @@
 
 #include <map>
 
+#include "SoundFontBase.h"
+
 namespace sf
 {
 
 #pragma warning(disable: 4820) // x bytes padding
-
-class soundfont_base_t
-{
-};
 
 struct preset_t
 {
@@ -99,6 +97,9 @@ enum SampleTypes
     RomLinkedSample = 0x8008
 };
 
+/// <summary>
+/// Represents an SF2/SF3-compliant sound font.
+/// </summary>
 class soundfont_t : public soundfont_base_t
 {
 public:
@@ -126,14 +127,6 @@ public:
     std::vector<uint8_t> SampleData;
 
     std::map<std::string, std::string> Tags;
-};
-
-class dls_t : public soundfont_base_t
-{
-public:
-    dls_t() { }
-
-private:
 };
 
 #pragma warning(default: 4820) // x bytes padding

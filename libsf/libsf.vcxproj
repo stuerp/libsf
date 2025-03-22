@@ -154,11 +154,13 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="DLS.h" />
     <ClInclude Include="DLSReader.h" />
     <ClInclude Include="Exception.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="libsf.h" />
     <ClInclude Include="pch.h" />
+    <ClInclude Include="SoundFontBase.h" />
     <ClInclude Include="SoundFontReader.h" />
     <ClInclude Include="SoundFont.h" />
     <ClInclude Include="Win32Exception.h" />

@@ -1,9 +1,10 @@
 
-/** $VER: DLSReader.cpp (2025.03.14) P. Stuer **/
+/** $VER: DLSReader.cpp (2025.03.22) P. Stuer - Implements a reader for a DLS-compliant sound font. **/
 
 #include "pch.h"
 
-#define __TRACE
+//#define __TRACE
+//#define __DEEP_TRACE
 
 #include "DLSReader.h"
 #include "Exception.h"
@@ -11,13 +12,26 @@
 
 #include <functional>
 
-using namespace sf;
+using namespace sf::dls;
+
+#pragma region Internal
+
+// "insh" chunk
+struct _MIDILOCALE
+{
+    ULONG ulBank;
+    ULONG ulInstrument;
+};
+
+#pragma endregion
 
 /// <summary>
-/// Processes the complete SoundFont.
+/// Processes the complete sound font.
 /// </summary>
-void dls_reader_t::Process()
+void reader_t::Process(const reader_options_t & options, soundfont_t & dls)
 {
+    _Options = options;
+
     TRACE_RESET();
     TRACE_INDENT();
 
@@ -31,39 +45,57 @@ void dls_reader_t::Process()
     TRACE_FORM(FormType);
     TRACE_INDENT();
 
-    std::function<bool(const riff::chunk_header_t & ch)> ChunkHandler = [this, &ChunkHandler](const riff::chunk_header_t & ch) -> bool
+    std::function<bool(const riff::chunk_header_t & ch)> ChunkHandler = [this, &options, &dls, &ChunkHandler](const riff::chunk_header_t & ch) -> bool
     {
         switch (ch.Id)
         {
+            // A LIST chunk contains an ordered sequence of subchunks.
             case FOURCC_LIST:
             {
                 uint32_t ListType;
 
-                if (ch.Size < sizeof(ListType))
-                    throw sf::exception("Invalid list chunk");
-
-                Read(&ListType, sizeof(ListType));
+                Read(ListType);
 
                 TRACE_LIST(ListType, ch.Size);
                 TRACE_INDENT();
 
-                ReadChunks(ch.Id, ch.Size - sizeof(ListType), ChunkHandler);
+                switch (ListType)
+                {
+                    // Instrument List
+                    case FOURCC_LINS:
+                    {
+                        ReadInstruments(ch, dls.Instruments);
+                        break;
+                    }
+
+                    // Wave Pool
+                    case FOURCC_WVPL:
+                    {
+                        ReadWaves(ch, dls.Waves);
+                        break;
+                    }
+
+                    default:
+                        ReadChunks(ch.Id, ch.Size - sizeof(ListType), ChunkHandler);
+                }
 
                 TRACE_UNINDENT();
                 break;
             }
 
+            // The Collection Header chunk defines an instrument collection.
             case FOURCC_COLH:
             {
-                // The Collection Header chunk defines an instrument collection.
                 TRACE_CHUNK(ch.Id, ch.Size);
                 TRACE_INDENT();
 
-                uint32_t InstrumentCount;
+                uint32_t InstrumentCount; // cInstruments, Specifies the count of instruments in this collection, and indicates the number of instrument chunks in the ‘lins’ list.
 
-                Read(&InstrumentCount, sizeof(InstrumentCount));
+                Read(InstrumentCount);
 
-                #ifdef __TRACE
+                dls.Instruments.reserve(InstrumentCount);
+
+                #ifdef __DEEP_TRACE
                 ::printf("%*s%d instruments\n", __TRACE_LEVEL * 2, "", InstrumentCount);
                 #endif
 
@@ -71,23 +103,24 @@ void dls_reader_t::Process()
                 break;
             }
 
+            // The Version chunk defines an optional version stamp within a collection. It indicates the version of the contents of the file, not the DLS specification level.
             case FOURCC_VERS:
             {
-                // The Version chunk defines an optional version stamp within a collection. It indicates the version of the contents of the file, not the DLS specification level.
                 TRACE_CHUNK(ch.Id, ch.Size);
                 TRACE_INDENT();
 
-                uint16_t Major;
-                uint16_t Minor;
-                uint16_t Revision;
-                uint16_t Build;
+                uint32_t dwVersionMS;
+                uint32_t dwVersionLS;
 
-                Read(&Major, sizeof(Major));
-                Read(&Minor, sizeof(Minor));
-                Read(&Revision, sizeof(Revision));
-                Read(&Build, sizeof(Build));
+                Read(dwVersionMS);
+                Read(dwVersionLS);
 
-                #ifdef __TRACE
+                dls.Major = HIWORD(dwVersionMS);
+                dls.Minor = LOWORD(dwVersionMS);
+                dls.Revision = HIWORD(dwVersionLS);
+                dls.Build = LOWORD(dwVersionMS);
+
+                #ifdef __DEEP_TRACE
                 ::printf("%*sVersion: %d.%d.%d.%d\n", __TRACE_LEVEL * 2, "", Major, Minor, Revision, Build);
                 #endif
 
@@ -95,9 +128,9 @@ void dls_reader_t::Process()
                 break;
             }
 
+            // The DLSID chunk defines an optional globally unique identifier (DLSID) for a complete <DLS-form> or for an element within it.
             case FOURCC_DLID:
             {
-                // The DLSID chunk defines an optional globally unique identifier (DLSID) for a complete <DLS-form> or for an element within it.
                 TRACE_CHUNK(ch.Id, ch.Size);
                 TRACE_INDENT();
 
@@ -112,7 +145,7 @@ void dls_reader_t::Process()
 
                 (void) ::StringFromGUID2(Id, Text, _countof(Text));
 
-                #ifdef __TRACE
+                #ifdef __DEEP_TRACE
                 ::printf("%*sId: %s\n", __TRACE_LEVEL * 2, "", WideToUTF8(Text).c_str());
                 #endif
 
@@ -120,253 +153,26 @@ void dls_reader_t::Process()
                 break;
             }
 
-            case FOURCC_INSH:
-            {
-                // The Instrument Header chunk defines an instrument within a collection.
-                TRACE_CHUNK(ch.Id, ch.Size);
-                TRACE_INDENT();
-
-                uint32_t RegionCount;   // cRegions
-                // _MIDILOCALE
-                uint32_t Bank;
-                uint32_t Patch;
-
-                Read(&RegionCount, sizeof(RegionCount));
-                Read(&Bank, sizeof(Bank));
-                Read(&Patch, sizeof(Patch));
-
-                bool IsPercussion = ((Bank & F_INSTRUMENT_DRUMS) != 0);
-
-                #ifdef __TRACE
-                ::printf("%*sRegions: %d, Bank: CC0 0x%02X CC32 0x%02X (MMA %d), Is Percussion: %s, Program: %d\n", __TRACE_LEVEL * 2, "", RegionCount, (Bank >> 8) & 0x7F, Bank & 0x7F, (((Bank >> 8) & 0x7F) * 128 + (Bank & 0x7F)), IsPercussion ? "true" : "false", Patch & 0x7F);
-                #endif
-
-                TRACE_UNINDENT();
-                break;
-            }
-
-            case FOURCC_RGNH:
-            {
-                // The Region Header defines a region within an instrument.
-                TRACE_CHUNK(ch.Id, ch.Size);
-                TRACE_INDENT();
-
-                uint16_t LowKey;
-                uint16_t HighKey;
-                uint16_t LowVelocity;
-                uint16_t HighVelocity;
-                uint16_t NonExclusive;
-                uint16_t KeyGroup;
-
-                Read(&LowKey, sizeof(LowKey));
-                Read(&HighKey, sizeof(HighKey));
-                Read(&LowVelocity, sizeof(LowVelocity));
-                Read(&HighVelocity, sizeof(HighVelocity));
-                Read(&NonExclusive, sizeof(NonExclusive));
-                Read(&KeyGroup, sizeof(KeyGroup));
-
-                #ifdef __TRACE
-                ::printf("%*sKey: %3d - %3d, Velocity: %3d - %3d, Non exclusive: %d, Key Group: %d\n", __TRACE_LEVEL * 2, "", LowKey, HighKey, LowVelocity, HighVelocity, NonExclusive, KeyGroup);
-                #endif
-
-                TRACE_UNINDENT();
-                break;
-            }
-
-            case FOURCC_WSMP:
-            {
-                // The Wave Sample chunk describes the minimum necessary information needed to allow a synthesis engine to use a WAVE chunk.
-                TRACE_CHUNK(ch.Id, ch.Size);
-                TRACE_INDENT();
-
-                uint32_t Size;
-                uint16_t UnityNote;
-                int16_t FineTune;
-                int32_t Attenuation;
-                uint32_t Options;
-                uint32_t LoopCount;
-
-                Read(&Size, sizeof(Size));
-
-                if (Size == 20)
-                {
-                    Read(&UnityNote, sizeof(UnityNote));
-                    Read(&FineTune, sizeof(FineTune));
-                    Read(&Attenuation, sizeof(Attenuation));
-                    Read(&Options, sizeof(Options));
-                    Read(&LoopCount, sizeof(LoopCount));
-
-                    #ifdef __TRACE
-                    ::printf("%*sUnityNote: %d, FineTune: %d, Attenuation: %d, Options: 0x%08X, Loops: %d\n", __TRACE_LEVEL * 2, "", UnityNote, FineTune, Attenuation, Options, LoopCount);
-                    #endif
-
-                    TRACE_INDENT();
-
-                    while (LoopCount != 0)
-                    {
-                        uint32_t LoopType;
-                        uint32_t LoopStart;
-                        uint32_t LoopLength;
-
-                        Read(&Size, sizeof(Size));
-
-                        if (Size != 16)
-                        {
-                            Skip(Size - 4);
-                            continue;
-                        }
-
-                        Read(&LoopType, sizeof(LoopType));
-                        Read(&LoopStart, sizeof(LoopStart));
-                        Read(&LoopLength, sizeof(LoopLength));
-
-                        #ifdef __TRACE
-                        ::printf("%*sLoop Type: %d, Start: %6d, Length: %6d\n", __TRACE_LEVEL * 2, "", LoopType, LoopStart, LoopLength);
-                        #endif
-
-                        LoopCount--;
-                    }
-
-                    TRACE_UNINDENT();
-                }
-                else
-                    Skip(Size - 4);
-
-                TRACE_UNINDENT();
-                break;
-            }
-
-            case FOURCC_WLNK:
-            {
-                // The Wave Link chunk specifies where the wave data can be found for an instrument region in a DLS file.
-                TRACE_CHUNK(ch.Id, ch.Size);
-                TRACE_INDENT();
-
-                uint16_t Options;
-                uint16_t PhaseGroup;
-                uint32_t Channel;
-                uint32_t TableIndex;
-
-                Read(&Options, sizeof(Options));
-                Read(&PhaseGroup, sizeof(PhaseGroup));
-                Read(&Channel, sizeof(Channel));
-                Read(&TableIndex, sizeof(TableIndex));
-
-                #ifdef __TRACE
-                ::printf("%*sOptions: 0x%08X, PhaseGroup: %d, Channel: %d, TableIndex: %d\n", __TRACE_LEVEL * 2, "", Options, PhaseGroup, Channel, TableIndex);
-                #endif
-
-                TRACE_UNINDENT();
-                break;
-            }
-
-            case FOURCC_ART1:
-            {
-                // The Level 1 Articulator chunk specifies parameters which modify the playback of a wave file used in downloadable instruments.
-                TRACE_CHUNK(ch.Id, ch.Size);
-                TRACE_INDENT();
-
-                uint32_t Size;
-                uint32_t ConnectionBlockCount;
-
-                Read(&Size, sizeof(Size));
-                Read(&ConnectionBlockCount, sizeof(ConnectionBlockCount));
-
-                #ifdef __TRACE
-                ::printf("%*sConnection Blocks: %d\n", __TRACE_LEVEL * 2, "", ConnectionBlockCount);
-                #endif
-
-                {
-                    TRACE_INDENT();
-
-                    while (ConnectionBlockCount != 0)
-                    {
-                        uint16_t Source;
-                        uint16_t Control;
-                        uint16_t Destination;
-                        uint16_t Transform;
-                        int32_t Scale;
-
-                        Read(&Source, sizeof(Source));
-                        Read(&Control, sizeof(Control));
-                        Read(&Destination, sizeof(Destination));
-                        Read(&Transform, sizeof(Transform));
-                        Read(&Scale, sizeof(Scale));
-
-                        #ifdef __TRACE
-                        ::printf("%*sSource: %d, Control: %3d, Destination: %3d, Transform: %d, Scale: %10d\n", __TRACE_LEVEL * 2, "", Source, Control, Destination, Transform, Scale);
-                        #endif
-
-                        --ConnectionBlockCount;
-                    }
-
-                    TRACE_UNINDENT();
-                }
-
-                TRACE_UNINDENT();
-                break;
-            }
-
-            case FOURCC_ART2:
-            {
-                // The Level 2  Articulator chunk specifies parameters which modify the playback of a sample used in DLS Level 2 downloadable instruments.
-                TRACE_CHUNK(ch.Id, ch.Size);
-                TRACE_INDENT();
-
-                uint32_t Size;
-                uint32_t ConnectionBlockCount;
-
-                Read(&Size, sizeof(Size));
-                Read(&ConnectionBlockCount, sizeof(ConnectionBlockCount));
-
-                #ifdef __TRACE
-                ::printf("%*sConnection Blocks: %d\n", __TRACE_LEVEL * 2, "", ConnectionBlockCount);
-                #endif
-
-                {
-                    TRACE_INDENT();
-
-                    while (ConnectionBlockCount != 0)
-                    {
-                        uint16_t Source;
-                        uint16_t Control;
-                        uint16_t Destination;
-                        uint16_t Transform;
-                        int32_t Scale;
-
-                        Read(&Source, sizeof(Source));
-                        Read(&Control, sizeof(Control));
-                        Read(&Destination, sizeof(Destination));
-                        Read(&Transform, sizeof(Transform));
-                        Read(&Scale, sizeof(Scale));
-
-                        #ifdef __TRACE
-                        ::printf("%*sSource: %d, Control: %3d, Destination: %3d, Transform: %d, Scale: %11d\n", __TRACE_LEVEL * 2, "", Source, Control, Destination, Transform, Scale);
-                        #endif
-
-                        --ConnectionBlockCount;
-                    }
-
-                    TRACE_UNINDENT();
-                }
-
-                TRACE_UNINDENT();
-                break;
-            }
-
+            // The Pool Table chunk contains a list of cross-reference entries to digital audio data within the wave pool.
             case FOURCC_PTBL:
             {
-                // The Pool Table chunk contains a list of cross-reference entries to digital audio data within the wave pool.
                 TRACE_CHUNK(ch.Id, ch.Size);
                 TRACE_INDENT();
 
                 uint32_t Size;
+
+                Read(Size);
+
                 uint32_t CueCount;
 
-                Read(&Size, sizeof(Size));
-                Read(&CueCount, sizeof(CueCount));
+                Read(CueCount);
 
-                #ifdef __TRACE
+                dls.Cues.reserve(CueCount);
+
+                if (Size != 8)
+                    Skip(Size - 8);
+
+                #ifdef __DEEP_TRACE
                 ::printf("%*sCues: %d\n", __TRACE_LEVEL * 2, "", CueCount);
                 #endif
 
@@ -377,9 +183,11 @@ void dls_reader_t::Process()
                     {
                         uint32_t Offset;
 
-                        Read(&Offset, sizeof(Offset));
+                        Read(Offset);
 
-                        #ifdef __TRACE
+                        dls.Cues.push_back(Offset);
+
+                        #ifdef __DEEP_TRACE
                         ::printf("%*sOffset: %8d\n", __TRACE_LEVEL * 2, "", Offset);
                         #endif
 
@@ -393,73 +201,11 @@ void dls_reader_t::Process()
                 break;
             }
 
-            case FOURCC_FMT:
-            {
-                // The Format chunk specifies the format of the wave data.
-                TRACE_CHUNK(ch.Id, ch.Size);
-                TRACE_INDENT();
-
-                uint32_t Size = ch.Size;
-
-                #pragma pack(push, 2)
-                struct fmt_common_t
-                {
-                    uint16_t FormatTag;
-                    uint16_t Channels;
-                    uint32_t SamplesPerSec;
-                    uint32_t AvgBytesPerSec;
-                    uint16_t BlockAlign;
-                } Common;
-                #pragma pack(pop)
-
-                Read(&Common, sizeof(Common));
-
-                Size -= sizeof(Common);
-
-                #ifdef __TRACE
-                ::printf("%*sFormat: 0x%04X, Channels: %d, SamplesPerSec: %d, AvgBytesPerSec: %d, BlockAlign: %d\n", __TRACE_LEVEL * 2, "",
-                    Common.FormatTag, Common.Channels, Common.SamplesPerSec, Common.AvgBytesPerSec, Common.BlockAlign);
-                #endif
-
-                if (Common.FormatTag == WAVE_FORMAT_PCM) // mmeapi.h
-                {
-                    uint16_t BitsPerSample;
-
-                    Read(&BitsPerSample, sizeof(BitsPerSample));
-
-                    Size -= sizeof(BitsPerSample);
-
-                    #ifdef __TRACE
-                    ::printf("%*sBitsPerSample: %d\n", __TRACE_LEVEL * 2, "", BitsPerSample);
-                    #endif
-                }
-                else
-                    throw sf::exception("Unknown wave data format");
-
-                Skip(Size);
-
-                TRACE_UNINDENT();
-                break;
-            }
-
-            case FOURCC_DATA:
-            {
-                // The Data chunk contains the waveform data.
-                TRACE_CHUNK(ch.Id, ch.Size);
-                TRACE_INDENT();
-
-                SkipChunk(ch);
-
-                TRACE_UNINDENT();
-                break;
-            }
-
             default:
             {
                 if ((ch.Id & mmioFOURCC(0xFF, 0, 0, 0)) == mmioFOURCC('I', 0, 0, 0))
                 {
-                    // Information chunks
-                    HandleIxxx(ch.Id, ch.Size);
+                    HandleIxxx(ch.Id, ch.Size, dls.Infos);
                 }
                 else
                 {
@@ -481,9 +227,710 @@ void dls_reader_t::Process()
 }
 
 /// <summary>
+/// Read the instrument list.
+/// </summary>
+void reader_t::ReadInstruments(const riff::chunk_header_t & ch, std::vector<instrument_t> & instruments)
+{
+    std::function<bool(const riff::chunk_header_t & ch)> ChunkHandler = [this, &instruments, &ChunkHandler](const riff::chunk_header_t & ch) -> bool
+    {
+        switch (ch.Id)
+        {
+            // A LIST chunk contains an ordered sequence of subchunks.
+            case FOURCC_LIST:
+            {
+                uint32_t ListType;
+
+                Read(ListType);
+
+                TRACE_LIST(ListType, ch.Size);
+                TRACE_INDENT();
+
+                switch (ListType)
+                {
+                    case FOURCC_INS:
+                    {
+                        instruments.push_back(instrument_t());
+
+                        ReadInstrument(ch, instruments.back());
+                        break;
+                    }
+
+                    default:
+                        ReadChunks(ch.Id, ch.Size - sizeof(ListType), ChunkHandler);
+                }
+
+                TRACE_UNINDENT();
+                break;
+            }
+
+            default:
+            {
+                if ((ch.Id & mmioFOURCC(0xFF, 0, 0, 0)) == mmioFOURCC('I', 0, 0, 0))
+                {
+                    std::unordered_map<std::string, std::string> Infos;
+
+                    HandleIxxx(ch.Id, ch.Size, Infos);
+                }
+                else
+                {
+                    TRACE_CHUNK(ch.Id, ch.Size);
+
+                    SkipChunk(ch);
+                }
+            }
+        }
+
+        return true;
+    };
+
+    ReadChunks(ch.Id, ch.Size - sizeof(ch.Id), ChunkHandler);
+}
+
+/// <summary>
+/// Reads an instrument.
+/// </summary>
+void reader_t::ReadInstrument(const riff::chunk_header_t & ch, instrument_t & instrument)
+{
+    std::function<bool(const riff::chunk_header_t & ch)> ChunkHandler = [this, &instrument, &ChunkHandler](const riff::chunk_header_t & ch) -> bool
+    {
+        switch (ch.Id)
+        {
+            // A LIST chunk contains an ordered sequence of subchunks.
+            case FOURCC_LIST:
+            {
+                uint32_t ListType;
+
+                Read(ListType);
+
+                TRACE_LIST(ListType, ch.Size);
+                TRACE_INDENT();
+
+                switch (ListType)
+                {
+                    case FOURCC_LRGN:
+                    {
+                        ReadRegions(ch, instrument.Regions);
+                        break;
+                    }
+
+                    case FOURCC_LART:
+                    case FOURCC_LAR2:
+                    {
+                        ReadArticulators(ch, instrument.Articulators);
+                        break;
+                    }
+
+                    default:
+                        ReadChunks(ch.Id, ch.Size - sizeof(ListType), ChunkHandler);
+                }
+
+                TRACE_UNINDENT();
+                break;
+            }
+
+            // The Instrument Header chunk defines an instrument within a collection.
+            case FOURCC_INSH:
+            {
+                // The instrument header determines the number of regions in an instrument, as well as its bank and program numbers.
+                TRACE_CHUNK(ch.Id, ch.Size);
+                TRACE_INDENT();
+
+                uint32_t RegionCount;   // cRegions, Specifies the count of regions for this instrument.
+                uint32_t Bank;          // ulBank, Specifies the MIDI bank location. Bits 0-6 are defined as MIDI CC32 and bits 8-14 are defined as MIDI CC0.
+                uint32_t Program;       // ulInstrument, Specifies the MIDI Program Change (PC) value. Bits 0-6.
+
+                Read(RegionCount);
+                Read(Bank);
+                Read(Program);
+
+                instrument.Regions.reserve(RegionCount);
+
+                const bool IsPercussion = ((Bank & F_INSTRUMENT_DRUMS) != 0);
+
+                instrument = instrument_t(RegionCount, (Bank >> 8) & 0x7F, Bank & 0x7F, Program & 0x7F, IsPercussion);
+
+                #ifdef __DEEP_TRACE
+                ::printf("%*sRegions: %d, Bank: CC0 0x%02X CC32 0x%02X (MMA %d), Is Percussion: %s, Program: %d\n", __TRACE_LEVEL * 2, "", RegionCount, (Bank >> 8) & 0x7F, Bank & 0x7F, (((Bank >> 8) & 0x7F) * 128 + (Bank & 0x7F)), IsPercussion ? "true" : "false", Program & 0x7F);
+                #endif
+
+                TRACE_UNINDENT();
+                break;
+            }
+
+            default:
+            {
+                if ((ch.Id & mmioFOURCC(0xFF, 0, 0, 0)) == mmioFOURCC('I', 0, 0, 0))
+                {
+                    HandleIxxx(ch.Id, ch.Size, instrument.Infos);
+                }
+                else
+                {
+                    TRACE_CHUNK(ch.Id, ch.Size);
+
+                    SkipChunk(ch);
+                }
+            }
+        }
+
+        return true;
+    };
+
+    ReadChunks(ch.Id, ch.Size - sizeof(ch.Id), ChunkHandler);
+}
+
+/// <summary>
+/// Read the regions of an instrument.
+/// </summary>
+void reader_t::ReadRegions(const riff::chunk_header_t & ch, std::vector<region_t> & regions)
+{
+    std::function<bool(const riff::chunk_header_t & ch)> ChunkHandler = [this, &regions, &ChunkHandler](const riff::chunk_header_t & ch) -> bool
+    {
+        switch (ch.Id)
+        {
+            // A LIST chunk contains an ordered sequence of subchunks.
+            case FOURCC_LIST:
+            {
+                uint32_t ListType;
+
+                Read(ListType);
+
+                TRACE_LIST(ListType, ch.Size);
+                TRACE_INDENT();
+
+                switch (ListType)
+                {
+                    case FOURCC_RGN:
+                    case FOURCC_RGN2:
+                    {
+                        regions.push_back(region_t());
+
+                        ReadRegion(ch, regions.back());
+                        break;
+                    }
+
+                    default:
+                        ReadChunks(ch.Id, ch.Size - sizeof(ListType), ChunkHandler);
+                }
+
+                TRACE_UNINDENT();
+                break;
+            }
+
+            default:
+            {
+                if ((ch.Id & mmioFOURCC(0xFF, 0, 0, 0)) == mmioFOURCC('I', 0, 0, 0))
+                {
+                    std::unordered_map<std::string, std::string> Infos;
+
+                    HandleIxxx(ch.Id, ch.Size, Infos);
+                }
+                else
+                {
+                    TRACE_CHUNK(ch.Id, ch.Size);
+
+                    SkipChunk(ch);
+                }
+            }
+        }
+
+        return true;
+    };
+
+    ReadChunks(ch.Id, ch.Size - sizeof(ch.Id), ChunkHandler);
+}
+
+/// <summary>
+/// Reads a wave sample.
+/// </summary>
+void reader_t::ReadWaveSample(const riff::chunk_header_t & ch, wave_sample_t & ws)
+{
+    TRACE_CHUNK(ch.Id, ch.Size);
+    TRACE_INDENT();
+
+    uint32_t Size;
+
+    Read(Size);
+
+    Read(ws.UnityNote);
+    Read(ws.FineTune);
+    Read(ws.Attenuation);
+    Read(ws.SampleOptions);
+
+    uint32_t LoopCount;
+
+    Read(LoopCount);
+
+    ws.Loops.reserve(LoopCount);
+
+    if (Size != 20)
+        Skip(Size - 20);
+
+    #ifdef __DEEP_TRACE
+    ::printf("%*sUnityNote: %d, FineTune: %d, Attenuation: %d, Options: 0x%08X, Loops: %d\n", __TRACE_LEVEL * 2, "", UnityNote, FineTune, Attenuation, Options, LoopCount);
+    #endif
+
+    TRACE_INDENT();
+
+    while (LoopCount != 0)
+    {
+        uint32_t LoopType;
+        uint32_t LoopStart;
+        uint32_t LoopLength;
+
+        Read(Size);
+
+        Read(LoopType);
+        Read(LoopStart);
+        Read(LoopLength);
+
+        if (Size != 16)
+            Skip(Size - 16);
+
+        ws.Loops.push_back(wave_sample_loop_t(LoopType, LoopStart, LoopLength));
+
+        #ifdef __DEEP_TRACE
+        ::printf("%*sLoop Type: %d, Start: %6d, Length: %6d\n", __TRACE_LEVEL * 2, "", LoopType, LoopStart, LoopLength);
+        #endif
+
+        LoopCount--;
+    }
+
+    TRACE_UNINDENT();
+
+    TRACE_UNINDENT();
+}
+
+/// <summary>
+/// Read a region.
+/// </summary>
+void reader_t::ReadRegion(const riff::chunk_header_t & ch, region_t & region)
+{
+    std::function<bool(const riff::chunk_header_t & ch)> ChunkHandler = [this, &region, &ChunkHandler](const riff::chunk_header_t & ch) -> bool
+    {
+        switch (ch.Id)
+        {
+            // A LIST chunk contains an ordered sequence of subchunks.
+            case FOURCC_LIST:
+            {
+                uint32_t ListType;
+
+                Read(ListType);
+
+                TRACE_LIST(ListType, ch.Size);
+                TRACE_INDENT();
+
+                switch (ListType)
+                {
+                    case FOURCC_LART:
+                    case FOURCC_LAR2:
+                    {
+                        ReadArticulators(ch, region.Articulators);
+                        break;
+                    }
+
+                    default:
+                        ReadChunks(ch.Id, ch.Size - sizeof(ListType), ChunkHandler);
+                }
+
+                TRACE_UNINDENT();
+                break;
+            }
+
+            // The Region Header defines a region within an instrument.
+            case FOURCC_RGNH:
+            {
+                // A region defines the key range and velocity range used by the control logic to select the sample. It also determines a preset value for the overall amplitude of the sample and a preset tuning.
+                TRACE_CHUNK(ch.Id, ch.Size);
+                TRACE_INDENT();
+
+                Read(region.LowKey);
+                Read(region.HighKey);
+                Read(region.LowVelocity);
+                Read(region.HighVelocity);
+                Read(region.Options);
+                Read(region.KeyGroup);
+
+                uint16_t Layer = 0;
+
+                if (ch.Size == 14)
+                    Read(Layer);
+
+                #ifdef __DEEP_TRACE
+                ::printf("%*sKey: %3d - %3d, Velocity: %3d - %3d, Non exclusive: %d, Key Group: %d\n", __TRACE_LEVEL * 2, "", LowKey, HighKey, LowVelocity, HighVelocity, NonExclusive, KeyGroup);
+                #endif
+
+                TRACE_UNINDENT();
+                break;
+            }
+
+            // The Wave Sample chunk describes the minimum necessary information needed to allow a synthesis engine to use a WAVE chunk.
+            case FOURCC_WSMP:
+            {
+                ReadWaveSample(ch, region.WaveSample);
+                break;
+            }
+
+            // The Wave Link chunk specifies where the wave data can be found for an instrument region in a DLS file.
+            case FOURCC_WLNK:
+            {
+                TRACE_CHUNK(ch.Id, ch.Size);
+                TRACE_INDENT();
+
+                Read(region.WaveLink.Options);
+                Read(region.WaveLink.PhaseGroup);
+                Read(region.WaveLink.Channel);
+                Read(region.WaveLink.TableIndex);
+
+                #ifdef __DEEP_TRACE
+                ::printf("%*sOptions: 0x%08X, PhaseGroup: %d, Channel: %d, TableIndex: %d\n", __TRACE_LEVEL * 2, "", Options, PhaseGroup, Channel, TableIndex);
+                #endif
+
+                TRACE_UNINDENT();
+                break;
+            }
+
+            default:
+            {
+                if ((ch.Id & mmioFOURCC(0xFF, 0, 0, 0)) == mmioFOURCC('I', 0, 0, 0))
+                {
+                    std::unordered_map<std::string, std::string> Infos;
+
+                    HandleIxxx(ch.Id, ch.Size, Infos);
+                }
+                else
+                {
+                    TRACE_CHUNK(ch.Id, ch.Size);
+
+                    SkipChunk(ch);
+                }
+            }
+        }
+
+        return true;
+    };
+
+    ReadChunks(ch.Id, ch.Size - sizeof(ch.Id), ChunkHandler);
+}
+
+/// <summary>
+/// Reads the articulators.
+/// </summary>
+void reader_t::ReadArticulators(const riff::chunk_header_t & ch, std::vector<articulator_t> & articulators)
+{
+    std::function<bool(const riff::chunk_header_t & ch)> ChunkHandler = [this, &articulators, &ChunkHandler](const riff::chunk_header_t & ch) -> bool
+    {
+        switch (ch.Id)
+        {
+            // A LIST chunk contains an ordered sequence of subchunks.
+            case FOURCC_LIST:
+            {
+                uint32_t ListType;
+
+                Read(ListType);
+
+                TRACE_LIST(ListType, ch.Size);
+                TRACE_INDENT();
+
+                ReadChunks(ch.Id, ch.Size - sizeof(ListType), ChunkHandler);
+
+                TRACE_UNINDENT();
+                break;
+            }
+
+            // The Level 1 Articulator chunk specifies parameters which modify the playback of a wave file used in downloadable instruments.
+            case FOURCC_ART1:
+            {
+                articulators.push_back(articulator_t());
+
+                TRACE_CHUNK(ch.Id, ch.Size);
+                TRACE_INDENT();
+
+                uint32_t Size;
+                uint32_t ConnectionBlockCount;
+
+                Read(Size);
+                Read(ConnectionBlockCount);
+
+                auto & Articulator = articulators.back();
+
+                Articulator.ConnectionBlocks.reserve(ConnectionBlockCount);
+
+                #ifdef __DEEP_TRACE
+                ::printf("%*sConnection Blocks: %d\n", __TRACE_LEVEL * 2, "", ConnectionBlockCount);
+                #endif
+
+                {
+                    TRACE_INDENT();
+
+                    while (ConnectionBlockCount != 0)
+                    {
+                        Articulator.ConnectionBlocks.push_back(connection_block_t());
+
+                        auto & ConnectionBlock = Articulator.ConnectionBlocks.back();
+
+                        Read(ConnectionBlock.Source);
+                        Read(ConnectionBlock.Control);
+                        Read(ConnectionBlock.Destination);
+                        Read(ConnectionBlock.Transform);
+                        Read(ConnectionBlock.Scale);
+
+                        #ifdef __DEEP_TRACE
+                        ::printf("%*sSource: %d, Control: %3d, Destination: %3d, Transform: %d, Scale: %10d\n", __TRACE_LEVEL * 2, "", Source, Control, Destination, Transform, Scale);
+                        #endif
+
+                        --ConnectionBlockCount;
+                    }
+
+                    TRACE_UNINDENT();
+                }
+
+                TRACE_UNINDENT();
+                break;
+            }
+
+            // The Level 2 Articulator chunk specifies parameters which modify the playback of a sample used in DLS Level 2 downloadable instruments.
+            case FOURCC_ART2:
+            {
+                articulators.push_back(articulator_t());
+
+                TRACE_CHUNK(ch.Id, ch.Size);
+                TRACE_INDENT();
+
+                uint32_t Size;
+                uint32_t ConnectionBlockCount;
+
+                Read(&Size, sizeof(Size));
+                Read(&ConnectionBlockCount, sizeof(ConnectionBlockCount));
+
+                auto & Articulator = articulators.back();
+
+                Articulator.ConnectionBlocks.reserve(ConnectionBlockCount);
+
+                #ifdef __DEEP_TRACE
+                ::printf("%*sConnection Blocks: %d\n", __TRACE_LEVEL * 2, "", ConnectionBlockCount);
+                #endif
+
+                {
+                    TRACE_INDENT();
+
+                    while (ConnectionBlockCount != 0)
+                    {
+                        Articulator.ConnectionBlocks.push_back(connection_block_t());
+
+                        auto & ConnectionBlock = Articulator.ConnectionBlocks.back();
+
+                        Read(ConnectionBlock.Source);
+                        Read(ConnectionBlock.Control);
+                        Read(ConnectionBlock.Destination);
+                        Read(ConnectionBlock.Transform);
+                        Read(ConnectionBlock.Scale);
+
+                        #ifdef __DEEP_TRACE
+                        ::printf("%*sSource: %d, Control: %3d, Destination: %3d, Transform: %d, Scale: %+11d\n", __TRACE_LEVEL * 2, "", Source, Control, Destination, Transform, Scale);
+                        #endif
+
+                        --ConnectionBlockCount;
+                    }
+
+                    TRACE_UNINDENT();
+                }
+
+                TRACE_UNINDENT();
+                break;
+            }
+
+            default:
+            {
+                if ((ch.Id & mmioFOURCC(0xFF, 0, 0, 0)) == mmioFOURCC('I', 0, 0, 0))
+                {
+                    std::unordered_map<std::string, std::string> Infos;
+
+                    HandleIxxx(ch.Id, ch.Size, Infos);
+                }
+                else
+                {
+                    TRACE_CHUNK(ch.Id, ch.Size);
+
+                    SkipChunk(ch);
+                }
+            }
+        }
+
+        return true;
+    };
+
+    ReadChunks(ch.Id, ch.Size - sizeof(ch.Id), ChunkHandler);
+}
+
+/// <summary>
+/// Read the waves.
+/// </summary>
+void reader_t::ReadWaves(const riff::chunk_header_t & ch, std::vector<wave_t> & waves)
+{
+    std::function<bool(const riff::chunk_header_t & ch)> ChunkHandler = [this, &waves, &ChunkHandler](const riff::chunk_header_t & ch) -> bool
+    {
+        switch (ch.Id)
+        {
+            // A LIST chunk contains an ordered sequence of subchunks.
+            case FOURCC_LIST:
+            {
+                uint32_t ListType;
+
+                Read(ListType);
+
+                TRACE_LIST(ListType, ch.Size);
+                TRACE_INDENT();
+
+                switch (ListType)
+                {
+                    case FOURCC_wave:
+                    {
+                        waves.push_back(wave_t());
+
+                        ReadWave(ch, waves.back());
+                        break;
+                    }
+
+                    default:
+                        ReadChunks(ch.Id, ch.Size - sizeof(ListType), ChunkHandler);
+                }
+
+                TRACE_UNINDENT();
+                break;
+            }
+
+            default:
+            {
+                if ((ch.Id & mmioFOURCC(0xFF, 0, 0, 0)) == mmioFOURCC('I', 0, 0, 0))
+                {
+                    std::unordered_map<std::string, std::string> Infos;
+
+                    HandleIxxx(ch.Id, ch.Size, Infos);
+                }
+                else
+                {
+                    TRACE_CHUNK(ch.Id, ch.Size);
+
+                    SkipChunk(ch);
+                }
+            }
+        }
+
+        return true;
+    };
+
+    ReadChunks(ch.Id, ch.Size - sizeof(ch.Id), ChunkHandler);
+}
+
+/// <summary>
+/// Reads a wave.
+/// </summary>
+void reader_t::ReadWave(const riff::chunk_header_t & ch, wave_t & wave)
+{
+    std::function<bool(const riff::chunk_header_t & ch)> ChunkHandler = [this, &wave, &ChunkHandler](const riff::chunk_header_t & ch) -> bool
+    {
+        switch (ch.Id)
+        {
+            // A LIST chunk contains an ordered sequence of subchunks.
+            case FOURCC_LIST:
+            {
+                uint32_t ListType;
+
+                Read(ListType);
+
+                TRACE_LIST(ListType, ch.Size);
+                TRACE_INDENT();
+
+                ReadChunks(ch.Id, ch.Size - sizeof(ListType), ChunkHandler);
+
+                TRACE_UNINDENT();
+                break;
+            }
+
+            // The Wave Format chunk specifies the format of the wave data.
+            case FOURCC_FMT:
+            {
+                TRACE_CHUNK(ch.Id, ch.Size);
+                TRACE_INDENT();
+
+                uint32_t Size = ch.Size;
+
+                Read(wave.FormatTag);
+                Read(wave.Channels);
+                Read(wave.SamplesPerSec);
+                Read(wave.AvgBytesPerSec);
+                Read(wave.BlockAlign);
+
+                Size -= sizeof(wave.FormatTag) + sizeof(wave.Channels) + sizeof(wave.SamplesPerSec) + sizeof(wave.AvgBytesPerSec) + sizeof(wave.BlockAlign);
+
+                #ifdef __DEEP_TRACE
+                ::printf("%*sFormat: 0x%04X, Channels: %d, SamplesPerSec: %d, AvgBytesPerSec: %d, BlockAlign: %d\n", __TRACE_LEVEL * 2, "",
+                    Common.FormatTag, Common.Channels, Common.SamplesPerSec, Common.AvgBytesPerSec, Common.BlockAlign);
+                #endif
+
+                if (wave.FormatTag == WAVE_FORMAT_PCM) // mmeapi.h
+                {
+                    Read(wave.BitsPerSample);
+
+                    Size -= sizeof(wave.BitsPerSample);
+
+                    #ifdef __DEEP_TRACE
+                    ::printf("%*sBitsPerSample: %d\n", __TRACE_LEVEL * 2, "", BitsPerSample);
+                    #endif
+                }
+                else
+                    throw sf::exception("Unknown wave data format");
+
+                Skip(Size);
+
+                TRACE_UNINDENT();
+                break;
+            }
+
+            // The Wave Sample chunk describes the minimum necessary information needed to allow a synthesis engine to use a WAVE chunk.
+            case FOURCC_WSMP:
+            {
+                ReadWaveSample(ch, wave.WaveSample);
+                break;
+            }
+
+            // The Wave Data chunk contains the waveform data.
+            case FOURCC_DATA:
+            {
+                TRACE_CHUNK(ch.Id, ch.Size);
+                TRACE_INDENT();
+
+                SkipChunk(ch);
+
+                TRACE_UNINDENT();
+                break;
+            }
+
+            default:
+            {
+                if ((ch.Id & mmioFOURCC(0xFF, 0, 0, 0)) == mmioFOURCC('I', 0, 0, 0))
+                {
+                    HandleIxxx(ch.Id, ch.Size, wave.Infos);
+                }
+                else
+                {
+                    TRACE_CHUNK(ch.Id, ch.Size);
+
+                    SkipChunk(ch);
+                }
+            }
+        }
+
+        return true;
+    };
+
+    ReadChunks(ch.Id, ch.Size - sizeof(ch.Id), ChunkHandler);
+}
+
+/// <summary>
 /// Handles an Ixxx chunk.
 /// </summary>
-bool dls_reader_t::HandleIxxx(uint32_t chunkId, uint32_t chunkSize)
+bool reader_t::HandleIxxx(uint32_t chunkId, uint32_t chunkSize, std::unordered_map<std::string, std::string> & infos)
 {
     const char * Name = "Unknown";
 
@@ -522,7 +969,9 @@ bool dls_reader_t::HandleIxxx(uint32_t chunkId, uint32_t chunkSize)
 
     Text[chunkSize] = 0;
 
-    #ifdef __TRACE
+    infos.insert({ Name, Text });
+
+    #ifdef __DEEP_TRACE
     ::printf("%*s%s: \"%s\"\n", __TRACE_LEVEL * 2, "", Name, Text.c_str());
     #endif
 

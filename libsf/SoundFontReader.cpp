@@ -1,5 +1,5 @@
 
-/** $VER: SoundFontReader.cpp (2025.03.14) P. Stuer **/
+/** $VER: SoundFontReader.cpp (2025.03.22) P. Stuer - Reads an SF2/SF3 compliant sound font. **/
 
 #include "pch.h"
 
@@ -8,6 +8,8 @@
 #include <functional>
 
 using namespace sf;
+
+#pragma region Internal
 
 #pragma pack(push, 2)
 
@@ -85,6 +87,8 @@ struct _sample_header_t
 };
 
 #pragma pack(pop)
+
+#pragma endregion
 
 /// <summary>
 /// Processes the complete SoundFont.
