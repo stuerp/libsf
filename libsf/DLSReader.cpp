@@ -1,5 +1,5 @@
 
-/** $VER: DLSReader.cpp (2025.03.22) P. Stuer - Implements a reader for a DLS-compliant sound font. **/
+/** $VER: DLSReader.cpp (2025.03.23) P. Stuer - Implements a reader for a DLS-compliant sound font. **/
 
 #include "pch.h"
 
@@ -205,7 +205,7 @@ void reader_t::Process(const reader_options_t & options, soundfont_t & dls)
             {
                 if ((ch.Id & mmioFOURCC(0xFF, 0, 0, 0)) == mmioFOURCC('I', 0, 0, 0))
                 {
-                    HandleIxxx(ch.Id, ch.Size, dls.Infos);
+                    HandleIxxx(ch.Id, ch.Size, dls.Properties);
                 }
                 else
                 {
@@ -267,9 +267,9 @@ void reader_t::ReadInstruments(const riff::chunk_header_t & ch, std::vector<inst
             {
                 if ((ch.Id & mmioFOURCC(0xFF, 0, 0, 0)) == mmioFOURCC('I', 0, 0, 0))
                 {
-                    std::unordered_map<std::string, std::string> Infos;
+                    std::unordered_map<std::string, std::string> Properties;
 
-                    HandleIxxx(ch.Id, ch.Size, Infos);
+                    HandleIxxx(ch.Id, ch.Size, Properties);
                 }
                 else
                 {
@@ -361,7 +361,7 @@ void reader_t::ReadInstrument(const riff::chunk_header_t & ch, instrument_t & in
             {
                 if ((ch.Id & mmioFOURCC(0xFF, 0, 0, 0)) == mmioFOURCC('I', 0, 0, 0))
                 {
-                    HandleIxxx(ch.Id, ch.Size, instrument.Infos);
+                    HandleIxxx(ch.Id, ch.Size, instrument.Properties);
                 }
                 else
                 {
@@ -376,6 +376,8 @@ void reader_t::ReadInstrument(const riff::chunk_header_t & ch, instrument_t & in
     };
 
     ReadChunks(ch.Id, ch.Size - sizeof(ch.Id), ChunkHandler);
+
+    instrument.Name = GetPropertyValue(instrument.Properties, "Name");
 }
 
 /// <summary>
@@ -420,9 +422,9 @@ void reader_t::ReadRegions(const riff::chunk_header_t & ch, std::vector<region_t
             {
                 if ((ch.Id & mmioFOURCC(0xFF, 0, 0, 0)) == mmioFOURCC('I', 0, 0, 0))
                 {
-                    std::unordered_map<std::string, std::string> Infos;
+                    std::unordered_map<std::string, std::string> Properties;
 
-                    HandleIxxx(ch.Id, ch.Size, Infos);
+                    HandleIxxx(ch.Id, ch.Size, Properties);
                 }
                 else
                 {
@@ -437,67 +439,6 @@ void reader_t::ReadRegions(const riff::chunk_header_t & ch, std::vector<region_t
     };
 
     ReadChunks(ch.Id, ch.Size - sizeof(ch.Id), ChunkHandler);
-}
-
-/// <summary>
-/// Reads a wave sample.
-/// </summary>
-void reader_t::ReadWaveSample(const riff::chunk_header_t & ch, wave_sample_t & ws)
-{
-    TRACE_CHUNK(ch.Id, ch.Size);
-    TRACE_INDENT();
-
-    uint32_t Size;
-
-    Read(Size);
-
-    Read(ws.UnityNote);
-    Read(ws.FineTune);
-    Read(ws.Attenuation);
-    Read(ws.SampleOptions);
-
-    uint32_t LoopCount;
-
-    Read(LoopCount);
-
-    ws.Loops.reserve(LoopCount);
-
-    if (Size != 20)
-        Skip(Size - 20);
-
-    #ifdef __DEEP_TRACE
-    ::printf("%*sUnityNote: %d, FineTune: %d, Attenuation: %d, Options: 0x%08X, Loops: %d\n", __TRACE_LEVEL * 2, "", UnityNote, FineTune, Attenuation, Options, LoopCount);
-    #endif
-
-    TRACE_INDENT();
-
-    while (LoopCount != 0)
-    {
-        uint32_t LoopType;
-        uint32_t LoopStart;
-        uint32_t LoopLength;
-
-        Read(Size);
-
-        Read(LoopType);
-        Read(LoopStart);
-        Read(LoopLength);
-
-        if (Size != 16)
-            Skip(Size - 16);
-
-        ws.Loops.push_back(wave_sample_loop_t(LoopType, LoopStart, LoopLength));
-
-        #ifdef __DEEP_TRACE
-        ::printf("%*sLoop Type: %d, Start: %6d, Length: %6d\n", __TRACE_LEVEL * 2, "", LoopType, LoopStart, LoopLength);
-        #endif
-
-        LoopCount--;
-    }
-
-    TRACE_UNINDENT();
-
-    TRACE_UNINDENT();
 }
 
 /// <summary>
@@ -550,14 +491,15 @@ void reader_t::ReadRegion(const riff::chunk_header_t & ch, region_t & region)
                 Read(region.Options);
                 Read(region.KeyGroup);
 
-                uint16_t Layer = 0;
-
                 if (ch.Size == 14)
-                    Read(Layer);
+                    Read(region.Layer);
 
                 #ifdef __DEEP_TRACE
-                ::printf("%*sKey: %3d - %3d, Velocity: %3d - %3d, Non exclusive: %d, Key Group: %d\n", __TRACE_LEVEL * 2, "", LowKey, HighKey, LowVelocity, HighVelocity, NonExclusive, KeyGroup);
+                ::printf("%*sKey: %3d - %3d, Velocity: %3d - %3d, Non exclusive: %d, Key Group: %d, Editing Layer: %d\n", __TRACE_LEVEL * 2, "", LowKey, HighKey, LowVelocity, HighVelocity, Options, KeyGroup, Layer);
                 #endif
+
+                if (region.KeyGroup != 0)
+                    region.Generators.push_back(generator_base_t(GeneratorTypes::exclusiveClass, region.KeyGroup));
 
                 TRACE_UNINDENT();
                 break;
@@ -593,9 +535,9 @@ void reader_t::ReadRegion(const riff::chunk_header_t & ch, region_t & region)
             {
                 if ((ch.Id & mmioFOURCC(0xFF, 0, 0, 0)) == mmioFOURCC('I', 0, 0, 0))
                 {
-                    std::unordered_map<std::string, std::string> Infos;
+                    std::unordered_map<std::string, std::string> Properties;
 
-                    HandleIxxx(ch.Id, ch.Size, Infos);
+                    HandleIxxx(ch.Id, ch.Size, Properties);
                 }
                 else
                 {
@@ -743,9 +685,9 @@ void reader_t::ReadArticulators(const riff::chunk_header_t & ch, std::vector<art
             {
                 if ((ch.Id & mmioFOURCC(0xFF, 0, 0, 0)) == mmioFOURCC('I', 0, 0, 0))
                 {
-                    std::unordered_map<std::string, std::string> Infos;
+                    std::unordered_map<std::string, std::string> Properties;
 
-                    HandleIxxx(ch.Id, ch.Size, Infos);
+                    HandleIxxx(ch.Id, ch.Size, Properties);
                 }
                 else
                 {
@@ -803,9 +745,9 @@ void reader_t::ReadWaves(const riff::chunk_header_t & ch, std::vector<wave_t> & 
             {
                 if ((ch.Id & mmioFOURCC(0xFF, 0, 0, 0)) == mmioFOURCC('I', 0, 0, 0))
                 {
-                    std::unordered_map<std::string, std::string> Infos;
+                    std::unordered_map<std::string, std::string> Properties;
 
-                    HandleIxxx(ch.Id, ch.Size, Infos);
+                    HandleIxxx(ch.Id, ch.Size, Properties);
                 }
                 else
                 {
@@ -910,7 +852,7 @@ void reader_t::ReadWave(const riff::chunk_header_t & ch, wave_t & wave)
             {
                 if ((ch.Id & mmioFOURCC(0xFF, 0, 0, 0)) == mmioFOURCC('I', 0, 0, 0))
                 {
-                    HandleIxxx(ch.Id, ch.Size, wave.Infos);
+                    HandleIxxx(ch.Id, ch.Size, wave.Properties);
                 }
                 else
                 {
@@ -925,55 +867,67 @@ void reader_t::ReadWave(const riff::chunk_header_t & ch, wave_t & wave)
     };
 
     ReadChunks(ch.Id, ch.Size - sizeof(ch.Id), ChunkHandler);
+
+    wave.Name = GetPropertyValue(wave.Properties, "Name");
 }
 
 /// <summary>
-/// Handles an Ixxx chunk.
+/// Reads a wave sample.
 /// </summary>
-bool reader_t::HandleIxxx(uint32_t chunkId, uint32_t chunkSize, std::unordered_map<std::string, std::string> & infos)
+void reader_t::ReadWaveSample(const riff::chunk_header_t & ch, wave_sample_t & ws)
 {
-    const char * Name = "Unknown";
+    TRACE_CHUNK(ch.Id, ch.Size);
+    TRACE_INDENT();
 
-    switch (chunkId)
-    {
-        case FOURCC_IARL: Name = "Archival Location"; break;
-        case FOURCC_IART: Name = "Artist"; break;
-        case FOURCC_ICMS: Name = "Commissioned"; break;
-        case FOURCC_ICMT: Name = "Comments"; break;
-        case FOURCC_ICOP: Name = "Copyright"; break;
-        case FOURCC_ICRD: Name = "Creation Date"; break;
-        case FOURCC_ICRP: Name = "Cropped"; break;
-        case FOURCC_IDIM: Name = "Dimensions"; break;
-        case FOURCC_IDPI: Name = "DPI"; break;
-        case FOURCC_IENG: Name = "Engineer"; break;
-        case FOURCC_IGNR: Name = "Genre"; break;
-        case FOURCC_IKEY: Name = "Keywords"; break;
-        case FOURCC_ILGT: Name = "Lightness"; break;
-        case FOURCC_IMED: Name = "Medium"; break;
-        case FOURCC_INAM: Name = "Name"; break;
-        case FOURCC_IPLT: Name = "Palette"; break;
-        case FOURCC_IPRD: Name = "Product"; break;
-        case FOURCC_ISBJ: Name = "Subject"; break;
-        case FOURCC_ISFT: Name = "Software"; break;
-        case FOURCC_ISHP: Name = "Sharpness"; break;
-        case FOURCC_ISRC: Name = "Source"; break;
-        case FOURCC_ISRF: Name = "Source Form"; break;
-        case FOURCC_ITCH: Name = "Technician"; break;
-    }
+    uint32_t Size;
 
-    std::string Text;
+    Read(Size);
 
-    Text.resize((size_t) chunkSize + 1);
+    Read(ws.UnityNote);
+    Read(ws.FineTune);
+    Read(ws.Gain);
+    Read(ws.Options);
 
-    Read((void *) Text.c_str(), chunkSize);
+    uint32_t LoopCount;
 
-    Text[chunkSize] = 0;
+    Read(LoopCount);
 
-    infos.insert({ Name, Text });
+    ws.Loops.reserve(LoopCount);
+
+    if (Size != 20)
+        Skip(Size - 20);
 
     #ifdef __DEEP_TRACE
-    ::printf("%*s%s: \"%s\"\n", __TRACE_LEVEL * 2, "", Name, Text.c_str());
+    ::printf("%*sUnityNote: %d, FineTune: %d, Gain: %d, Options: 0x%08X, Loops: %d\n", __TRACE_LEVEL * 2, "", UnityNote, FineTune, Gain, Options, LoopCount);
     #endif
 
-    return true;
+    TRACE_INDENT();
+
+    while (LoopCount != 0)
+    {
+        uint32_t LoopType;
+        uint32_t LoopStart;
+        uint32_t LoopLength;
+
+        Read(Size);
+
+        Read(LoopType);
+        Read(LoopStart);
+        Read(LoopLength);
+
+        if (Size != 16)
+            Skip(Size - 16);
+
+        ws.Loops.push_back(wave_sample_loop_t(LoopType, LoopStart, LoopLength));
+
+        #ifdef __DEEP_TRACE
+        ::printf("%*sLoop Type: %d, Start: %6d, Length: %6d\n", __TRACE_LEVEL * 2, "", LoopType, LoopStart, LoopLength);
+        #endif
+
+        LoopCount--;
+    }
+
+    TRACE_UNINDENT();
+
+    TRACE_UNINDENT();
 }

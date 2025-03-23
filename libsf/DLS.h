@@ -1,19 +1,18 @@
 
-/** $VER: DLS.h (2025.03.22) P. Stuer - DLS data types **/
+/** $VER: DLS.h (2025.03.23) P. Stuer - DLS data types **/
 
 #pragma once
 
 #include "pch.h"
 
-#include <vector>
-#include <unordered_map>
-
-#include "SoundFontBase.h"
+#include "BaseTypes.h"
+#include "Definitions.h"
 
 namespace sf::dls
 {
 
 #pragma warning(disable: 4820) // x bytes padding
+
 
 /// <summary>
 /// Represents a connection block.
@@ -47,6 +46,12 @@ public:
     uint16_t PhaseGroup;
     uint32_t Channel;
     uint32_t TableIndex;
+
+    static const uint32_t WAVELINK_CHANNEL_LEFT   = 0x0001;
+    static const uint32_t WAVELINK_CHANNEL_RIGHT  = 0x0002;
+
+    static const uint16_t F_WAVELINK_PHASE_MASTER = 0x0001; // This link is the master in a group of phase locked wave links.
+    static const uint16_t F_WAVELINK_MULTICHANNEL = 0x0002; // The Channel field provides the channel steering information and all the channel steering data in the articulation chunk should be ignored.
 };
 
 /// <summary>
@@ -62,11 +67,12 @@ public:
         Length = length;
     }
 
-    static const uint32_t WLOOP_TYPE_FORWARD = 0;
-
     uint32_t Type;      // Loop type
     uint32_t Start;     // Start point of the loop in samples as an absolute offset from the beginning of the data in the "data" subchunk of the "wave-list" wave file chunk.
     uint32_t Length;    // Length of the loop in samples.
+
+    static const uint32_t WLOOP_TYPE_FORWARD = 0; // Forward loop
+    static const uint32_t WLOOP_TYPE_RELEASE = 1; // Loop and release (DLS 2.2)
 };
 
 /// <summary>
@@ -75,24 +81,24 @@ public:
 class wave_sample_t
 {
 public:
-    static const uint32_t F_WSMP_NO_TRUNCATION  = 0x0011;
-    static const uint32_t F_WSMP_NO_COMPRESSION = 0x0021;
-
     uint16_t UnityNote;     // MIDI note which will replay the sample at original pitch. (0..127)
     int16_t FineTune;       // Tuning offset from the UnityNote in 16 bit relative pitch
-    int32_t Attenuation;    // Attenuation to be applied to this sample in 32 bit relative gain.
-    uint32_t SampleOptions;
+    int32_t Gain;           // Gain to be applied to this sample in 32 bit relative gain.
+    uint32_t Options;
 
     std::vector<wave_sample_loop_t> Loops;
+
+    static const uint32_t F_WSMP_NO_TRUNCATION  = 0x0001; // The synthesis engine is not allowed to truncate the bit depth of the sample if it cannot synthesize at the bit depth of the digital audio.
+    static const uint32_t F_WSMP_NO_COMPRESSION = 0x0002; // The synthesis engine is not allowed to use compression for the digital audio sample.
 };
 
 /// <summary>
 /// Represents an instrument region.
 /// </summary>
-class region_t
+class region_t : public zone_base_t
 {
 public:
-    region_t() { }
+    region_t() noexcept : LowKey(), HighKey(), LowVelocity(), HighVelocity(), Options(), KeyGroup(), Layer() { }
 
     region_t(uint16_t lowKey, uint16_t highKey, uint16_t lowVelocity, uint16_t highVelocity, uint16_t options, uint16_t keyGroup, uint16_t layer)
     {
@@ -117,15 +123,17 @@ public:
     wave_link_t WaveLink;
 
     std::vector<articulator_t> Articulators;
+
+    static const uint16_t F_RGN_OPTION_SELFNONEXCLUSIVE = 0x0001; // If a second Note-On of the same note is received by the synthesis engine, then the second note will be played as well as the first.
 };
 
 /// <summary>
 /// Represents an instrument.
 /// </summary>
-class instrument_t
+class instrument_t : public instrument_base_t
 {
 public:
-    instrument_t() { }
+    instrument_t() noexcept : BankMSB(), BankLSB(), Program(), IsPercussion(false) { }
 
     instrument_t(uint32_t regionCount, uint8_t bankMSB, uint8_t bankLSB, uint8_t program, bool isPercussion)
     {
@@ -145,13 +153,16 @@ public:
     std::vector<region_t> Regions;
     std::vector<articulator_t> Articulators;
 
-    std::unordered_map<std::string, std::string> Infos;
+    property_map_t Properties;
 };
 
-class wave_t
+/// <summary>
+/// Represents a wave in the wave pool.
+/// </summary>
+class wave_t : public sample_base_t
 {
 public:
-    wave_t() { }
+    wave_t() noexcept { }
 
     // Wave Format
     uint16_t FormatTag;
@@ -163,8 +174,9 @@ public:
     uint16_t BitsPerSample;
 
     wave_sample_t WaveSample;
+    std::vector<uint8_t> Data;
 
-    std::unordered_map<std::string, std::string> Infos;
+    property_map_t Properties;
 };
 
 /// <summary>
@@ -173,7 +185,7 @@ public:
 class soundfont_t : public soundfont_base_t
 {
 public:
-    soundfont_t() { }
+    soundfont_t() noexcept { }
 
     // Represents the version of the contents of the sound font.
     uint16_t Major;
@@ -184,8 +196,6 @@ public:
     std::vector<instrument_t> Instruments;
     std::vector<wave_t> Waves;
     std::vector<uint32_t> Cues;
-
-    std::unordered_map<std::string, std::string> Infos;
 
 private:
 };

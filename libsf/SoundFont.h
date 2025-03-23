@@ -1,35 +1,36 @@
 
-/** $VER: SoundFont.h (2025.03.22) P. Stuer - SoundFont data types **/
+/** $VER: SoundFont.h (2025.03.23) P. Stuer - SoundFont data types **/
 
 #pragma once
 
 #include "pch.h"
 
-#include <map>
-
-#include "SoundFontBase.h"
+#include "BaseTypes.h"
 
 namespace sf
 {
 
 #pragma warning(disable: 4820) // x bytes padding
 
-struct preset_t
+class preset_t
 {
+public:
     std::string Name;
     uint32_t Bank;
     uint32_t Program;
     uint32_t ZoneIndex;
 };
 
-struct preset_zone_t
+class preset_zone_t
 {
+public:
     uint16_t GeneratorIndex;    // Index to the preset zone's list of generators in the PGEN chunk.
     uint16_t ModulatorIndex;    // Index to the preset zone's list of modulators in the PMOD chunk.
 };
 
-struct preset_zone_modulator_t
+class preset_zone_modulator_t
 {
+public:
     uint16_t SrcOperator;       // Source of data for the modulator.
     uint16_t DstOperator;       // Destination of the modulator.
     int16_t Amount;             // The degree to which the source modulates the destination.
@@ -37,26 +38,29 @@ struct preset_zone_modulator_t
     uint16_t SourceTransform;   // Transform that will be applied to the modulation source before application to the modulator.
 };
 
-struct preset_zone_generator_t
+class preset_zone_generator_t : public generator_base_t
 {
-    uint16_t Operator;          // The operator
-    uint16_t Amount;            // The value to be assigned to the generator
+public:
 };
 
-struct instrument_t
+class instrument_t : public instrument_base_t
 {
-    std::string Name;
+public:
+    instrument_t(const std::string & name, uint16_t zoneIndex) : instrument_base_t(name), ZoneIndex(zoneIndex) { }
+
     uint16_t ZoneIndex;         // Index to the instrument's zone list in the IBAG chunk.
 };
 
-struct instrument_zone_t
+class instrument_zone_t
 {
+public:
     uint16_t GeneratorIndex;    // Index to the instrument zone's list of generators in the IGEN chunk.
     uint16_t Modulatorndex;     // Index to the instrument zone's list of modulators in the IMOD chunk.
 };
 
-struct instrument_zone_modulator_t
+class instrument_zone_modulator_t
 {
+public:
     uint16_t SrcOperator;       // Source of data for the modulator.
     uint16_t DstOperator;       // Destination of the modulator.
     int16_t Amount;             // The degree to which the source modulates the destination.
@@ -64,15 +68,14 @@ struct instrument_zone_modulator_t
     uint16_t SourceTransform;   // Transform that will be applied to the modulation source before application to the modulator.
 };
 
-struct instrument_zone_generator_t
+class instrument_zone_generator_t : public generator_base_t
 {
-    uint16_t Operator;          // The operator
-    uint16_t Amount;            // The value to be assigned to the generator
+public:
 };
 
-struct sample_t
+class sample_t : public sample_base_t
 {
-    std::string Name;
+public:
     uint32_t Start;             // Index from the beginning of the sample data to the start of the sample (in sample data points).
     uint32_t End;               // Index from the beginning of the sample data to the end of the sample (in sample data points).
     uint32_t LoopStart;         // Index from the beginning of the sample data to the loop start of the sample (in sample data points).
@@ -103,7 +106,7 @@ enum SampleTypes
 class soundfont_t : public soundfont_base_t
 {
 public:
-    soundfont_t() : Major(), Minor(), ROMMajor(), ROMMinor() { }
+    soundfont_t() noexcept : Major(), Minor(), ROMMajor(), ROMMinor() { }
 
     uint16_t Major;
     uint16_t Minor;
@@ -125,8 +128,6 @@ public:
 
     std::vector<sample_t> Samples;
     std::vector<uint8_t> SampleData;
-
-    std::map<std::string, std::string> Tags;
 };
 
 #pragma warning(default: 4820) // x bytes padding

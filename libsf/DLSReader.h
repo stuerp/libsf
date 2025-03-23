@@ -1,13 +1,11 @@
 
-/** $VER: DLSReader.h (2025.03.22) P. Stuer - Implements a reader for a DLS-compliant sound font. **/
+/** $VER: DLSReader.h (2025.03.23) P. Stuer - Implements a reader for a DLS-compliant sound font. **/
 
 #pragma once
 
 #include "pch.h"
 
 #include "DLS.h"
-
-#include "..\libriff\libriff.h"
 
 #define FOURCC_DLS  mmioFOURCC('D','L','S',' ')                     // Collection
 
@@ -21,11 +19,11 @@
                 #define FOURCC_RGNH mmioFOURCC('r','g','n','h')     // Region Header
                 #define FOURCC_WLNK mmioFOURCC('w','l','n','k')     // Wave Link
                 #define FOURCC_WSMP mmioFOURCC('w','s','m','p')     // Wave Sample
-            #define FOURCC_RGN2 mmioFOURCC('r','g','n','2')         // Region 2
-        #define FOURCC_LAR2 mmioFOURCC('l','a','r','2')             // List of articulators (Level 2) (Optional)
-            #define FOURCC_ART2 mmioFOURCC('a','r','t','2')         // Level 2 articulator
-#define FOURCC_DLID mmioFOURCC('d','l','i','d')                     // (Optional)
-#define FOURCC_CDL  mmioFOURCC('c','d','l',' ')                     // Conditional (Optional)
+            #define FOURCC_RGN2 mmioFOURCC('r','g','n','2')         // Region 2 (DLS Level 2.2)
+        #define FOURCC_LAR2 mmioFOURCC('l','a','r','2')             // List of articulators (Level 2) (Optional) (DLS Level 2.2)
+            #define FOURCC_ART2 mmioFOURCC('a','r','t','2')         // Level 2 articulator (DLS Level 2.2)
+#define FOURCC_DLID mmioFOURCC('d','l','i','d')                     // (Optional) (DLS Level 2.2)
+#define FOURCC_CDL  mmioFOURCC('c','d','l',' ')                     // Conditional (Optional) (DLS Level 2.2)
 #define FOURCC_PTBL mmioFOURCC('p','t','b','l')                     // Pool Table
 #define FOURCC_VERS mmioFOURCC('v','e','r','s')                     // Version (Optional)
 #define FOURCC_WVPL mmioFOURCC('w','v','p','l')                     // Wave Pool
@@ -43,12 +41,12 @@ struct reader_options_t
     bool ReadSampleData = true;
 };
 
-constexpr uint32_t F_INSTRUMENT_DRUMS = 0x08000000;
+constexpr uint32_t F_INSTRUMENT_DRUMS = 0x80000000;
 
-class reader_t : public riff::reader_t
+class reader_t : public soundfont_reader_base_t
 {
 public:
-    reader_t() { }
+    reader_t() noexcept : soundfont_reader_base_t() { }
 
     void Process(const reader_options_t & options, soundfont_t & dls);
 
@@ -65,8 +63,6 @@ private:
     void ReadWave(const riff::chunk_header_t & ch, wave_t & wave);
 
     void ReadWaveSample(const riff::chunk_header_t & ch, wave_sample_t & ws);
-
-    bool HandleIxxx(uint32_t chunkId, uint32_t chunkSize, std::unordered_map<std::string, std::string> & infos);
 
 private:
     reader_options_t _Options;

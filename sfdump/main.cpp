@@ -1,5 +1,5 @@
 ﻿
-/** $VER: main.cpp (2025.03.22) P. Stuer **/
+/** $VER: main.cpp (2025.03.23) P. Stuer **/
 
 #include "pch.h"
 
@@ -15,8 +15,9 @@
 
 static void ProcessDirectory(const std::wstring & directoryPath, const std::wstring & searchPattern);
 static void ProcessFile(const std::wstring & filePath, uint64_t fileSize);
-static void ProcessSF(const std::wstring & filePath);
 static void ProcessDLS(const std::wstring & filePath);
+static void ProcessSF(const std::wstring & filePath);
+static void ConvertDLS(const sf::dls::soundfont_t & dls, sf::soundfont_t & sf);
 
 std::wstring FilePath;
 
@@ -142,7 +143,7 @@ static void ProcessFile(const std::wstring & filePath, uint64_t fileSize)
 /// </summary>
 static void ProcessDLS(const std::wstring & filePath)
 {
-    sf::dls::soundfont_t sf;
+    sf::dls::soundfont_t dls;
 
     riff::file_stream_t fs;
 
@@ -151,7 +152,7 @@ static void ProcessDLS(const std::wstring & filePath)
         sf::dls::reader_t dr;
 
         if (dr.Open(&fs, riff::reader_t::option_t::None))
-            dr.Process({ false }, sf);
+            dr.Process({ false }, dls);
 
         fs.Close();
     }
@@ -159,31 +160,84 @@ static void ProcessDLS(const std::wstring & filePath)
 #ifdef _DEBUG
     uint32_t __TRACE_LEVEL = 0;
 
-    ::printf("%*sContent Version: %d.%d.%d.%d\n", __TRACE_LEVEL * 2, "", sf.Major, sf.Minor, sf.Revision, sf.Build);
+    ::printf("%*sContent Version: %d.%d.%d.%d\n", __TRACE_LEVEL * 2, "", dls.Major, dls.Minor, dls.Revision, dls.Build);
 
-    ::printf("%*s%llu instruments\n", __TRACE_LEVEL * 2, "", sf.Instruments.size());
+    ::printf("%*s%llu instruments\n", __TRACE_LEVEL * 2, "", dls.Instruments.size());
 
     size_t i = 1;
 
-    for (const auto & Instrument : sf.Instruments)
-        ::printf("%*s%4llu. Regions: %3llu, Articulators: %3llu, Bank: CC0 0x%02X CC32 0x%02X (MMA %5d), Program: %3d, Is Percussion: %s\n", __TRACE_LEVEL * 2, "", i++,
-            Instrument.Regions.size(), Instrument.Articulators.size(), Instrument.BankMSB, Instrument.BankLSB, ((uint16_t) Instrument.BankMSB << 7) + Instrument.BankLSB, Instrument.Program, Instrument.IsPercussion ? "true" : "false");
+    for (const auto & Instrument : dls.Instruments)
+    {
+        ::printf("%*s%4llu. Regions: %3llu, Articulators: %3llu, Bank: CC0 0x%02X CC32 0x%02X (MMA %5d), Program: %3d, Is Percussion: %-5s, Name: \"%s\"\n", __TRACE_LEVEL * 2, "", i++,
+            Instrument.Regions.size(), Instrument.Articulators.size(), Instrument.BankMSB, Instrument.BankLSB, ((uint16_t) Instrument.BankMSB << 7) + Instrument.BankLSB, Instrument.Program, Instrument.IsPercussion ? "true" : "false", Instrument.Name.c_str());
 
-    ::printf("%*s%llu waves\n", __TRACE_LEVEL * 2, "", sf.Waves.size());
+        __TRACE_LEVEL += 2;
+
+        ::printf("%*sRegions:\n", __TRACE_LEVEL * 2, "");
+
+        __TRACE_LEVEL++;
+
+        for (const auto & Region : Instrument.Regions)
+        {
+            ::printf("%*sKey: %3d - %3d, Velocity: %3d - %3d, Options: 0x%04X, Key Group: %d, Editing Layer: %d\n", __TRACE_LEVEL * 2, "",
+                Region.LowKey, Region.HighKey, Region.LowVelocity, Region.HighVelocity, Region.Options, Region.KeyGroup, Region.Layer);
+        }
+
+        __TRACE_LEVEL--;
+        __TRACE_LEVEL -=2;
+
+        __TRACE_LEVEL += 2;
+
+        ::printf("%*sArticulators:\n", __TRACE_LEVEL * 2, "");
+
+        __TRACE_LEVEL++;
+
+        for (const auto & Articulator : Instrument.Articulators)
+        {
+            ::printf("%*s%3llu connection blocks\n", __TRACE_LEVEL * 2, "", Articulator.ConnectionBlocks.size());
+
+            __TRACE_LEVEL++;
+
+            for (const auto & ConnectionBlock: Articulator.ConnectionBlocks)
+            {
+                ::printf("%*sSource: %d, Control: %3d, Destination: %3d, Transform: %d, Scale: %11d\n", __TRACE_LEVEL * 2, "",
+                    ConnectionBlock.Source, ConnectionBlock.Control, ConnectionBlock.Destination, ConnectionBlock.Transform, ConnectionBlock.Scale);
+            }
+
+            __TRACE_LEVEL--;
+        }
+
+        __TRACE_LEVEL--;
+        __TRACE_LEVEL -= 2;
+    }
+
+    ::putchar('\n');
+
+    ::printf("%*s%llu waves\n", __TRACE_LEVEL * 2, "", dls.Waves.size());
 
     i = 1;
 
-    for (const auto & Wave : sf.Waves)
-        ::printf("%*s%4llu. Channels: %d, %5d samples/s, %5d avg. bytes/s, Block Align: %5d\n", __TRACE_LEVEL * 2, "", i++,
-            Wave.Channels, Wave.SamplesPerSec, Wave.AvgBytesPerSec, Wave.BlockAlign);
+    for (const auto & Wave : dls.Waves)
+    {
+        ::printf("%*s%4llu. Channels: %d, %5d samples/s, %5d avg. bytes/s, Block Align: %5d, Name: \"%s\"\n", __TRACE_LEVEL * 2, "", i++,
+            Wave.Channels, Wave.SamplesPerSec, Wave.AvgBytesPerSec, Wave.BlockAlign, Wave.Name.c_str());
+    }
 
-    ::printf("%*sInfo:\n", __TRACE_LEVEL * 2, "");
+    ::putchar('\n');
+
+    ::printf("%*sProperties:\n", __TRACE_LEVEL * 2, "");
 
     i = 1;
 
-    for (const auto & [ Name, Value ] : sf.Infos)
+    for (const auto & [ Name, Value ] : dls.Properties)
+    {
         ::printf("%*s%4llu. %s: %s\n", __TRACE_LEVEL * 2, "", i++, Name.c_str(), Value.c_str());
+    }
 #endif
+
+    sf::soundfont_t sf;
+
+    ConvertDLS(dls, sf);
 }
 
 /// <summary>
@@ -213,12 +267,12 @@ static void ProcessSF(const std::wstring & filePath)
     ::printf("%*sSound Data ROM: %s v%d.%d\n", __TRACE_LEVEL * 2, "", sf.ROM.c_str(), sf.ROMMajor, sf.ROMMinor);
 
     {
-        ::printf("%*sTags\n", __TRACE_LEVEL * 2, "");
+        ::printf("%*sProperties\n", __TRACE_LEVEL * 2, "");
         __TRACE_LEVEL++;
 
         size_t i = 0;
 
-        for (const auto & Item : sf.Tags)
+        for (const auto & Item : sf.Properties)
         {
             ::printf("%*s%s: %s\n", __TRACE_LEVEL * 2, "", Item.first.c_str(), Item.second.c_str());
         }
@@ -297,4 +351,21 @@ static void ProcessSF(const std::wstring & filePath)
         __TRACE_LEVEL--;
     }
 #endif
+}
+
+/// <summary>
+/// Converts a DLS sound font to a SoundFont sound font.
+/// </summary>
+static void ConvertDLS(const sf::dls::soundfont_t & dls, sf::soundfont_t & sf)
+{
+    for (const auto & Instrument : dls.Instruments)
+    {
+        sf.Instruments.push_back(sf::instrument_t(Instrument.Name, -1));
+    }
+
+    for (const auto & Samples : dls.Samples)
+    {
+    }
+
+    sf.Properties = dls.Properties;
 }

@@ -1,5 +1,5 @@
 
-/** $VER: SoundFontReader.cpp (2025.03.22) P. Stuer - Reads an SF2/SF3 compliant sound font. **/
+/** $VER: SoundFontReader.cpp (2025.03.23) P. Stuer - Reads an SF2/SF3 compliant sound font. **/
 
 #include "pch.h"
 
@@ -130,9 +130,9 @@ void soundfont_reader_t::Process(const soundfont_reader_options_t & options, sou
                 break;
             }
 
+            // Mandatory sub-chunk identifying the SoundFont specification version level to which the file complies.
             case FOURCC_IFIL:
             {
-                // Mandatory sub-chunk identifying the SoundFont specification version level to which the file complies.
                 TRACE_CHUNK(ch.Id, ch.Size);
                 TRACE_INDENT();
 
@@ -147,9 +147,9 @@ void soundfont_reader_t::Process(const soundfont_reader_options_t & options, sou
                 break;
             }
 
+            // Mandatory sub-chunk identifying the wavetable sound engine for which the file was optimized. 
             case FOURCC_ISNG:
             {
-                // Mandatory sub-chunk identifying the wavetable sound engine for which the file was optimized. 
                 TRACE_CHUNK(ch.Id, ch.Size);
                 TRACE_INDENT();
 
@@ -165,9 +165,9 @@ void soundfont_reader_t::Process(const soundfont_reader_options_t & options, sou
                 break;
             }
 
+            // Optional sub-chunk identifying a particular wavetable sound data ROM to which any ROM samples refer.
             case FOURCC_IROM:
             {
-                // Optional sub-chunk identifying a particular wavetable sound data ROM to which any ROM samples refer.
                 TRACE_CHUNK(ch.Id, ch.Size);
                 TRACE_INDENT();
 
@@ -183,9 +183,9 @@ void soundfont_reader_t::Process(const soundfont_reader_options_t & options, sou
                 break;
             }
 
+            // Optional sub-chunk identifying the particular wavetable sound data ROM revision to which any ROM samples refer.
             case FOURCC_IVER:
             {
-                // Optional sub-chunk identifying the particular wavetable sound data ROM revision to which any ROM samples refer.
                 TRACE_CHUNK(ch.Id, ch.Size);
                 TRACE_INDENT();
 
@@ -200,9 +200,9 @@ void soundfont_reader_t::Process(const soundfont_reader_options_t & options, sou
                 break;
             }
 
+            // Contains one or more samples of digital audio information in the form of linearly coded 16 bit, signed, little endian (least significant byte first) words.
             case FOURCC_SMPL:
             {
-                // Contains one or more samples of digital audio information in the form of linearly coded 16 bit, signed, little endian (least significant byte first) words.
                 TRACE_CHUNK(ch.Id, ch.Size);
 
                 if (options.ReadSampleData)
@@ -217,18 +217,18 @@ void soundfont_reader_t::Process(const soundfont_reader_options_t & options, sou
                 break;
             }
 
+            // Contains the least significant byte counterparts to each sample data point contained in the smpl chunk. Note this means for every two bytes in the [smpl] sub-chunk there is a 1-byte counterpart in [sm24] sub-chunk.
             case FOURCC_SM24:
             {
-                // Contains the least significant byte counterparts to each sample data point contained in the smpl chunk. Note this means for every two bytes in the [smpl] sub-chunk there is a 1-byte counterpart in [sm24] sub-chunk.
                 TRACE_CHUNK(ch.Id, ch.Size);
 
                 SkipChunk(ch);
                 break;
             }
 
+            // Mandatory sub-chunk listing all presets within the SoundFont compatible file.
             case FOURCC_PHDR:
             {
-                // Required sub-chunk listing all presets within the SoundFont compatible file.
                 TRACE_CHUNK(ch.Id, ch.Size);
                 TRACE_INDENT();
 
@@ -252,9 +252,9 @@ void soundfont_reader_t::Process(const soundfont_reader_options_t & options, sou
                 break;
             }
 
+            // Mandatory sub-chunk listing all preset zones within the SoundFont compatible file.
             case FOURCC_PBAG:
             {
-                // Required sub-chunk listing all preset zones within the SoundFont compatible file.
                 TRACE_CHUNK(ch.Id, ch.Size);
                 TRACE_INDENT();
 
@@ -276,9 +276,9 @@ void soundfont_reader_t::Process(const soundfont_reader_options_t & options, sou
                 break;
             }
 
+            // Mandatory sub-chunk listing listing all preset zone modulators within the SoundFont compatible file.
             case FOURCC_PMOD:
             {
-                // Required sub-chunk listing listing all preset zone modulators within the SoundFont compatible file.
                 TRACE_CHUNK(ch.Id, ch.Size);
                 TRACE_INDENT();
 
@@ -302,9 +302,9 @@ void soundfont_reader_t::Process(const soundfont_reader_options_t & options, sou
                 break;
             }
 
+            // Mandatory sub-chunk listing all preset zone generators for each preset zone within the SoundFont compatible file.
             case FOURCC_PGEN:
             {
-                // Required sub-chunk listing all preset zone generators for each preset zone within the SoundFont compatible file.
                 TRACE_CHUNK(ch.Id, ch.Size);
                 TRACE_INDENT();
 
@@ -328,9 +328,9 @@ void soundfont_reader_t::Process(const soundfont_reader_options_t & options, sou
                 break;
             }
 
+            // Mandatory sub-chunk listing all instruments within the SoundFont compatible file.
             case FOURCC_INST:
             {
-                // Required sub-chunk listing all instruments within the SoundFont compatible file.
                 TRACE_CHUNK(ch.Id, ch.Size);
                 TRACE_INDENT();
 
@@ -343,7 +343,7 @@ void soundfont_reader_t::Process(const soundfont_reader_options_t & options, sou
 
                     std::string Name; Name.assign(Instrument.Name, _countof(Instrument.Name));
 
-                    sf.Instruments.push_back({ Name, Instrument.ZoneIndex });
+                    sf.Instruments.push_back(instrument_t(Name, Instrument.ZoneIndex));
 
                     #ifdef __TRACE
                     ::printf("%*s%5zu. \"%-20s\", Zone %5d\n", __TRACE_LEVEL * 2, "", i + 1, Name.c_str(), Instrument.ZoneIndex);
@@ -354,9 +354,9 @@ void soundfont_reader_t::Process(const soundfont_reader_options_t & options, sou
                 break;
             }
 
+            // Mandatory sub-chunk listing all instrument zones within the SoundFont compatible file.
             case FOURCC_IBAG:
             {
-                // Required sub-chunk listing all instrument zones within the SoundFont compatible file.
                 TRACE_CHUNK(ch.Id, ch.Size);
                 TRACE_INDENT();
 
@@ -378,9 +378,9 @@ void soundfont_reader_t::Process(const soundfont_reader_options_t & options, sou
                 break;
             }
 
+            // Mandatory sub-chunk listing all instrument zone modulators within the SoundFont compatible file.
             case FOURCC_IMOD:
             {
-                // Required sub-chunk listing all instrument zone modulators within the SoundFont compatible file.
                 TRACE_CHUNK(ch.Id, ch.Size);
                 TRACE_INDENT();
 
@@ -405,9 +405,9 @@ void soundfont_reader_t::Process(const soundfont_reader_options_t & options, sou
                 break;
             }
 
+            // Mandatory sub-chunk listing all instrument zone generators for each instrument zone within the SoundFont compatible file.
             case FOURCC_IGEN:
             {
-                // Required sub-chunk listing all instrument zone generators for each instrument zone within the SoundFont compatible file.
                 TRACE_CHUNK(ch.Id, ch.Size);
                 TRACE_INDENT();
 
@@ -431,9 +431,9 @@ void soundfont_reader_t::Process(const soundfont_reader_options_t & options, sou
                 break;
             }
 
+            // Mandatory sub-chunk listing all samples within the SMPL sub-chunk and any referenced ROM samples.
             case FOURCC_SHDR:
             {
-                // Required sub-chunk listing all samples within the SMPL sub-chunk and any referenced ROM samples.
                 TRACE_CHUNK(ch.Id, ch.Size);
                 TRACE_INDENT();
 
@@ -467,7 +467,7 @@ void soundfont_reader_t::Process(const soundfont_reader_options_t & options, sou
                 if ((ch.Id & mmioFOURCC(0xFF, 0, 0, 0)) == mmioFOURCC('I', 0, 0, 0))
                 {
                     // Information chunks
-                    HandleIxxx(ch.Id, ch.Size, sf);
+                    HandleIxxx(ch.Id, ch.Size, sf.Properties);
                 }
                 else
                 {
@@ -486,55 +486,6 @@ void soundfont_reader_t::Process(const soundfont_reader_options_t & options, sou
     TRACE_UNINDENT(); // FORM
 
     TRACE_UNINDENT(); // File
-}
-
-/// <summary>
-/// Handles an Ixxx chunk.
-/// </summary>
-bool soundfont_reader_t::HandleIxxx(uint32_t chunkId, uint32_t chunkSize, soundfont_t & sf)
-{
-    const char * Name = "Unknown";
-
-    switch (chunkId)
-    {
-        case FOURCC_IARL: Name = "Archival Location"; break;
-        case FOURCC_IART: Name = "Artist"; break;
-        case FOURCC_ICMS: Name = "Commissioned"; break;
-        case FOURCC_ICMT: Name = "Comments"; break;
-        case FOURCC_ICOP: Name = "Copyright"; break;
-        case FOURCC_ICRD: Name = "Creation Date"; break;
-        case FOURCC_ICRP: Name = "Cropped"; break;
-        case FOURCC_IDIM: Name = "Dimensions"; break;
-        case FOURCC_IDPI: Name = "DPI"; break;
-        case FOURCC_IENG: Name = "Engineer"; break;
-        case FOURCC_IGNR: Name = "Genre"; break;
-        case FOURCC_IKEY: Name = "Keywords"; break;
-        case FOURCC_ILGT: Name = "Lightness"; break;
-        case FOURCC_IMED: Name = "Medium"; break;
-        case FOURCC_INAM: Name = "Name"; break;
-        case FOURCC_IPLT: Name = "Palette"; break;
-        case FOURCC_IPRD: Name = "Product"; break;
-        case FOURCC_ISBJ: Name = "Subject"; break;
-        case FOURCC_ISFT: Name = "Software"; break;
-        case FOURCC_ISHP: Name = "Sharpness"; break;
-        case FOURCC_ISRC: Name = "Source"; break;
-        case FOURCC_ISRF: Name = "Source Form"; break;
-        case FOURCC_ITCH: Name = "Technician"; break;
-    }
-
-    std::string Text;
-
-    Text.resize((size_t) chunkSize + 1);
-
-    Read((void *) Text.c_str(), chunkSize);
-
-    sf.Tags.insert({ Name, Text });
-
-    #ifdef __TRACE
-    ::printf("%*s%s: \"%s\"\n", __TRACE_LEVEL * 2, "", Name, Text.c_str());
-    #endif
-
-    return true;
 }
 
 /// <summary>
@@ -595,11 +546,11 @@ std::string soundfont_reader_t::DescribeModulatorController(uint16_t modulator) 
 /// <summary>
 /// Describes a SoundFont generator controller.
 /// </summary>
-std::string soundfont_reader_t::DescribeGeneratorController(uint16_t modulator) noexcept
+std::string soundfont_reader_t::DescribeGeneratorController(uint16_t generator) noexcept
 {
     std::string Text;
 
-    switch (modulator & 0x007F)
+    switch (generator & 0x007F)
     {
         case  0: Text = "Start Offset"; break;
         case  1: Text = "End Offset"; break;

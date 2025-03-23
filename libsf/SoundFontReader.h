@@ -1,13 +1,11 @@
 
-/** $VER: SoundFontReader.h (2025.03.22) P. Stuer **/
+/** $VER: SoundFontReader.h (2025.03.23) P. Stuer **/
 
 #pragma once
 
 #include "pch.h"
 
 #include "SoundFont.h"
-
-#include "..\libriff\libriff.h"
 
 #define FOURCC_SFBK mmioFOURCC('s','f','b','k')
 
@@ -42,16 +40,14 @@ struct soundfont_reader_options_t
     bool ReadSampleData = true;
 };
 
-class soundfont_reader_t : public riff::reader_t
+class soundfont_reader_t : public soundfont_reader_base_t
 {
 public:
-    soundfont_reader_t() { }
+    soundfont_reader_t() noexcept : soundfont_reader_base_t() { }
 
     void Process(const soundfont_reader_options_t & options, soundfont_t & sf);
 
 private:
-    bool HandleIxxx(uint32_t chunkId, uint32_t chunkSize, soundfont_t & sf);
-
     static std::string DescribeModulatorController(uint16_t modulator) noexcept;
     static std::string DescribeGeneratorController(uint16_t modulator) noexcept;
 };

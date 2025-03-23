@@ -42,7 +42,10 @@
     <ClInclude Include="DLS.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="SoundFontBase.h">
+    <ClInclude Include="BaseTypes.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Definitions.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -57,6 +60,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Win32Exception.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="BaseTypes.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
