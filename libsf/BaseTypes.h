@@ -1,5 +1,5 @@
 
-/** $VER: BaseTypes.h (2025.03.23) P. Stuer - Base class for sound fonts **/
+/** $VER: BaseTypes.h (2025.03.26) P. Stuer - Base class for sound fonts **/
 
 #pragma once
 
@@ -9,7 +9,7 @@
 #include <vector>
 #include <unordered_map>
 
-#include "..\libriff\libriff.h"
+#include <libriff.h>
 
 namespace sf
 {

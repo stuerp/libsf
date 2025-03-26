@@ -1,5 +1,5 @@
 
-/** $VER: DLS.h (2025.03.23) P. Stuer - DLS data types **/
+/** $VER: DLS.h (2025.03.24) P. Stuer - DLS data types **/
 
 #pragma once
 
@@ -180,12 +180,12 @@ public:
 };
 
 /// <summary>
-/// Represents a DLS-compliant sound font.
+/// Represents a DLS-compliant collection.
 /// </summary>
-class soundfont_t : public soundfont_base_t
+class collection_t : public soundfont_base_t
 {
 public:
-    soundfont_t() noexcept { }
+    collection_t() noexcept { }
 
     // Represents the version of the contents of the sound font.
     uint16_t Major;

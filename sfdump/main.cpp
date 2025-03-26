@@ -17,7 +17,7 @@ static void ProcessDirectory(const std::wstring & directoryPath, const std::wstr
 static void ProcessFile(const std::wstring & filePath, uint64_t fileSize);
 static void ProcessDLS(const std::wstring & filePath);
 static void ProcessSF(const std::wstring & filePath);
-static void ConvertDLS(const sf::dls::soundfont_t & dls, sf::soundfont_t & sf);
+static void ConvertDLS(const sf::dls::collection_t & dls, sf::soundfont_t & sf);
 
 std::wstring FilePath;
 
@@ -143,7 +143,7 @@ static void ProcessFile(const std::wstring & filePath, uint64_t fileSize)
 /// </summary>
 static void ProcessDLS(const std::wstring & filePath)
 {
-    sf::dls::soundfont_t dls;
+    sf::dls::collection_t dls;
 
     riff::file_stream_t fs;
 
@@ -356,7 +356,7 @@ static void ProcessSF(const std::wstring & filePath)
 /// <summary>
 /// Converts a DLS sound font to a SoundFont sound font.
 /// </summary>
-static void ConvertDLS(const sf::dls::soundfont_t & dls, sf::soundfont_t & sf)
+static void ConvertDLS(const sf::dls::collection_t & dls, sf::soundfont_t & sf)
 {
     for (const auto & Instrument : dls.Instruments)
     {

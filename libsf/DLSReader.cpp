@@ -1,5 +1,5 @@
 
-/** $VER: DLSReader.cpp (2025.03.23) P. Stuer - Implements a reader for a DLS-compliant sound font. **/
+/** $VER: DLSReader.cpp (2025.03.24) P. Stuer - Implements a reader for a DLS-compliant sound font. **/
 
 #include "pch.h"
 
@@ -28,7 +28,7 @@ struct _MIDILOCALE
 /// <summary>
 /// Processes the complete sound font.
 /// </summary>
-void reader_t::Process(const reader_options_t & options, soundfont_t & dls)
+void reader_t::Process(const reader_options_t & options, collection_t & dls)
 {
     _Options = options;
 
@@ -497,9 +497,6 @@ void reader_t::ReadRegion(const riff::chunk_header_t & ch, region_t & region)
                 #ifdef __DEEP_TRACE
                 ::printf("%*sKey: %3d - %3d, Velocity: %3d - %3d, Non exclusive: %d, Key Group: %d, Editing Layer: %d\n", __TRACE_LEVEL * 2, "", LowKey, HighKey, LowVelocity, HighVelocity, Options, KeyGroup, Layer);
                 #endif
-
-                if (region.KeyGroup != 0)
-                    region.Generators.push_back(generator_base_t(GeneratorTypes::exclusiveClass, region.KeyGroup));
 
                 TRACE_UNINDENT();
                 break;

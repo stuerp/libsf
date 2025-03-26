@@ -48,7 +48,7 @@ class reader_t : public soundfont_reader_base_t
 public:
     reader_t() noexcept : soundfont_reader_base_t() { }
 
-    void Process(const reader_options_t & options, soundfont_t & dls);
+    void Process(const reader_options_t & options, collection_t & dls);
 
 private:
     void ReadInstruments(const riff::chunk_header_t & ch, std::vector<instrument_t> & instruments);
