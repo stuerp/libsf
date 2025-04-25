@@ -13,7 +13,6 @@ namespace sf::dls
 
 #pragma warning(disable: 4820) // x bytes padding
 
-
 /// <summary>
 /// Represents a connection block.
 /// </summary>
@@ -153,7 +152,7 @@ public:
     std::vector<region_t> Regions;
     std::vector<articulator_t> Articulators;
 
-    property_map_t Properties;
+    info_map_t Properties;
 };
 
 /// <summary>
@@ -176,7 +175,7 @@ public:
     wave_sample_t WaveSample;
     std::vector<uint8_t> Data;
 
-    property_map_t Properties;
+    info_map_t Properties;
 };
 
 /// <summary>

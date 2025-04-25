@@ -7,6 +7,8 @@
 
 #include "DLS.h"
 
+#include <RIFF.h>
+
 #define FOURCC_DLS  mmioFOURCC('D','L','S',' ')                     // Collection
 
 #define FOURCC_LINS mmioFOURCC('l','i','n','s')                     // List of instruments

@@ -1,5 +1,5 @@
 
-/** $VER: Stream.cpp (2025.03.20) P. Stuer **/
+/** $VER: Stream.cpp (2025.04.23) P. Stuer **/
 
 #include "pch.h"
 
@@ -7,18 +7,19 @@
 #include "Encoding.h"
 #include "Win32Exception.h"
 
-namespace riff
-{
-
 /// <summary>
 /// Opens the stream.
 /// </summary>
-bool file_stream_t::Open(const std::wstring & filePath)
+bool file_stream_t::Open(const std::wstring & filePath, bool forWriting)
 {
-    _hFile = ::CreateFileW(filePath.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, 0);
+    const DWORD DesiredAccess = (DWORD) (forWriting ? GENERIC_WRITE : GENERIC_READ);
+    const DWORD CreationDisposition = (DWORD) (forWriting ? CREATE_ALWAYS : OPEN_EXISTING);
+    const DWORD FlagsAndAttributes = (DWORD) (FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN);
+
+    _hFile = ::CreateFileW(filePath.c_str(), DesiredAccess, FILE_SHARE_READ, nullptr, CreationDisposition, FlagsAndAttributes, 0);
 
     if (_hFile == INVALID_HANDLE_VALUE)
-        throw win32_exception(::FormatText("Failed to open file \"%s\" for reading", filePath.c_str()));
+        throw win32_exception(::FormatText("Failed to open file \"%s\" for %s", filePath.c_str(), (forWriting ? "writing" : "reading")));
 
     return true;
 }
@@ -36,7 +37,7 @@ void file_stream_t::Close() noexcept
 }
 
 /// <summary>
-/// Reads a number of bytes into a buffer.
+/// Reads a number of bytes.
 /// </summary>
 void file_stream_t::Read(void * data, uint64_t size)
 {
@@ -47,6 +48,20 @@ void file_stream_t::Read(void * data, uint64_t size)
 
     if (BytesRead != size)
         throw win32_exception(::FormatText("Failed to read %llu bytes, got %u bytes", size, BytesRead));
+}
+
+/// <summary>
+/// Writes a number of bytes.
+/// </summary>
+void file_stream_t::Write(const void * data, uint64_t size)
+{
+    DWORD BytesWritten;
+
+    if (::WriteFile(_hFile, data, (DWORD) size, &BytesWritten, nullptr) == 0)
+        throw win32_exception(::FormatText("Failed to read %llu bytes", size));
+
+    if (BytesWritten != size)
+        throw win32_exception(::FormatText("Failed to write %llu bytes, put %u bytes", size, BytesWritten));
 }
 
 /// <summary>
@@ -66,9 +81,35 @@ void file_stream_t::Skip(uint64_t size)
 }
 
 /// <summary>
+/// Gets the current offset.
+/// </summary>
+uint64_t file_stream_t::Offset() const
+{
+    LARGE_INTEGER FilePointer = {};
+
+    if (::SetFilePointerEx(_hFile, FilePointer, (LARGE_INTEGER *) &FilePointer, FILE_CURRENT) == 0)
+        throw win32_exception("Failed to get current offset");
+
+    return (uint64_t) FilePointer.QuadPart;
+}
+
+/// <summary>
+/// Moves to the specified offset.
+/// </summary>
+void file_stream_t::Offset(uint64_t size)
+{
+    LARGE_INTEGER FilePointer = {};
+
+    FilePointer.QuadPart = (LONGLONG) size;
+
+    if (::SetFilePointerEx(_hFile, FilePointer, (LARGE_INTEGER *) &FilePointer, FILE_BEGIN) == 0)
+        throw win32_exception(::FormatText("Failed to move to offset %llu", size));
+}
+
+/// <summary>
 /// Opens the stream.
 /// </summary>
-bool memory_stream_t::Open(const std::wstring & filePath, uint64_t offset, uint64_t size)
+bool memory_stream_t::Open(const std::wstring & filePath, uint64_t offset, uint64_t size, bool forWriting)
 {
     _hFile = ::CreateFileW(filePath.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, 0);
 
@@ -112,7 +153,7 @@ bool memory_stream_t::Open(const std::wstring & filePath, uint64_t offset, uint6
 /// </summary>
 bool memory_stream_t::Open(const uint8_t * data, uint64_t size)
 {
-    _Data = data;
+    _Data = (uint8_t *) data;
 
     _Curr = _Data;
     _Tail = _Data + size;
@@ -142,6 +183,4 @@ void memory_stream_t::Close() noexcept
         ::CloseHandle(_hFile);
         _hFile = INVALID_HANDLE_VALUE;
     }
-}
-
 }

@@ -7,6 +7,7 @@
     <ClCompile Include="libriff.cpp" />
     <ClCompile Include="Stream.cpp" />
     <ClCompile Include="Win32Exception.cpp" />
+    <ClCompile Include="RIFFWriter.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="RIFFReader.h" />
@@ -18,6 +19,8 @@
     <ClInclude Include="Encoding.h" />
     <ClInclude Include="Stream.h" />
     <ClInclude Include="Win32Exception.h" />
+    <ClInclude Include="RIFFWriter.h" />
+    <ClInclude Include="RIFF.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="LICENSE" />

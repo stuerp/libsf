@@ -1,5 +1,5 @@
 
-/** $VER: libsf.h (2025.03.15) P. Stuer **/
+/** $VER: libsf.h (2025.04.23) P. Stuer **/
 
 #pragma once
 
@@ -7,6 +7,8 @@
 
 #include "DLSReader.h"
 #include "SoundFontReader.h"
+#include "SoundFontWriter.h"
+#include "ECWReader.h"
 
 namespace sf
 {

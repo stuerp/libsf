@@ -1,5 +1,5 @@
 
-/** $VER: FOURCC.h (2025.03.22) P. Stuer **/
+/** $VER: FOURCC.h (2025.04.23) P. Stuer **/
 
 #pragma once
 
@@ -14,6 +14,8 @@
 #define FOURCC_CUE  mmioFOURCC('c','u','e',' ')
 #define FOURCC_FACT mmioFOURCC('f','a','c','t')
 #define FOURCC_DATA mmioFOURCC('d','a','t','a')
+
+#define FOURCC_INFO mmioFOURCC('I','N','F','O')
 
 #define FOURCC_IARL mmioFOURCC('I','A','R','L')
 #define FOURCC_IART mmioFOURCC('I','A','R','T')

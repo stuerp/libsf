@@ -1,5 +1,5 @@
 
-/** $VER: BaseTypes.h (2025.03.26) P. Stuer - Base class for sound fonts **/
+/** $VER: BaseTypes.h (2025.04.24) P. Stuer - Base class for sound fonts **/
 
 #pragma once
 
@@ -82,9 +82,9 @@ enum GeneratorTypes : uint16_t
     endOper = 60                         // Unused, reserved. Should be ignored if encountered. Unique name provides value to end of defined list.
 };
 
-typedef std::unordered_map<std::string, std::string> property_map_t;
+typedef std::unordered_map<uint32_t, std::string> info_map_t;
 
-inline std::string GetPropertyValue(const property_map_t & map, const std::string & key)
+inline std::string GetPropertyValue(const info_map_t & map, const uint32_t key)
 {
     auto it = map.find(key);
 
@@ -152,13 +152,20 @@ public:
     std::vector<instrument_base_t> Instruments;
     std::vector<sample_base_t> Samples;
 
-    property_map_t Properties;
+    info_map_t Properties;
 };
 
 class soundfont_reader_base_t : public riff::reader_t
 {
 public:
-    bool HandleIxxx(uint32_t chunkId, uint32_t chunkSize, property_map_t & properties);
+    bool HandleIxxx(uint32_t chunkId, uint32_t chunkSize, info_map_t & infoMap);
+
+private:
+    info_map_t _InfoMap;
+};
+
+class soundfont_writer_base_t : public riff::writer_t
+{
 };
 
 }

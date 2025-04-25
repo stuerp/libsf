@@ -1,5 +1,5 @@
 
-/** $VER: Stream.h (2025.03.19) P. Stuer **/
+/** $VER: Stream.h (2025.04.23) P. Stuer **/
 
 #pragma once
 
@@ -12,9 +12,6 @@
 
 #pragma warning(disable: 4820)
 
-namespace riff
-{
-
 /// <summary>
 /// Implements a stream.
 /// </summary>
@@ -26,14 +23,29 @@ public:
     virtual void Close() noexcept = 0;
 
     /// <summary>
-    /// Reads a number of bytes into a buffer.
+    /// Reads a number of bytes.
     /// </summary>
     virtual void Read(void * data, uint64_t size) = 0;
+
+    /// <summary>
+    /// Writes a number of bytes.
+    /// </summary>
+    virtual void Write(const void * data, uint64_t size) = 0;
 
     /// <summary>
     /// Skips the specified number of bytes.
     /// </summary>
     virtual void Skip(uint64_t size) = 0;
+
+    /// <summary>
+    /// Gets the current offset.
+    /// </summary>
+    virtual uint64_t Offset() const = 0;
+
+    /// <summary>
+    /// Moves to the specified offset.
+    /// </summary>
+    virtual void Offset(uint64_t size) = 0;
 };
 
 /// <summary>
@@ -51,11 +63,14 @@ public:
         Close();
     }
 
-    bool Open(const std::wstring & filePath);
+    bool Open(const std::wstring & filePath, bool forWriting = false);
 
     virtual void Close() noexcept;
     virtual void Read(void * data, uint64_t size);
+    virtual void Write(const void * data, uint64_t size);
     virtual void Skip(uint64_t size);
+    virtual uint64_t Offset() const;
+    virtual void Offset(uint64_t size);
 
 protected:
     HANDLE _hFile;
@@ -71,7 +86,7 @@ public:
     {
     }
 
-    bool Open(const std::wstring & filePath, uint64_t offset, uint64_t size);
+    bool Open(const std::wstring & filePath, uint64_t offset, uint64_t size, bool forWriting = false);
 
     bool Open(const uint8_t * data, uint64_t size);
 
@@ -79,11 +94,20 @@ public:
 
     virtual void Read(void * data, uint64_t size)
     {
-        if (_Curr + size > _Tail)
-            throw riff::exception("Insufficient data");
+        if (_Curr + (ptrdiff_t) size > _Tail)
+            throw ::exception("Insufficient data");
 
         ::memcpy(data, _Curr, (size_t) size);
-        _Curr += size;
+        _Curr += (ptrdiff_t) size;
+    }
+
+    virtual void Write(const void * data, uint64_t size)
+    {
+        if (_Curr + (ptrdiff_t) size > _Tail)
+            throw ::exception("Insufficient data");
+
+        ::memcpy(_Curr, data, (size_t) size);
+        _Curr += (ptrdiff_t) size;
     }
 
     /// <summary>
@@ -91,19 +115,36 @@ public:
     /// </summary>
     virtual void Skip(uint64_t size)
     {
-        if (_Curr + size > _Tail)
-            throw riff::exception("Insufficient data");
+        if (_Curr + (ptrdiff_t) size > _Tail)
+            throw ::exception("Insufficient data");
 
-        _Curr += size;
+        _Curr += (ptrdiff_t) size;
+    }
+
+    /// <summary>
+    /// Moves to the specified offset.
+    /// </summary>
+    virtual uint64_t Offset() const
+    {
+        return (uint64_t) (_Curr - _Data);
+    }
+
+    /// <summary>
+    /// Moves to the specified offset.
+    /// </summary>
+    virtual void Offset(uint64_t size)
+    {
+        if (_Data + (ptrdiff_t) size > _Tail)
+            throw ::exception("Invalid offset");
+
+        _Curr = _Data + (ptrdiff_t) size;
     }
 
 protected:
     HANDLE _hFile;
     HANDLE _hMap;
 
-    const uint8_t * _Data;
-    const uint8_t * _Curr;
-    const uint8_t * _Tail;
+    uint8_t * _Data;
+    uint8_t * _Curr;
+    uint8_t * _Tail;
 };
-
-}

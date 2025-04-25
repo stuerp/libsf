@@ -76,7 +76,7 @@ void reader_t::Process(const reader_options_t & options, collection_t & dls)
                     }
 
                     default:
-                        ReadChunks(ch.Id, ch.Size - sizeof(ListType), ChunkHandler);
+                        ReadChunks(ch.Size - sizeof(ListType), ChunkHandler);
                 }
 
                 TRACE_UNINDENT();
@@ -256,7 +256,7 @@ void reader_t::ReadInstruments(const riff::chunk_header_t & ch, std::vector<inst
                     }
 
                     default:
-                        ReadChunks(ch.Id, ch.Size - sizeof(ListType), ChunkHandler);
+                        ReadChunks(ch.Size - sizeof(ListType), ChunkHandler);
                 }
 
                 TRACE_UNINDENT();
@@ -267,7 +267,7 @@ void reader_t::ReadInstruments(const riff::chunk_header_t & ch, std::vector<inst
             {
                 if ((ch.Id & mmioFOURCC(0xFF, 0, 0, 0)) == mmioFOURCC('I', 0, 0, 0))
                 {
-                    std::unordered_map<std::string, std::string> Properties;
+                    info_map_t Properties;
 
                     HandleIxxx(ch.Id, ch.Size, Properties);
                 }
@@ -283,7 +283,7 @@ void reader_t::ReadInstruments(const riff::chunk_header_t & ch, std::vector<inst
         return true;
     };
 
-    ReadChunks(ch.Id, ch.Size - sizeof(ch.Id), ChunkHandler);
+    ReadChunks(ch.Size - sizeof(ch.Id), ChunkHandler);
 }
 
 /// <summary>
@@ -321,7 +321,7 @@ void reader_t::ReadInstrument(const riff::chunk_header_t & ch, instrument_t & in
                     }
 
                     default:
-                        ReadChunks(ch.Id, ch.Size - sizeof(ListType), ChunkHandler);
+                        ReadChunks(ch.Size - sizeof(ListType), ChunkHandler);
                 }
 
                 TRACE_UNINDENT();
@@ -375,9 +375,9 @@ void reader_t::ReadInstrument(const riff::chunk_header_t & ch, instrument_t & in
         return true;
     };
 
-    ReadChunks(ch.Id, ch.Size - sizeof(ch.Id), ChunkHandler);
+    ReadChunks(ch.Size - sizeof(ch.Id), ChunkHandler);
 
-    instrument.Name = GetPropertyValue(instrument.Properties, "Name");
+    instrument.Name = GetPropertyValue(instrument.Properties, FOURCC_INAM);
 }
 
 /// <summary>
@@ -411,7 +411,7 @@ void reader_t::ReadRegions(const riff::chunk_header_t & ch, std::vector<region_t
                     }
 
                     default:
-                        ReadChunks(ch.Id, ch.Size - sizeof(ListType), ChunkHandler);
+                        ReadChunks(ch.Size - sizeof(ListType), ChunkHandler);
                 }
 
                 TRACE_UNINDENT();
@@ -422,7 +422,7 @@ void reader_t::ReadRegions(const riff::chunk_header_t & ch, std::vector<region_t
             {
                 if ((ch.Id & mmioFOURCC(0xFF, 0, 0, 0)) == mmioFOURCC('I', 0, 0, 0))
                 {
-                    std::unordered_map<std::string, std::string> Properties;
+                    info_map_t Properties;
 
                     HandleIxxx(ch.Id, ch.Size, Properties);
                 }
@@ -438,7 +438,7 @@ void reader_t::ReadRegions(const riff::chunk_header_t & ch, std::vector<region_t
         return true;
     };
 
-    ReadChunks(ch.Id, ch.Size - sizeof(ch.Id), ChunkHandler);
+    ReadChunks(ch.Size - sizeof(ch.Id), ChunkHandler);
 }
 
 /// <summary>
@@ -470,7 +470,7 @@ void reader_t::ReadRegion(const riff::chunk_header_t & ch, region_t & region)
                     }
 
                     default:
-                        ReadChunks(ch.Id, ch.Size - sizeof(ListType), ChunkHandler);
+                        ReadChunks(ch.Size - sizeof(ListType), ChunkHandler);
                 }
 
                 TRACE_UNINDENT();
@@ -532,7 +532,7 @@ void reader_t::ReadRegion(const riff::chunk_header_t & ch, region_t & region)
             {
                 if ((ch.Id & mmioFOURCC(0xFF, 0, 0, 0)) == mmioFOURCC('I', 0, 0, 0))
                 {
-                    std::unordered_map<std::string, std::string> Properties;
+                    info_map_t Properties;
 
                     HandleIxxx(ch.Id, ch.Size, Properties);
                 }
@@ -548,7 +548,7 @@ void reader_t::ReadRegion(const riff::chunk_header_t & ch, region_t & region)
         return true;
     };
 
-    ReadChunks(ch.Id, ch.Size - sizeof(ch.Id), ChunkHandler);
+    ReadChunks(ch.Size - sizeof(ch.Id), ChunkHandler);
 }
 
 /// <summary>
@@ -570,7 +570,7 @@ void reader_t::ReadArticulators(const riff::chunk_header_t & ch, std::vector<art
                 TRACE_LIST(ListType, ch.Size);
                 TRACE_INDENT();
 
-                ReadChunks(ch.Id, ch.Size - sizeof(ListType), ChunkHandler);
+                ReadChunks(ch.Size - sizeof(ListType), ChunkHandler);
 
                 TRACE_UNINDENT();
                 break;
@@ -682,7 +682,7 @@ void reader_t::ReadArticulators(const riff::chunk_header_t & ch, std::vector<art
             {
                 if ((ch.Id & mmioFOURCC(0xFF, 0, 0, 0)) == mmioFOURCC('I', 0, 0, 0))
                 {
-                    std::unordered_map<std::string, std::string> Properties;
+                    info_map_t Properties;
 
                     HandleIxxx(ch.Id, ch.Size, Properties);
                 }
@@ -698,7 +698,7 @@ void reader_t::ReadArticulators(const riff::chunk_header_t & ch, std::vector<art
         return true;
     };
 
-    ReadChunks(ch.Id, ch.Size - sizeof(ch.Id), ChunkHandler);
+    ReadChunks(ch.Size - sizeof(ch.Id), ChunkHandler);
 }
 
 /// <summary>
@@ -731,7 +731,7 @@ void reader_t::ReadWaves(const riff::chunk_header_t & ch, std::vector<wave_t> & 
                     }
 
                     default:
-                        ReadChunks(ch.Id, ch.Size - sizeof(ListType), ChunkHandler);
+                        ReadChunks(ch.Size - sizeof(ListType), ChunkHandler);
                 }
 
                 TRACE_UNINDENT();
@@ -742,7 +742,7 @@ void reader_t::ReadWaves(const riff::chunk_header_t & ch, std::vector<wave_t> & 
             {
                 if ((ch.Id & mmioFOURCC(0xFF, 0, 0, 0)) == mmioFOURCC('I', 0, 0, 0))
                 {
-                    std::unordered_map<std::string, std::string> Properties;
+                    info_map_t Properties;
 
                     HandleIxxx(ch.Id, ch.Size, Properties);
                 }
@@ -758,7 +758,7 @@ void reader_t::ReadWaves(const riff::chunk_header_t & ch, std::vector<wave_t> & 
         return true;
     };
 
-    ReadChunks(ch.Id, ch.Size - sizeof(ch.Id), ChunkHandler);
+    ReadChunks(ch.Size - sizeof(ch.Id), ChunkHandler);
 }
 
 /// <summary>
@@ -780,7 +780,7 @@ void reader_t::ReadWave(const riff::chunk_header_t & ch, wave_t & wave)
                 TRACE_LIST(ListType, ch.Size);
                 TRACE_INDENT();
 
-                ReadChunks(ch.Id, ch.Size - sizeof(ListType), ChunkHandler);
+                ReadChunks(ch.Size - sizeof(ListType), ChunkHandler);
 
                 TRACE_UNINDENT();
                 break;
@@ -863,9 +863,9 @@ void reader_t::ReadWave(const riff::chunk_header_t & ch, wave_t & wave)
         return true;
     };
 
-    ReadChunks(ch.Id, ch.Size - sizeof(ch.Id), ChunkHandler);
+    ReadChunks(ch.Size - sizeof(ch.Id), ChunkHandler);
 
-    wave.Name = GetPropertyValue(wave.Properties, "Name");
+    wave.Name = GetPropertyValue(wave.Properties, FOURCC_INAM);
 }
 
 /// <summary>

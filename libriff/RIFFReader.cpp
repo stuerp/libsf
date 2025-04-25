@@ -30,7 +30,7 @@ bool reader_t::ReadHeader(uint32_t & formType)
     Read(&_Header, sizeof(_Header));
 
     if ((_Header.Id != FOURCC_RIFF) || (_Header.Size < sizeof(formType)))
-        throw riff::exception("Invalid header chunk");
+        throw ::exception("Invalid header chunk");
 
     Read(&formType, sizeof(formType));
 

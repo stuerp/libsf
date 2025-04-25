@@ -1,24 +1,20 @@
 
-/** $VER: RIFFReader.h (2025.03.22) P. Stuer **/
+/** $VER: RIFFReader.h (2025.04.25) P. Stuer **/
 
 #pragma once
 
 #include <SDKDDKVer.h>
 #include <windows.h>
 
+#include "RIFF.h"
 #include "FOURCC.h"
 
 #include "Stream.h"
+#include "Encoding.h"
 #include "Exception.h"
 
 namespace riff
 {
-
-struct chunk_header_t
-{
-    uint32_t Id;
-    uint32_t Size;
-};
 
 #pragma warning(disable: 4820)
 
@@ -49,14 +45,14 @@ public:
     virtual bool ReadHeader(uint32_t & formType);
 
     template <typename T> bool ReadChunks(T&& processChunk);
-    template <typename T> bool ReadChunks(uint32_t parentID, uint32_t parentSize, T&& processChunk);
+    template <typename T> bool ReadChunks(uint32_t chunkSize, T&& processChunk);
 
     /// <summary>
     /// Reads a value.
     /// </summary>
     template <typename T> void Read(T & data)
     {
-        _Stream->Read(&data, sizeof(data));
+        _Stream->Read(&data, sizeof(T));
     }
 
     /// <summary>
@@ -73,6 +69,14 @@ public:
     virtual void Skip(uint32_t size)
     {
         _Stream->Skip(size);
+    }
+
+    /// <summary>
+    /// Move to the specified offset.
+    /// </summary>
+    virtual void Offset(uint32_t size)
+    {
+        _Stream->Offset(size);
     }
 
     /// <summary>
@@ -95,27 +99,47 @@ protected:
     chunk_header_t _Header;
 };
 
-template <typename T> bool reader_t::ReadChunks(T&& processChunk)
+/// <summary>
+/// Reads chunks.
+/// </summary>
+template <typename T> bool reader_t::ReadChunks(T&& readChunk)
 {
-    return ReadChunks(_Header.Id, _Header.Size - 4, processChunk);
+    return ReadChunks(_Header.Size - sizeof(_Header.Id), readChunk);
 }
 
-template <typename T> bool reader_t::ReadChunks(uint32_t chunkId, uint32_t chunkSize, T&& processChunk)
+/// <summary>
+/// Reads chunks.
+/// </summary>
+template <typename T> bool reader_t::ReadChunks(uint32_t chunkSize, T&& readChunk)
 {
-    UNREFERENCED_PARAMETER(chunkId);
-
     while (chunkSize != 0)
     {
         chunk_header_t ch;
 
-        Read(&ch, sizeof(ch));
-        chunkSize -= sizeof(ch);
+        {
+            if (chunkSize < sizeof(ch))
+                throw exception(::FormatText("Failed to read chunk header: need %u bytes, have %u bytes", sizeof(ch), chunkSize));
 
-        processChunk(ch);
-        chunkSize -= ch.Size + (ch.Size & 1);
+            Read(&ch, sizeof(ch));
+            chunkSize -= sizeof(ch);
+        }
 
-        if ((ch.Size & 1) == 1)
-            Skip(1);
+        {
+            if (chunkSize < ch.Size)
+                throw exception(::FormatText("Failed to read chunk data: need %u bytes, have %u bytes", ch.Size, chunkSize));
+
+            readChunk(ch);
+            chunkSize -= ch.Size;
+
+            if (ch.Size & 1)
+            {
+                if (chunkSize < 1)
+                    throw exception("Failed to skip pad byte: insufficient data");
+
+                Skip(1);
+                --chunkSize;
+            }
+        }
     }
 
     return true;

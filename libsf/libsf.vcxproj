@@ -157,6 +157,8 @@
     <ClInclude Include="Definitions.h" />
     <ClInclude Include="DLS.h" />
     <ClInclude Include="DLSReader.h" />
+    <ClInclude Include="ECW.h" />
+    <ClInclude Include="ECWReader.h" />
     <ClInclude Include="Exception.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="libsf.h" />
@@ -164,10 +166,12 @@
     <ClInclude Include="BaseTypes.h" />
     <ClInclude Include="SoundFontReader.h" />
     <ClInclude Include="SoundFont.h" />
+    <ClInclude Include="SoundFontWriter.h" />
     <ClInclude Include="Win32Exception.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DLSReader.cpp" />
+    <ClCompile Include="ECWReader.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
@@ -175,6 +179,7 @@
     </ClCompile>
     <ClCompile Include="SoundFontReader.cpp" />
     <ClCompile Include="BaseTypes.cpp" />
+    <ClCompile Include="SoundFontWriter.cpp" />
     <ClCompile Include="Win32Exception.cpp" />
   </ItemGroup>
   <ItemGroup>

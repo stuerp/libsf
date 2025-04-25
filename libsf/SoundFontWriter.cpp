@@ -1,5 +1,5 @@
 
-/** $VER: SoundFontReader.cpp (2025.04.25) P. Stuer - Reads an SF2/SF3 compliant sound font. **/
+/** $VER: SoundFontWriter.cpp (2025.04.25) P. Stuer - Writes an SF2/SF3 compliant sound font. **/
 
 #include "pch.h"
 
@@ -95,21 +95,90 @@ struct _sample_header_t
 /// <summary>
 /// Processes the complete SoundFont.
 /// </summary>
-void soundfont_reader_t::Process(const soundfont_reader_options_t & options, soundfont_t & sf)
+void soundfont_writer_t::Process(const soundfont_writer_options_t & options, soundfont_t & sf)
 {
     TRACE_RESET();
     TRACE_INDENT();
 
-    uint32_t FormType;
-
-    ReadHeader(FormType);
-
-    if (FormType != FOURCC_SFBK)
-        throw sf::exception("Unexpected header type");
-
-    TRACE_FORM(FormType, _Header.Size);
+    TRACE_FORM(FOURCC_SFBK, 0);
     TRACE_INDENT();
+    {
+        WriteChunks(FOURCC_RIFF, FOURCC_SFBK, [this, &options, &sf]() -> uint32_t
+        {
+            uint32_t FormSize = 0;
 
+            TRACE_LIST(FOURCC_INFO, 0);
+            TRACE_INDENT();
+            {
+                FormSize += WriteChunks(FOURCC_LIST, FOURCC_INFO, [this, &options, &sf]() -> uint32_t
+                {
+                    uint32_t ListSize = WriteChunk(FOURCC_IFIL, [this, &options, &sf]() -> uint32_t
+                    {
+                        constexpr const uint16_t Version[] = { 2, 1 };
+
+                        return Write(Version, sizeof(Version));
+                    });
+
+                    ListSize += WriteChunk(FOURCC_ISNG, [this, &options, &sf]() -> uint32_t
+                    {
+                        constexpr const char * Data = "EMU8000";
+                        constexpr uint32_t Size = 8; // Include string terminator.
+
+                        return Write(Data, Size);
+                    });
+
+                    for (const auto & [ ChunkId, Value ] : sf.Properties)
+                    {
+                        ListSize += WriteChunk(ChunkId, [this, &options, &sf, Value]() -> uint32_t
+                        {
+                            const char * Data = Value.c_str();
+                            const uint32_t Size = (uint32_t) ::strlen(Data) + 1; // Include string terminator.
+
+                            return Write(Data, Size);
+                        });
+                    }
+
+                    return ListSize;
+                });
+            }
+            TRACE_UNINDENT(); // LIST
+
+            TRACE_LIST(FOURCC_SDTA, 0);
+            TRACE_INDENT();
+            {
+                FormSize += WriteChunks(FOURCC_LIST, FOURCC_SDTA, [this, &options, &sf]() -> uint32_t
+                {
+                    return 0;
+                });
+            }
+            TRACE_UNINDENT(); // LIST
+
+            TRACE_LIST(FOURCC_PDTA, 0);
+            TRACE_INDENT();
+            {
+                FormSize += WriteChunks(FOURCC_LIST, FOURCC_PDTA, [this, &options, &sf]() -> uint32_t
+                {
+                    return 0;
+                });
+            }
+            TRACE_UNINDENT(); // LIST
+
+            return FormSize;
+        });
+    }
+    TRACE_UNINDENT(); // RIFF
+
+    TRACE_UNINDENT(); // File
+
+    // Update the chunk sizes.
+    for (const auto & Marker : _Markers)
+    {
+        SetOffset(Marker.Offset);
+
+        Write(Marker.Size);
+    }
+
+#ifdef later
     std::function<bool(const riff::chunk_header_t & ch)> ChunkHandler = [this, &options, &sf, &ChunkHandler](const riff::chunk_header_t & ch) -> bool
     {
         switch (ch.Id)
@@ -126,7 +195,7 @@ void soundfont_reader_t::Process(const soundfont_reader_options_t & options, sou
                 TRACE_LIST(ListType, ch.Size);
                 TRACE_INDENT();
 
-                ReadChunks(ch.Size - sizeof(ListType), ChunkHandler);
+                ReadChunks(ch.Id, ch.Size - sizeof(ListType), ChunkHandler);
 
                 TRACE_UNINDENT();
                 break;
@@ -345,7 +414,7 @@ void soundfont_reader_t::Process(const soundfont_reader_options_t & options, sou
                     sf.Instruments.push_back(instrument_t(Name, Instrument.ZoneIndex));
 
                     #ifdef __TRACE
-                    ::printf("%*s%5zu. \"%-20s\", Zone %5d\n", __TRACE_LEVEL * 2, "", i + 1, Instrument.Name, Instrument.ZoneIndex);
+                    ::printf("%*s%5zu. \"%-20s\", Zone %5d\n", __TRACE_LEVEL * 2, "", i + 1, Instrument.Name.c_str(), Instrument.ZoneIndex);
                     #endif
                 }
 
@@ -418,8 +487,9 @@ void soundfont_reader_t::Process(const soundfont_reader_options_t & options, sou
                     sf.InstrumentZoneGenerators.push_back({ Generator.Operator, Generator.Amount });
 
                     #ifdef __TRACE
-                    ::printf("%*s%5zu. Operator: 0x%04X, Amount: 0x%04X\n", __TRACE_LEVEL * 2, "", i + 1,
-                        Generator.Operator, Generator.Amount);
+                    ::printf("%*s%5zu. Operator: 0x%04X, Amount: 0x%04X, %s\n", __TRACE_LEVEL * 2, "", i + 1,
+                        Generator.Operator, Generator.Amount,
+                        DescribeGeneratorController(Generator.Operator).c_str());
                     #endif
                 }
 
@@ -462,12 +532,8 @@ void soundfont_reader_t::Process(const soundfont_reader_options_t & options, sou
             {
                 if ((ch.Id & mmioFOURCC(0xFF, 0, 0, 0)) == mmioFOURCC('I', 0, 0, 0))
                 {
-                    TRACE_CHUNK(ch.Id, ch.Size);
-                    TRACE_INDENT();
-
+                    // Information chunks
                     HandleIxxx(ch.Id, ch.Size, sf.Properties);
-
-                    TRACE_UNINDENT();
                 }
                 else
                 {
@@ -481,9 +547,6 @@ void soundfont_reader_t::Process(const soundfont_reader_options_t & options, sou
         return true;
     };
 
-    ReadChunks(_Header.Size - sizeof(FormType), ChunkHandler);
-
-    TRACE_UNINDENT(); // RIFF
-
-    TRACE_UNINDENT(); // File
+    ReadChunks(ChunkHandler);
+#endif
 }
