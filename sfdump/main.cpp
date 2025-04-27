@@ -1,5 +1,5 @@
 ﻿
-/** $VER: main.cpp (2025.04.24) P. Stuer **/
+/** $VER: main.cpp (2025.04.27) P. Stuer **/
 
 #include "pch.h"
 
@@ -24,48 +24,13 @@ static std::string DescribeModulatorController(uint16_t modulator) noexcept;
 static std::string DescribeGeneratorController(uint16_t generator, uint16_t amount) noexcept;
 static std::string DescribeSampleType(uint16_t sampleType) noexcept;
 
+static const char * GetChunkName(const uint32_t chunkId) noexcept;
+
 std::wstring FilePath;
 
 const WCHAR * Filters[] = { L".dls", L".sf2", L".sf3", L".ecw" };
 
 typedef std::unordered_map<uint32_t, const char *> info_map_t;
-
-/// <summary>
-/// Gets the name of a chunk.
-/// </summary>
-inline const char * GetChunkName(const uint32_t chunkId)
-{
-    const info_map_t ChunkNames =
-    {
-        { FOURCC_IARL, "Archival Location" },
-        { FOURCC_IART, "Artist" },
-        { FOURCC_ICMS, "Commissioned" },
-        { FOURCC_ICMT, "Comments" },
-        { FOURCC_ICOP, "Copyright" },
-        { FOURCC_ICRD, "Creation Date" },
-        { FOURCC_ICRP, "Cropped" },
-        { FOURCC_IDIM, "Dimensions" },
-        { FOURCC_IDPI, "DPI" },
-        { FOURCC_IENG, "Engineer" },
-        { FOURCC_IGNR, "Genre" },
-        { FOURCC_IKEY, "Keywords" },
-        { FOURCC_ILGT, "Lightness" },
-        { FOURCC_IMED, "Medium" },
-        { FOURCC_INAM, "Name" },
-        { FOURCC_IPLT, "Palette" },
-        { FOURCC_IPRD, "Product" },
-        { FOURCC_ISBJ, "Subject" },
-        { FOURCC_ISFT, "Software" },
-        { FOURCC_ISHP, "Sharpness" },
-        { FOURCC_ISRC, "Source" },
-        { FOURCC_ISRF, "Source Form" },
-        { FOURCC_ITCH, "Technician" },
-    };
-
-    auto it = ChunkNames.find(chunkId);
-
-    return (it != ChunkNames.end()) ? it->second : "Unknown";
-}
 
 int wmain(int argc, wchar_t * argv[])
 {
@@ -278,7 +243,7 @@ static void ProcessDLS(const std::wstring & filePath)
 
     for (const auto & [ ChunkId, Value ] : dls.Properties)
     {
-        ::printf("%*s%4zu. %08X: %s\n", __TRACE_LEVEL * 2, "", i++, ChunkId, Value.c_str());
+        ::printf("%*s%4zu. %s: %s\n", __TRACE_LEVEL * 2, "", i++, GetChunkName(ChunkId), Value.c_str());
     }
 #endif
 
@@ -301,7 +266,7 @@ static void ProcessSF(const std::wstring & filePath)
         sf::soundfont_reader_t sr;
 
         if (sr.Open(&ms, riff::reader_t::option_t::None))
-            sr.Process({ false }, sf);
+            sr.Process({ true }, sf);
 
         ms.Close();
     }
@@ -330,21 +295,24 @@ static void ProcessSF(const std::wstring & filePath)
     ::printf("%*sSample Data: %zu bytes\n", __TRACE_LEVEL * 2, "", sf.SampleData.size());
 
     {
-        ::printf("%*sPresets\n", __TRACE_LEVEL * 2, "");
+        ::printf("%*sPresets (%zu)\n", __TRACE_LEVEL * 2, "", sf.Presets.size() - 1);
         __TRACE_LEVEL++;
 
         size_t i = 0;
 
         for (const auto & Preset : sf.Presets)
         {
-            ::printf("%*s%5zu. %-20s, Zone %6d, Bank %3d, Preset %3d\n", __TRACE_LEVEL * 2, "", i++, Preset.Name.c_str(), Preset.ZoneIndex, Preset.Bank, Preset.Program);
+            ::printf("%*s%5zu. \"%-20s\", Zone %6d, Bank %3d, Program %3d\n", __TRACE_LEVEL * 2, "", i++, Preset.Name.c_str(), Preset.ZoneIndex, Preset.Bank, Preset.Program);
+
+            if (i == sf.Presets.size() - 1)
+                break;
         }
 
         __TRACE_LEVEL--;
     }
 
     {
-        ::printf("%*sPreset Zones: %zu\n", __TRACE_LEVEL * 2, "", sf.PresetZones.size());
+        ::printf("%*sPreset Zones (%zu)\n", __TRACE_LEVEL * 2, "", sf.PresetZones.size() - 1);
 
         __TRACE_LEVEL++;
 
@@ -353,13 +321,16 @@ static void ProcessSF(const std::wstring & filePath)
         for (const auto & pz : sf.PresetZones)
         {
             ::printf("%*s%5zu. Generator: %5d, Modulator: %5d\n", __TRACE_LEVEL * 2, "", i++, pz.GeneratorIndex, pz.ModulatorIndex);
+
+            if (i == sf.PresetZones.size() - 1)
+                break;
         }
 
         __TRACE_LEVEL--;
     }
 
     {
-        ::printf("%*sPreset Zone Modulators: %zu\n", __TRACE_LEVEL * 2, "", sf.PresetZoneModulators.size());
+        ::printf("%*sPreset Zone Modulators (%zu)\n", __TRACE_LEVEL * 2, "", sf.PresetZoneModulators.size() - 1);
 
         __TRACE_LEVEL++;
 
@@ -369,13 +340,16 @@ static void ProcessSF(const std::wstring & filePath)
         {
             ::printf("%*s%5zu. Src Op: 0x%04X, Dst Op: %2d, Amount: %6d, Amount Source: 0x%04X, Source Transform: 0x%04X, Src Op: \"%s\"\n", __TRACE_LEVEL * 2, "", i++,
                 pzm.SrcOperator, pzm.DstOperator, pzm.Amount, pzm.AmountSource, pzm.SourceTransform, DescribeModulatorController(pzm.SrcOperator).c_str());
+
+            if (i == sf.PresetZoneModulators.size() - 1)
+                break;
         }
 
         __TRACE_LEVEL--;
     }
 
     {
-        ::printf("%*sPreset Zone Generators: %zu\n", __TRACE_LEVEL * 2, "", sf.PresetZoneGenerators.size());
+        ::printf("%*sPreset Zone Generators (%zu)\n", __TRACE_LEVEL * 2, "", sf.PresetZoneGenerators.size() - 1);
 
         __TRACE_LEVEL++;
 
@@ -385,13 +359,16 @@ static void ProcessSF(const std::wstring & filePath)
         {
             ::printf("%*s%5zu. Operator: 0x%04X, Amount: 0x%04X, \"%s\"\n", __TRACE_LEVEL * 2, "", i++,
                 pzg.Operator, pzg.Amount, DescribeGeneratorController(pzg.Operator, pzg.Amount).c_str());
+
+            if (i == sf.PresetZoneGenerators.size() - 1)
+                break;
         }
 
         __TRACE_LEVEL--;
     }
 
     {
-        ::printf("%*sInstruments\n", __TRACE_LEVEL * 2, "");
+        ::printf("%*sInstruments (%zu)\n", __TRACE_LEVEL * 2, "", sf.Instruments.size() - 1);
 
         __TRACE_LEVEL++;
 
@@ -399,14 +376,17 @@ static void ProcessSF(const std::wstring & filePath)
 
         for (const auto & Instrument : sf.Instruments)
         {
-            ::printf("%*s%5zu. %-20s, Zone %6d\n", __TRACE_LEVEL * 2, "", i++, Instrument.Name.c_str(), Instrument.ZoneIndex);
+            ::printf("%*s%5zu. \"%-20s\", Zone %6d\n", __TRACE_LEVEL * 2, "", i++, Instrument.Name.c_str(), Instrument.ZoneIndex);
+
+            if (i == sf.Instruments.size() - 1)
+                break;
         }
 
         __TRACE_LEVEL--;
     }
 
     {
-        ::printf("%*sInstrument Zones: %zu\n", __TRACE_LEVEL * 2, "", sf.InstrumentZones.size());
+        ::printf("%*sInstrument Zones (%zu)\n", __TRACE_LEVEL * 2, "", sf.InstrumentZones.size() - 1);
 
         __TRACE_LEVEL++;
 
@@ -415,13 +395,16 @@ static void ProcessSF(const std::wstring & filePath)
         for (const auto & iz : sf.InstrumentZones)
         {
             ::printf("%*s%5zu. Generator %5d, Modulator %5d\n", __TRACE_LEVEL * 2, "", i++, iz.GeneratorIndex, iz.ModulatorIndex);
+
+            if (i == sf.InstrumentZones.size() - 1)
+                break;
         }
 
         __TRACE_LEVEL--;
     }
 
     {
-        ::printf("%*sInstrument Zone Modulators: %zu\n", __TRACE_LEVEL * 2, "", sf.InstrumentZoneModulators.size());
+        ::printf("%*sInstrument Zone Modulators (%zu)\n", __TRACE_LEVEL * 2, "", sf.InstrumentZoneModulators.size() - 1);
 
         __TRACE_LEVEL++;
 
@@ -431,13 +414,16 @@ static void ProcessSF(const std::wstring & filePath)
         {
             ::printf("%*s%5zu. Src Op: 0x%04X, Dst Op: 0x%04X, Amount: %6d, Amount Source: 0x%04X, Source Transform: 0x%04X, Src Op: \"%s\", Dst Op: \"%s\"\n", __TRACE_LEVEL * 2, "", i++,
                 izm.SrcOperator, izm.DstOperator, izm.Amount, izm.AmountSource, izm.SourceTransform, DescribeModulatorController(izm.SrcOperator).c_str(), DescribeModulatorController(izm.DstOperator).c_str());
+
+            if (i == sf.InstrumentZoneModulators.size() - 1)
+                break;
         }
 
         __TRACE_LEVEL--;
     }
 
     {
-        ::printf("%*sInstrument Zone Generators: %zu\n", __TRACE_LEVEL * 2, "", sf.InstrumentZoneGenerators.size());
+        ::printf("%*sInstrument Zone Generators (%zu)\n", __TRACE_LEVEL * 2, "", sf.InstrumentZoneGenerators.size() - 1);
 
         __TRACE_LEVEL++;
 
@@ -446,13 +432,16 @@ static void ProcessSF(const std::wstring & filePath)
         for (const auto & izg : sf.InstrumentZoneGenerators)
         {
             ::printf("%*s%5zu. Operator: 0x%04X, Amount: 0x%04X, \"%s\"\n", __TRACE_LEVEL * 2, "", i++, izg.Operator, izg.Amount, DescribeGeneratorController(izg.Operator, izg.Amount).c_str());
+
+            if (i == sf.InstrumentZoneGenerators.size() - 1)
+                break;
         }
 
         __TRACE_LEVEL--;
     }
 
     {
-        ::printf("%*sSamples\n", __TRACE_LEVEL * 2, "");
+        ::printf("%*sSamples (%zu)\n", __TRACE_LEVEL * 2, "", sf.Samples.size() - 1);
         __TRACE_LEVEL++;
 
         size_t i = 0;
@@ -463,6 +452,9 @@ static void ProcessSF(const std::wstring & filePath)
                 Sample.Name.c_str(), Sample.Start, Sample.End, Sample.LoopStart, Sample.LoopEnd,
                 Sample.SampleRate, Sample.Pitch, Sample.PitchCorrection,
                 Sample.SampleLink, Sample.SampleType, DescribeSampleType(Sample.SampleType).c_str());
+
+            if (i == sf.Samples.size() - 1)
+                break;
         }
 
         __TRACE_LEVEL--;
@@ -567,7 +559,7 @@ static std::string DescribeGeneratorController(uint16_t generator, uint16_t amou
         case  2: Text = "Loop Start Offset"; break;
         case  3: Text = "Loop End Offset"; break;
 
-        case  4: Text = "Start Coarse Offset"; break;
+        case  4: Text = ::FormatText("Start Coarse Offset %d (startAddrsCoarseOffset)", amount); break;
 
         case  5: Text = "Modulation LFO to Pitch"; break;
         case  6: Text = "Vibrato LFO to Pitch"; break;
@@ -584,10 +576,9 @@ static std::string DescribeGeneratorController(uint16_t generator, uint16_t amou
 
         case 14: Text = "Unused"; break;
 
-        case 15: Text = "chorusEffectsSend"; break;
-        case 16: Text = "reverbEffectsSend"; break;
-
-        case 17: Text = ::FormatText("Pan (%d)", (int16_t) amount); break;
+        case 15: Text = ::FormatText("Chorus %.1f%% (chorusEffectsSend)", (int16_t) amount / 10.f); break;
+        case 16: Text = ::FormatText("Reverb %.1f%% (reverbEffectsSend)", (int16_t) amount / 10.f); break;
+        case 17: Text = ::FormatText("Pan %.1f%% (pan)", (int16_t) amount / 10.f); break;
 
         case 18: Text = "Unused"; break;
         case 19: Text = "Unused"; break;
@@ -612,15 +603,15 @@ static std::string DescribeGeneratorController(uint16_t generator, uint16_t amou
         case 35: Text = "holdVolEnv"; break;
         case 36: Text = "decayVolEnv"; break;
         case 37: Text = "sustainVolEnv"; break;
-        case 38: Text = "releaseVolEnv"; break;
+        case 38: Text = ::FormatText("Volume Envelope Release %d (releaseVolEnv)", (int16_t) amount); break;
         case 39: Text = "keynumToVolEnvHold"; break;
         case 40: Text = "keynumToVolEnvDecay"; break;
 
-        case 41: Text = "Instrument"; break;
+        case 41: Text = ::FormatText("Instrument Index %d (instrument)", amount); break;
 
         case 42: Text = "Reserved"; break;
 
-        case 43: Text = ::FormatText("Key Range (%d - %d)", amount & 0x00FF, (amount >> 8) & 0x00FF); break;                     // Start and End MIDI key
+        case 43: Text = ::FormatText("Key Range %d - %d (keyRange)", amount & 0x00FF, (amount >> 8) & 0x00FF); break; // Start and End MIDI key
         case 44: Text = "Velocity Range"; break;
         case 45: Text = "startloopAddrsCoarseOffset"; break;
         case 46: Text = "keynum"; break;
@@ -632,14 +623,14 @@ static std::string DescribeGeneratorController(uint16_t generator, uint16_t amou
         case 50: Text = "endloopAddrsCoarseOffset"; break;
         case 51: Text = "coarseTune"; break;
         case 52: Text = "fineTune"; break;
-        case 53: Text = ::FormatText("Sample %d", amount); break;                     // Index of the sample
-        case 54: Text = "sampleModes"; break;
+        case 53: Text = ::FormatText("Sample %d (sampleID)", amount); break;                    // Index of the sample
+        case 54: Text = ::FormatText("Sample Mode %d (sampleModes)", amount); break;            // 0 = no loop, 1 = loop, 2 = reserved, 3 = loop and play till the end in release phase
 
         case 55: Text = "Reserved"; break;
 
         case 56: Text = "Scale Tuning"; break;
         case 57: Text = "Exclusive Class"; break;
-        case 58: Text = "Overriding Root Key"; break;
+        case 58: Text = ::FormatText("Overriding Root Key %d (overridingRootKey)", amount); break;
 
         case 59: Text = "Unused"; break;
         case 60: Text = "Unused"; break;
@@ -673,6 +664,43 @@ static std::string DescribeSampleType(uint16_t sampleType) noexcept
     }
 
     return Text;
+}
+
+/// <summary>
+/// Gets the name of a chunk.
+/// </summary>
+static const char * GetChunkName(const uint32_t chunkId) noexcept
+{
+    const info_map_t ChunkNames =
+    {
+        { FOURCC_IARL, "Archival Location" },
+        { FOURCC_IART, "Artist" },
+        { FOURCC_ICMS, "Commissioned" },
+        { FOURCC_ICMT, "Comments" },
+        { FOURCC_ICOP, "Copyright" },
+        { FOURCC_ICRD, "Creation Date" },
+        { FOURCC_ICRP, "Cropped" },
+        { FOURCC_IDIM, "Dimensions" },
+        { FOURCC_IDPI, "DPI" },
+        { FOURCC_IENG, "Engineer" },
+        { FOURCC_IGNR, "Genre" },
+        { FOURCC_IKEY, "Keywords" },
+        { FOURCC_ILGT, "Lightness" },
+        { FOURCC_IMED, "Medium" },
+        { FOURCC_INAM, "Name" },
+        { FOURCC_IPLT, "Palette" },
+        { FOURCC_IPRD, "Product" },
+        { FOURCC_ISBJ, "Subject" },
+        { FOURCC_ISFT, "Software" },
+        { FOURCC_ISHP, "Sharpness" },
+        { FOURCC_ISRC, "Source" },
+        { FOURCC_ISRF, "Source Form" },
+        { FOURCC_ITCH, "Technician" },
+    };
+
+    auto it = ChunkNames.find(chunkId);
+
+    return (it != ChunkNames.end()) ? it->second : "Unknown";
 }
 
 /// <summary>
@@ -887,4 +915,3 @@ static void ProcessECW(const std::wstring & filePath)
     }
 #endif
 }
-

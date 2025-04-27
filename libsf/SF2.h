@@ -1,36 +1,39 @@
 
-/** $VER: SoundFont.h (2025.04.27) P. Stuer - SoundFont data types **/
+/** $VER: SF2.h (2025.04.27) P. Stuer - SF2 data types **/
 
 #pragma once
 
 #include "pch.h"
 
 #include "BaseTypes.h"
+#include "Definitions.h"
 
 namespace sf
 {
 
 #pragma warning(disable: 4820) // x bytes padding
 
-class preset_t
+#pragma pack(push, 2)
+
+struct sfPresetHeader
 {
-public:
-    std::string Name;
-    uint16_t Program;
-    uint16_t Bank;
-    uint16_t ZoneIndex;
+    char Name[20];
+    uint16_t wPreset;           // The MIDI preset number which applies to this preset.
+    uint16_t Bank;              // The MIDI bank number which applies to this preset.
+    uint16_t ZoneIndex;         // Index in the preset’s zone list.
+    uint32_t Library;           // Unused
+    uint32_t Genre;             // Unused
+    uint32_t Morphology;        // Unused
 };
 
-class preset_zone_t
+struct sfPresetBag
 {
-public:
     uint16_t GeneratorIndex;    // Index to the preset zone's list of generators in the PGEN chunk.
     uint16_t ModulatorIndex;    // Index to the preset zone's list of modulators in the PMOD chunk.
 };
 
-class preset_zone_modulator_t
+struct sfModList
 {
-public:
     uint16_t SrcOperator;       // Source of data for the modulator.
     uint16_t DstOperator;       // Destination of the modulator.
     int16_t Amount;             // The degree to which the source modulates the destination.
@@ -38,29 +41,26 @@ public:
     uint16_t SourceTransform;   // Transform that will be applied to the modulation source before application to the modulator.
 };
 
-class preset_zone_generator_t : public generator_base_t
+struct sfGenList
 {
-public:
+    uint16_t Operator;          // The operator
+    uint16_t Amount;            // The value to be assigned to the generator
 };
 
-class instrument_t : public instrument_base_t
+struct sfInst
 {
-public:
-    instrument_t(const std::string & name, uint16_t zoneIndex) : instrument_base_t(name), ZoneIndex(zoneIndex) { }
-
+    char Name[20];
     uint16_t ZoneIndex;         // Index to the instrument's zone list in the IBAG chunk.
 };
 
-class instrument_zone_t
+struct sfInstBag
 {
-public:
     uint16_t GeneratorIndex;    // Index to the instrument zone's list of generators in the IGEN chunk.
-    uint16_t ModulatorIndex;     // Index to the instrument zone's list of modulators in the IMOD chunk.
+    uint16_t ModulatorIndex;    // Index to the instrument zone's list of modulators in the IMOD chunk.
 };
 
-class instrument_zone_modulator_t
+struct sfInstModList
 {
-public:
     uint16_t SrcOperator;       // Source of data for the modulator.
     uint16_t DstOperator;       // Destination of the modulator.
     int16_t Amount;             // The degree to which the source modulates the destination.
@@ -68,27 +68,15 @@ public:
     uint16_t SourceTransform;   // Transform that will be applied to the modulation source before application to the modulator.
 };
 
-class instrument_zone_generator_t : public generator_base_t
+struct sfInstGenList
 {
-public:
+    uint16_t Operator;          // The operator
+    uint16_t Amount;            // The value to be assigned to the generator
 };
 
-enum SampleTypes
+struct sfSample
 {
-    MonoSample      = 0x0001,
-    RightSample     = 0x0002,
-    LeftSample      = 0x0004,
-    LinkedSample    = 0x0008,
-
-    RomMonoSample   = 0x8001,
-    RomRightSample  = 0x8002,
-    RomLeftSample   = 0x8004,
-    RomLinkedSample = 0x8008
-};
-
-class sample_t : public sample_base_t
-{
-public:
+    char Name[20];
     uint32_t Start;             // Index from the beginning of the sample data to the start of the sample (in sample data points).
     uint32_t End;               // Index from the beginning of the sample data to the end of the sample (in sample data points).
     uint32_t LoopStart;         // Index from the beginning of the sample data to the loop start of the sample (in sample data points).
@@ -97,39 +85,10 @@ public:
     uint8_t Pitch;              // MIDI key number of the recorded pitch of the sample.
     int8_t PitchCorrection;     // Pitch correction in cents that should be applied to the sample on playback.
     uint16_t SampleLink;        // Index of the sample header of the associated right or left stereo sample for SampleTypes LeftSample or RightSample respectively.
-    uint16_t SampleType;        // enum SampleTypes
+    uint16_t SampleType;        // Mask 0xC000 indicates a ROM sample.
 };
 
-/// <summary>
-/// Represents an SF2/SF3-compliant sound font.
-/// </summary>
-class soundfont_t : public soundfont_base_t
-{
-public:
-    soundfont_t() noexcept : Major(), Minor(), ROMMajor(), ROMMinor() { }
-
-    uint16_t Major;
-    uint16_t Minor;
-
-    std::string SoundEngine;
-    std::string ROM;
-    uint16_t ROMMajor;
-    uint16_t ROMMinor;
-
-    std::vector<preset_t> Presets;
-    std::vector<preset_zone_t> PresetZones;
-    std::vector<preset_zone_modulator_t> PresetZoneModulators;
-    std::vector<preset_zone_generator_t> PresetZoneGenerators;
-
-    std::vector<instrument_t> Instruments;
-    std::vector<instrument_zone_t> InstrumentZones;
-    std::vector<instrument_zone_modulator_t> InstrumentZoneModulators;
-    std::vector<instrument_zone_generator_t> InstrumentZoneGenerators;
-
-    std::vector<sample_t> Samples;
-
-    std::vector<uint8_t> SampleData;
-};
+#pragma pack(pop)
 
 #pragma warning(default: 4820) // x bytes padding
 

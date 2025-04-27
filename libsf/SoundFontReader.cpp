@@ -1,5 +1,5 @@
 
-/** $VER: SoundFontReader.cpp (2025.04.25) P. Stuer - Reads an SF2/SF3 compliant sound font. **/
+/** $VER: SoundFontReader.cpp (2025.04.27) P. Stuer - Reads an SF2/SF3 compliant sound font. **/
 
 #include "pch.h"
 
@@ -9,91 +9,12 @@
 
 #include <functional>
 
+#include "SF2.h"
+
 using namespace sf;
 
-#pragma region Internal
-
-#pragma pack(push, 2)
-
-struct _preset_header_t
-{
-    char Name[20];
-    uint16_t Preset;            // The MIDI preset number which applies to this preset.
-    uint16_t Bank;              // The MIDI bank number which applies to this preset.
-    uint16_t ZoneIndex;         // Index in the preset’s zone list. 
-    uint32_t Library;           // Unused
-    uint32_t Genre;             // Unused
-    uint32_t Morphology;        // Unused
-};
-
-struct _preset_zone_t
-{
-    uint16_t GeneratorIndex;    // Index to the preset zone's list of generators in the PGEN chunk.
-    uint16_t ModulatorIndex;    // Index to the preset zone's list of modulators in the PMOD chunk.
-};
-
-struct _preset_zone_modulator_t
-{
-    uint16_t SrcOperator;       // Source of data for the modulator.
-    uint16_t DstOperator;       // Destination of the modulator.
-    int16_t Amount;             // The degree to which the source modulates the destination.
-    uint16_t AmountSource;      // The degree to which the source modulates the destination is to be controlled by the specficied modulation source.
-    uint16_t SourceTransform;   // Transform that will be applied to the modulation source before application to the modulator.
-};
-
-struct _preset_zone_generator_t
-{
-    uint16_t Operator;          // The operator
-    uint16_t Amount;            // The value to be assigned to the generator
-};
-
-struct _instrument_t
-{
-    char Name[20];
-    uint16_t ZoneIndex;         // Index to the instrument's zone list in the IBAG chunk.
-};
-
-struct _instrument_zone_t
-{
-    uint16_t GeneratorIndex;    // Index to the instrument zone's list of generators in the IGEN chunk.
-    uint16_t ModulatorIndex;    // Index to the instrument zone's list of modulators in the IMOD chunk.
-};
-
-struct _instrument_zone_modulator_t
-{
-    uint16_t SrcOperator;       // Source of data for the modulator.
-    uint16_t DstOperator;       // Destination of the modulator.
-    int16_t Amount;             // The degree to which the source modulates the destination.
-    uint16_t AmountSource;      // The degree to which the source modulates the destination is to be controlled by the specficied modulation source.
-    uint16_t SourceTransform;   // Transform that will be applied to the modulation source before application to the modulator.
-};
-
-struct _instrument_zone_generator_t
-{
-    uint16_t Operator;          // The operator
-    uint16_t Amount;            // The value to be assigned to the generator
-};
-
-struct _sample_header_t
-{
-    char Name[20];
-    uint32_t Start;             // Index from the beginning of the sample data to the start of the sample (in sample data points).
-    uint32_t End;               // Index from the beginning of the sample data to the end of the sample (in sample data points).
-    uint32_t LoopStart;         // Index from the beginning of the sample data to the loop start of the sample (in sample data points).
-    uint32_t LoopEnd;           // Index from the beginning of the sample data to the loop end of the sample (in sample data points).
-    uint32_t SampleRate;        // Sample rate in Hz at which this sample was acquired.
-    uint8_t Pitch;              // MIDI key number of the recorded pitch of the sample.
-    int8_t PitchCorrection;     // Pitch correction in cents that should be applied to the sample on playback.
-    uint16_t SampleLink;        // Index of the sample header of the associated right or left stereo sample for SampleTypes LeftSample or RightSample respectively.
-    uint16_t SampleType;        // Mask 0xC000 indicates a ROM sample.
-};
-
-#pragma pack(pop)
-
-#pragma endregion
-
 /// <summary>
-/// Processes the complete SoundFont.
+/// Read the complete SoundFont.
 /// </summary>
 void soundfont_reader_t::Process(const soundfont_reader_options_t & options, soundfont_t & sf)
 {
@@ -234,19 +155,19 @@ void soundfont_reader_t::Process(const soundfont_reader_options_t & options, sou
                 TRACE_CHUNK(ch.Id, ch.Size);
                 TRACE_INDENT();
 
-                _preset_header_t PresetHeader = { };
-                const size_t PresetHeaderCount = ch.Size / sizeof(PresetHeader);
+                sfPresetHeader ph = { };
+                const size_t PresetHeaderCount = ch.Size / sizeof(ph);
 
                 for (size_t i = 0; i < PresetHeaderCount; ++i)
                 {
-                    Read(&PresetHeader, sizeof(PresetHeader));
+                    Read(&ph, sizeof(ph));
 
-                    std::string Name; Name.assign(PresetHeader.Name, _countof(PresetHeader.Name));
+                    std::string Name; Name.assign(ph.Name, _countof(ph.Name));
 
-                    sf.Presets.push_back({ Name, PresetHeader.Bank, PresetHeader.Preset, PresetHeader.ZoneIndex });
+                    sf.Presets.push_back({ Name, ph.Bank, ph.wPreset, ph.ZoneIndex });
 
                     #ifdef __TRACE
-                    ::printf("%*s%5zu. %-20s, Bank %3d, Preset %3d, Zone %6d\n", __TRACE_LEVEL * 2, "", i + 1, Name.c_str(), PresetHeader.Bank, PresetHeader.Preset, PresetHeader.ZoneIndex);
+                    ::printf("%*s%5zu. \"%-20s\", Bank %3d, Preset %3d, Zone %6d\n", __TRACE_LEVEL * 2, "", i + 1, Name.c_str(), ph.Bank, ph.wPreset, ph.ZoneIndex);
                     #endif
                 }
 
@@ -284,7 +205,7 @@ void soundfont_reader_t::Process(const soundfont_reader_options_t & options, sou
                 TRACE_CHUNK(ch.Id, ch.Size);
                 TRACE_INDENT();
 
-                _preset_zone_modulator_t Modulator = { };
+                sfModList Modulator = { };
                 const size_t ModulatorCount = ch.Size / sizeof(Modulator);
 
                 for (size_t i = 0; i < ModulatorCount; ++i)
@@ -309,7 +230,7 @@ void soundfont_reader_t::Process(const soundfont_reader_options_t & options, sou
                 TRACE_CHUNK(ch.Id, ch.Size);
                 TRACE_INDENT();
 
-                _preset_zone_generator_t Generator = { };
+                sfGenList Generator = { };
                 const size_t GeneratorCount = ch.Size / sizeof(Generator);
 
                 for (size_t i = 0; i < GeneratorCount; ++i)
@@ -333,7 +254,7 @@ void soundfont_reader_t::Process(const soundfont_reader_options_t & options, sou
                 TRACE_CHUNK(ch.Id, ch.Size);
                 TRACE_INDENT();
 
-                _instrument_t Instrument = { };
+                sfInst Instrument = { };
                 const size_t InstrumentCount = ch.Size / sizeof(Instrument);
 
                 for (size_t i = 0; i < InstrumentCount; ++i)
@@ -359,7 +280,7 @@ void soundfont_reader_t::Process(const soundfont_reader_options_t & options, sou
                 TRACE_CHUNK(ch.Id, ch.Size);
                 TRACE_INDENT();
 
-                _instrument_zone_t Zone = { };
+                sfInstBag Zone = { };
                 const size_t InstrumentZoneCount = ch.Size / sizeof(Zone);
 
                 for (size_t i = 0; i < InstrumentZoneCount; ++i)
@@ -383,7 +304,7 @@ void soundfont_reader_t::Process(const soundfont_reader_options_t & options, sou
                 TRACE_CHUNK(ch.Id, ch.Size);
                 TRACE_INDENT();
 
-                _instrument_zone_modulator_t Modulator = { };
+                sfInstModList Modulator = { };
                 const size_t ModulatorCount = ch.Size / sizeof(Modulator);
 
                 for (size_t i = 0; i < ModulatorCount; ++i)
@@ -408,7 +329,7 @@ void soundfont_reader_t::Process(const soundfont_reader_options_t & options, sou
                 TRACE_CHUNK(ch.Id, ch.Size);
                 TRACE_INDENT();
 
-                _instrument_zone_generator_t Generator = { };
+                sfInstGenList Generator = { };
                 const size_t GeneratorCount = ch.Size / sizeof(Generator);
 
                 for (size_t i = 0; i < GeneratorCount; ++i)
@@ -433,7 +354,7 @@ void soundfont_reader_t::Process(const soundfont_reader_options_t & options, sou
                 TRACE_CHUNK(ch.Id, ch.Size);
                 TRACE_INDENT();
 
-                _sample_header_t SampleHeader = { };
+                sfSample SampleHeader = { };
                 const size_t SampleHeaderCount = ch.Size / sizeof(SampleHeader);
 
                 for (size_t i = 0; i < SampleHeaderCount; ++i)

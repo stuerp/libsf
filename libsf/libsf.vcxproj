@@ -164,6 +164,7 @@
     <ClInclude Include="libsf.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="BaseTypes.h" />
+    <ClInclude Include="SF2.h" />
     <ClInclude Include="SoundFontReader.h" />
     <ClInclude Include="SoundFont.h" />
     <ClInclude Include="SoundFontWriter.h" />

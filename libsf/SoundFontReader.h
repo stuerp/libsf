@@ -1,5 +1,5 @@
 
-/** $VER: SoundFontReader.h (2025.04.23) P. Stuer **/
+/** $VER: SoundFontReader.h (2025.04.27) P. Stuer **/
 
 #pragma once
 
