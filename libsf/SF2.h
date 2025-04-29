@@ -1,12 +1,11 @@
 
-/** $VER: SF2.h (2025.04.27) P. Stuer - SF2 data types **/
+/** $VER: SF2.h (2025.04.29) P. Stuer - SF2 data types **/
 
 #pragma once
 
 #include "pch.h"
 
 #include "BaseTypes.h"
-#include "Definitions.h"
 
 namespace sf
 {

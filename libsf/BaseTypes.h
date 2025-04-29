@@ -1,5 +1,5 @@
 
-/** $VER: BaseTypes.h (2025.04.24) P. Stuer - Base class for sound fonts **/
+/** $VER: BaseTypes.h (2025.04.28) P. Stuer - Base class for sound fonts **/
 
 #pragma once
 
@@ -89,13 +89,25 @@ enum GeneratorTypes : uint16_t
     endOper = 60                         // Unused, reserved. Should be ignored if encountered. Unique name provides value to end of defined list.
 };
 
-typedef std::unordered_map<uint32_t, std::string> info_map_t;
-
-inline std::string GetPropertyValue(const info_map_t & map, const uint32_t key)
+struct property_t
 {
-    auto it = map.find(key);
+    uint32_t Id;
+    std::string Value;
+};
 
-    return (it != map.end()) ? it->second : "";
+typedef std::vector<property_t> properties_t;
+
+/// <summary>
+/// Gets the value of a property with the specified id.
+/// </summary>
+inline std::string GetPropertyValue(const properties_t & properties, const uint32_t id)
+{
+    auto it = std::find_if(properties.begin(), properties.end(), [id](property_t p)
+    {
+        return p.Id == id;
+    });
+
+    return (it != properties.end()) ? it->Value : "";
 }
 
 /// <summary>
@@ -159,16 +171,16 @@ public:
 //  std::vector<instrument_base_t> Instruments;
     std::vector<sample_base_t> Samples;
 
-    info_map_t Properties;
+    properties_t Properties;
 };
 
 class soundfont_reader_base_t : public riff::reader_t
 {
 public:
-    bool HandleIxxx(uint32_t chunkId, uint32_t chunkSize, info_map_t & infoMap);
+    bool HandleIxxx(uint32_t chunkId, uint32_t chunkSize, properties_t & infoMap);
 
 private:
-    info_map_t _InfoMap;
+    properties_t _Properties;
 };
 
 class soundfont_writer_base_t : public riff::writer_t

@@ -1,5 +1,5 @@
 
-/** $VER: SoundFontReader.cpp (2025.04.27) P. Stuer - Reads an SF2/SF3 compliant sound font. **/
+/** $VER: SoundFontReader.cpp (2025.04.29) P. Stuer - Reads an SBK/SF2/SF3 compliant sound font. **/
 
 #include "pch.h"
 
@@ -14,7 +14,7 @@
 using namespace sf;
 
 /// <summary>
-/// Read the complete SoundFont.
+/// Reads the complete SoundFont.
 /// </summary>
 void soundfont_reader_t::Process(const soundfont_reader_options_t & options, soundfont_t & sf)
 {
@@ -70,7 +70,7 @@ void soundfont_reader_t::Process(const soundfont_reader_options_t & options, sou
                 break;
             }
 
-            // Mandatory sub-chunk identifying the wavetable sound engine for which the file was optimized. 
+            // Mandatory sub-chunk identifying the wavetable sound engine for which the file was optimized. (SoundFont 2 RIFF File Format Level 2)
             case FOURCC_ISNG:
             {
                 TRACE_CHUNK(ch.Id, ch.Size);
@@ -88,25 +88,43 @@ void soundfont_reader_t::Process(const soundfont_reader_options_t & options, sou
                 break;
             }
 
-            // Optional sub-chunk identifying a particular wavetable sound data ROM to which any ROM samples refer.
-            case FOURCC_IROM:
+            // Mandatory sub-chunk identifying the wavetable sound engine for which the file was optimized. (SoundFont 2 RIFF File Format Level 2)
+            case FOURCC_INAM:
             {
                 TRACE_CHUNK(ch.Id, ch.Size);
                 TRACE_INDENT();
 
-                sf.ROM.resize((size_t) ch.Size);
+                sf.BankName.resize((size_t) ch.Size);
 
-                Read((void *) sf.ROM.c_str(), ch.Size);
+                Read((void *) sf.BankName.c_str(), ch.Size);
 
                 #ifdef __TRACE
-                ::printf("%*sROM: \"%s\"\n", __TRACE_LEVEL * 2, "", sf.ROM.c_str());
+                ::printf("%*sBank Name: \"%s\"\n", __TRACE_LEVEL * 2, "", sf.BankName.c_str());
                 #endif
 
                 TRACE_UNINDENT();
                 break;
             }
 
-            // Optional sub-chunk identifying the particular wavetable sound data ROM revision to which any ROM samples refer.
+            // Optional sub-chunk identifying a particular wavetable sound data ROM to which any ROM samples refer. (SoundFont 2 RIFF File Format Level 2)
+            case FOURCC_IROM:
+            {
+                TRACE_CHUNK(ch.Id, ch.Size);
+                TRACE_INDENT();
+
+                sf.ROMName.resize((size_t) ch.Size);
+
+                Read((void *) sf.ROMName.c_str(), ch.Size);
+
+                #ifdef __TRACE
+                ::printf("%*sROM: \"%s\"\n", __TRACE_LEVEL * 2, "", sf.ROMName.c_str());
+                #endif
+
+                TRACE_UNINDENT();
+                break;
+            }
+
+            // Optional sub-chunk identifying the particular wavetable sound data ROM revision to which any ROM samples refer. (SoundFont 2 RIFF File Format Level 2)
             case FOURCC_IVER:
             {
                 TRACE_CHUNK(ch.Id, ch.Size);
@@ -123,7 +141,7 @@ void soundfont_reader_t::Process(const soundfont_reader_options_t & options, sou
                 break;
             }
 
-            // Contains one or more samples of digital audio information in the form of linearly coded 16 bit, signed, little endian (least significant byte first) words.
+            // Optional sub-chunk containing one or more samples of digital audio information in the form of linearly coded 16 bit, signed, little endian (least significant byte first) words.
             case FOURCC_SMPL:
             {
                 TRACE_CHUNK(ch.Id, ch.Size);
@@ -140,7 +158,7 @@ void soundfont_reader_t::Process(const soundfont_reader_options_t & options, sou
                 break;
             }
 
-            // Contains the least significant byte counterparts to each sample data point contained in the smpl chunk. Note this means for every two bytes in the [smpl] sub-chunk there is a 1-byte counterpart in [sm24] sub-chunk.
+            // Optional sub-chunk containing the least significant byte counterparts to each sample data point contained in the smpl chunk. Note this means for every two bytes in the [smpl] sub-chunk there is a 1-byte counterpart in [sm24] sub-chunk.
             case FOURCC_SM24:
             {
                 TRACE_CHUNK(ch.Id, ch.Size);
@@ -148,6 +166,8 @@ void soundfont_reader_t::Process(const soundfont_reader_options_t & options, sou
                 SkipChunk(ch);
                 break;
             }
+
+            /** The HYDRA Data Structure **/
 
             // Mandatory sub-chunk listing all presets within the SoundFont compatible file.
             case FOURCC_PHDR:
@@ -205,20 +225,25 @@ void soundfont_reader_t::Process(const soundfont_reader_options_t & options, sou
                 TRACE_CHUNK(ch.Id, ch.Size);
                 TRACE_INDENT();
 
-                sfModList Modulator = { };
-                const size_t ModulatorCount = ch.Size / sizeof(Modulator);
-
-                for (size_t i = 0; i < ModulatorCount; ++i)
+                if (sf.Major > 1)
                 {
-                    Read(&Modulator, sizeof(Modulator));
+                    sfModList Modulator = { };
+                    const size_t ModulatorCount = ch.Size / sizeof(Modulator);
 
-                    sf.PresetZoneModulators.push_back({ Modulator.SrcOperator, Modulator.DstOperator, Modulator.Amount, Modulator.AmountSource, Modulator.SourceTransform });
+                    for (size_t i = 0; i < ModulatorCount; ++i)
+                    {
+                        Read(&Modulator, sizeof(Modulator));
 
-                    #ifdef __TRACE
-                    ::printf("%*s%5zu. Src Op: 0x%04X, Dst Op: %2d, Amount: %6d, Amount Source: 0x%04X, Source Transform: 0x%04X\n", __TRACE_LEVEL * 2, "", i + 1,
-                        Modulator.SrcOperator, Modulator.DstOperator, Modulator.Amount, Modulator.AmountSource, Modulator.SourceTransform);
-                    #endif
+                        sf.PresetZoneModulators.push_back({ Modulator.SrcOperator, Modulator.DstOperator, Modulator.Amount, Modulator.AmountSource, Modulator.SourceTransform });
+
+                        #ifdef __TRACE
+                        ::printf("%*s%5zu. Src Op: 0x%04X, Dst Op: %2d, Amount: %6d, Amount Source: 0x%04X, Source Transform: 0x%04X\n", __TRACE_LEVEL * 2, "", i + 1,
+                            Modulator.SrcOperator, Modulator.DstOperator, Modulator.Amount, Modulator.AmountSource, Modulator.SourceTransform);
+                        #endif
+                    }
                 }
+                else
+                    Skip(ch.Size); // .SBK file, SoundFont v1
 
                 TRACE_UNINDENT();
                 break;
@@ -304,20 +329,25 @@ void soundfont_reader_t::Process(const soundfont_reader_options_t & options, sou
                 TRACE_CHUNK(ch.Id, ch.Size);
                 TRACE_INDENT();
 
-                sfInstModList Modulator = { };
-                const size_t ModulatorCount = ch.Size / sizeof(Modulator);
-
-                for (size_t i = 0; i < ModulatorCount; ++i)
+                if (sf.Major > 1)
                 {
-                    Read(&Modulator, sizeof(Modulator));
+                    sfInstModList Modulator = { };
+                    const size_t ModulatorCount = ch.Size / sizeof(Modulator);
 
-                    sf.InstrumentZoneModulators.push_back({ Modulator.SrcOperator, Modulator.DstOperator, Modulator.Amount, Modulator.AmountSource, Modulator.SourceTransform });
+                    for (size_t i = 0; i < ModulatorCount; ++i)
+                    {
+                        Read(&Modulator, sizeof(Modulator));
 
-                    #ifdef __TRACE
-                    ::printf("%*s%5zu. Src Op: 0x%04X, Dst Op: %2d, Amount: %6d, Amount Source: 0x%04X, Source Transform: 0x%04X\n", __TRACE_LEVEL * 2, "", i + 1,
-                        Modulator.SrcOperator, Modulator.DstOperator, Modulator.Amount, Modulator.AmountSource, Modulator.SourceTransform);
-                    #endif
+                        sf.InstrumentZoneModulators.push_back({ Modulator.SrcOperator, Modulator.DstOperator, Modulator.Amount, Modulator.AmountSource, Modulator.SourceTransform });
+
+                        #ifdef __TRACE
+                        ::printf("%*s%5zu. Src Op: 0x%04X, Dst Op: %2d, Amount: %6d, Amount Source: 0x%04X, Source Transform: 0x%04X\n", __TRACE_LEVEL * 2, "", i + 1,
+                            Modulator.SrcOperator, Modulator.DstOperator, Modulator.Amount, Modulator.AmountSource, Modulator.SourceTransform);
+                        #endif
+                    }
                 }
+                else
+                    Skip(ch.Size); // .SBK file, SoundFont v1
 
                 TRACE_UNINDENT();
                 break;

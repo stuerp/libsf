@@ -1,5 +1,5 @@
 
-/** $VER: DLSReader.cpp (2025.03.24) P. Stuer - Implements a reader for a DLS-compliant sound font. **/
+/** $VER: DLSReader.cpp (2025.04.28) P. Stuer - Implements a reader for a DLS-compliant sound font. **/
 
 #include "pch.h"
 
@@ -267,7 +267,7 @@ void reader_t::ReadInstruments(const riff::chunk_header_t & ch, std::vector<inst
             {
                 if ((ch.Id & mmioFOURCC(0xFF, 0, 0, 0)) == mmioFOURCC('I', 0, 0, 0))
                 {
-                    info_map_t Properties;
+                    properties_t Properties;
 
                     HandleIxxx(ch.Id, ch.Size, Properties);
                 }
@@ -422,7 +422,7 @@ void reader_t::ReadRegions(const riff::chunk_header_t & ch, std::vector<region_t
             {
                 if ((ch.Id & mmioFOURCC(0xFF, 0, 0, 0)) == mmioFOURCC('I', 0, 0, 0))
                 {
-                    info_map_t Properties;
+                    properties_t Properties;
 
                     HandleIxxx(ch.Id, ch.Size, Properties);
                 }
@@ -532,7 +532,7 @@ void reader_t::ReadRegion(const riff::chunk_header_t & ch, region_t & region)
             {
                 if ((ch.Id & mmioFOURCC(0xFF, 0, 0, 0)) == mmioFOURCC('I', 0, 0, 0))
                 {
-                    info_map_t Properties;
+                    properties_t Properties;
 
                     HandleIxxx(ch.Id, ch.Size, Properties);
                 }
@@ -682,7 +682,7 @@ void reader_t::ReadArticulators(const riff::chunk_header_t & ch, std::vector<art
             {
                 if ((ch.Id & mmioFOURCC(0xFF, 0, 0, 0)) == mmioFOURCC('I', 0, 0, 0))
                 {
-                    info_map_t Properties;
+                    properties_t Properties;
 
                     HandleIxxx(ch.Id, ch.Size, Properties);
                 }
@@ -742,7 +742,7 @@ void reader_t::ReadWaves(const riff::chunk_header_t & ch, std::vector<wave_t> & 
             {
                 if ((ch.Id & mmioFOURCC(0xFF, 0, 0, 0)) == mmioFOURCC('I', 0, 0, 0))
                 {
-                    info_map_t Properties;
+                    properties_t Properties;
 
                     HandleIxxx(ch.Id, ch.Size, Properties);
                 }

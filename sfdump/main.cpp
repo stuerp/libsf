@@ -28,7 +28,7 @@ static const char * GetChunkName(const uint32_t chunkId) noexcept;
 
 std::wstring FilePath;
 
-const WCHAR * Filters[] = { L".dls", L".sf2", L".sf3", L".ecw" };
+const WCHAR * Filters[] = { L".dls", L".sbk", L".sf2", L".sf3", L".ecw" };
 
 typedef std::unordered_map<uint32_t, const char *> info_map_t;
 
@@ -138,7 +138,7 @@ static void ProcessFile(const std::wstring & filePath, uint64_t fileSize)
         if (::_wcsicmp(FileExtension, L".dls") == 0)
             ProcessDLS(filePath);
         else
-        if ((::_wcsicmp(FileExtension, L".sf2") == 0) || (::_wcsicmp(FileExtension, L".sf3") == 0))
+        if ((::_wcsicmp(FileExtension, L".sbk") == 0) || (::_wcsicmp(FileExtension, L".sf2") == 0) || (::_wcsicmp(FileExtension, L".sf3") == 0))
             ProcessSF(filePath);
         else
         if (::_wcsicmp(FileExtension, L".ecw") == 0)
@@ -275,8 +275,11 @@ static void ProcessSF(const std::wstring & filePath)
     uint32_t __TRACE_LEVEL = 0;
 
     ::printf("%*sSoundFont specification version: %d.%d\n", __TRACE_LEVEL * 2, "", sf.Major, sf.Minor);
-    ::printf("%*sSound Engine: %s\n", __TRACE_LEVEL * 2, "", sf.SoundEngine.c_str());
-    ::printf("%*sSound Data ROM: %s v%d.%d\n", __TRACE_LEVEL * 2, "", sf.ROM.c_str(), sf.ROMMajor, sf.ROMMinor);
+    ::printf("%*sSound Engine: \"%s\"\n", __TRACE_LEVEL * 2, "", sf.SoundEngine.c_str());
+    ::printf("%*sBank Name: \"%s\"\n", __TRACE_LEVEL * 2, "", sf.BankName.c_str());
+
+    if ((sf.ROMName.length() != 0) && !((sf.ROMMajor == 0) && (sf.ROMMinor == 0)))
+        ::printf("%*sSound Data ROM: %s v%d.%d\n", __TRACE_LEVEL * 2, "", sf.ROMName.c_str(), sf.ROMMajor, sf.ROMMinor);
 
     {
         ::printf("%*sProperties\n", __TRACE_LEVEL * 2, "");
@@ -329,6 +332,7 @@ static void ProcessSF(const std::wstring & filePath)
         __TRACE_LEVEL--;
     }
 
+    if (sf.PresetZoneModulators.size() > 0)
     {
         ::printf("%*sPreset Zone Modulators (%zu)\n", __TRACE_LEVEL * 2, "", sf.PresetZoneModulators.size() - 1);
 
@@ -403,6 +407,7 @@ static void ProcessSF(const std::wstring & filePath)
         __TRACE_LEVEL--;
     }
 
+    if (sf.InstrumentZoneModulators.size() > 0)
     {
         ::printf("%*sInstrument Zone Modulators (%zu)\n", __TRACE_LEVEL * 2, "", sf.InstrumentZoneModulators.size() - 1);
 

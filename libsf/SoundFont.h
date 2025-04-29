@@ -1,5 +1,5 @@
 
-/** $VER: SoundFont.h (2025.04.27) P. Stuer - SoundFont data types **/
+/** $VER: SoundFont.h (2025.04.29) P. Stuer - SoundFont data types **/
 
 #pragma once
 
@@ -12,15 +12,17 @@ namespace sf
 
 #pragma warning(disable: 4820) // x bytes padding
 
+// A keyboard full of sound. Typically the collection of samples and articulation data associated with a particular MIDI preset number.
 class preset_t
 {
 public:
     std::string Name;
-    uint16_t Program;
-    uint16_t Bank;
+    uint16_t Program;           // MIDI preset
+    uint16_t Bank;              // MIDI bank
     uint16_t ZoneIndex;
 };
 
+// A subset of a preset containing an instrument reference and associated articulation data defined to play over certain key numbers and velocities. (SF1 name: Layer)
 class preset_zone_t
 {
 public:
@@ -43,6 +45,7 @@ class preset_zone_generator_t : public generator_base_t
 public:
 };
 
+// A collection of zones which represents the sound of a single musical instrument or sound effect set.
 class instrument_t : public instrument_base_t
 {
 public:
@@ -51,6 +54,7 @@ public:
     uint16_t ZoneIndex;         // Index to the instrument's zone list in the IBAG chunk.
 };
 
+// A subset of an instrument containing a sample reference and associated articulation data defined to play over certain key numbers and velocities. (SF1 name: Split)
 class instrument_zone_t
 {
 public:
@@ -108,13 +112,17 @@ class soundfont_t : public soundfont_base_t
 public:
     soundfont_t() noexcept : Major(), Minor(), ROMMajor(), ROMMinor() { }
 
-    uint16_t Major;
-    uint16_t Minor;
+    uint16_t Major;             // SoundFont specification major version level to which the file complies.
+    uint16_t Minor;             // SoundFont specification minor version level to which the file complies.
+    std::string SoundEngine;    // Wavetable sound engine for which the file was optimized (Default “EMU8000”).
+    std::string BankName;       // Name of the SoundFont compatible bank.
+    std::string ROMName;        // Wavetable sound data ROM to which any ROM samples refer.
+    uint16_t ROMMajor;          // Wavetable sound data ROM major revision to which any ROM samples refer.
+    uint16_t ROMMinor;          // Wavetable sound data ROM minor revision to which any ROM samples refer.
 
-    std::string SoundEngine;
-    std::string ROM;
-    uint16_t ROMMajor;
-    uint16_t ROMMinor;
+    std::vector<uint8_t> SampleData;
+
+    // Hydra
 
     std::vector<preset_t> Presets;
     std::vector<preset_zone_t> PresetZones;
@@ -127,8 +135,6 @@ public:
     std::vector<instrument_zone_generator_t> InstrumentZoneGenerators;
 
     std::vector<sample_t> Samples;
-
-    std::vector<uint8_t> SampleData;
 };
 
 #pragma warning(default: 4820) // x bytes padding

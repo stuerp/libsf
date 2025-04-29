@@ -1,5 +1,5 @@
 
-/** $VER: SoundFontWriter.cpp (2025.04.27) P. Stuer - Writes an SF2/SF3 compliant sound font. **/
+/** $VER: SoundFontWriter.cpp (2025.04.29) P. Stuer - Writes an SF2/SF3 compliant sound font. **/
 
 #include "pch.h"
 
@@ -14,7 +14,7 @@
 using namespace sf;
 
 /// <summary>
-/// Writes the SoundFont.
+/// Writes the complete SoundFont.
 /// </summary>
 void soundfont_writer_t::Process(const soundfont_writer_options_t & options, soundfont_t & sf)
 {
@@ -42,15 +42,44 @@ void soundfont_writer_t::Process(const soundfont_writer_options_t & options, sou
 
                     ListSize += WriteChunk(FOURCC_ISNG, [this, &options, &sf]() -> uint32_t
                     {
-                        return Write(sf.SoundEngine.c_str(), (uint32_t) ::strlen(sf.SoundEngine.c_str()) + 1); // Include string terminator.
+                        const char * Data = sf.SoundEngine.c_str();
+                        const uint32_t Size = (uint32_t) ::strlen(Data) + 1; // Including the string terminator.
+
+                        return Write(Data, Size);
                     });
+
+                    ListSize += WriteChunk(FOURCC_INAM, [this, &options, &sf]() -> uint32_t
+                    {
+                        const char * Data = sf.BankName.c_str();
+                        const uint32_t Size = (uint32_t) ::strlen(Data) + 1; // Including the string terminator.
+
+                        return Write(Data, Size);
+                    });
+
+                    if ((sf.ROMName.length() != 0) && !((sf.ROMMajor == 0) && (sf.ROMMinor == 0)))
+                    {
+                        ListSize += WriteChunk(FOURCC_IROM, [this, &options, &sf]() -> uint32_t
+                        {
+                            const char * Data = sf.ROMName.c_str();
+                            const uint32_t Size = (uint32_t) ::strlen(Data) + 1; // Including the string terminator.
+
+                            return Write(Data, Size);
+                        });
+
+                        uint32_t ListSize = WriteChunk(FOURCC_IVER, [this, &options, &sf]() -> uint32_t
+                        {
+                            const uint16_t Version[] = { sf.ROMMajor, sf.ROMMinor };
+
+                            return Write(Version, sizeof(Version));
+                        });
+                    }
 
                     for (const auto & [ ChunkId, Value ] : sf.Properties)
                     {
                         ListSize += WriteChunk(ChunkId, [this, &options, &sf, Value]() -> uint32_t
                         {
                             const char * Data = Value.c_str();
-                            const uint32_t Size = (uint32_t) ::strlen(Data) + 1; // Include string terminator.
+                            const uint32_t Size = (uint32_t) ::strlen(Data) + 1; // Including the string terminator.
 
                             return Write(Data, Size);
                         });
@@ -89,10 +118,12 @@ void soundfont_writer_t::Process(const soundfont_writer_options_t & options, sou
                         {
                             sfPresetHeader ph =
                             {
-                                "", Preset.Bank, Preset.Program, Preset.ZoneIndex, 0, 0, 0
+                                { }, Preset.Bank, Preset.Program, Preset.ZoneIndex, 0, 0, 0
                             };
 
-                            ::memcpy(ph.Name, Preset.Name.c_str(), std::max(::strlen(Preset.Name.c_str()), sizeof(ph.Name)));
+                            const size_t l = ::strlen(Preset.Name.c_str());
+
+                            ::memcpy(ph.Name, Preset.Name.c_str(), std::max(l, sizeof(ph.Name)));
 
                             Size += Write(&ph, sizeof(ph));
                         }
@@ -148,9 +179,11 @@ void soundfont_writer_t::Process(const soundfont_writer_options_t & options, sou
 
                         for (const auto & Instrument : sf.Instruments)
                         {
-                            sfInst i = { "", Instrument.ZoneIndex };
+                            sfInst i = { { }, Instrument.ZoneIndex };
 
-                            ::memcpy(i.Name, Instrument.Name.c_str(), std::max(::strlen(Instrument.Name.c_str()), sizeof(i.Name)));
+                            const size_t l = ::strlen(Instrument.Name.c_str());
+
+                            ::memcpy(i.Name, Instrument.Name.c_str(), std::max(l, sizeof(i.Name)));
 
                             Size += Write(&i, sizeof(i));
                         }
@@ -208,13 +241,15 @@ void soundfont_writer_t::Process(const soundfont_writer_options_t & options, sou
                         {
                             sfSample s =
                             {
-                                "",
+                                { },
                                 Sample.Start, Sample.End, Sample.LoopStart, Sample.LoopEnd,
                                 Sample.SampleRate, Sample.Pitch, Sample.PitchCorrection,
                                 Sample.SampleLink, Sample.SampleType
                             };
 
-                            ::memcpy(s.Name, Sample.Name.c_str(), std::max(::strlen(Sample.Name.c_str()), sizeof(s.Name)));
+                            const size_t l = ::strlen(Sample.Name.c_str());
+
+                            ::memcpy(s.Name, Sample.Name.c_str(), std::max(l, sizeof(s.Name)));
 
                             Size += Write(&s, sizeof(s));
                         }

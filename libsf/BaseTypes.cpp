@@ -1,5 +1,5 @@
 
-/** $VER: BaseTypes.cpp (2025.04.24) P. Stuer - Base class for sound fonts **/
+/** $VER: BaseTypes.cpp (2025.04.28) P. Stuer - Base class for sound fonts **/
 
 #include "pch.h"
 
@@ -12,7 +12,7 @@ using namespace sf;
 /// <summary>
 /// Handles an Ixxx chunk.
 /// </summary>
-bool soundfont_reader_base_t::HandleIxxx(uint32_t chunkId, uint32_t chunkSize, info_map_t & infoMap)
+bool soundfont_reader_base_t::HandleIxxx(uint32_t chunkId, uint32_t chunkSize, properties_t & properties)
 {
     std::string Value;
 
@@ -22,7 +22,7 @@ bool soundfont_reader_base_t::HandleIxxx(uint32_t chunkId, uint32_t chunkSize, i
 
     Value[chunkSize] = '\0';
 
-    infoMap.insert({ chunkId, Value });
+    properties.push_back({ chunkId, Value });
 
     return true;
 }

@@ -1,5 +1,5 @@
 
-/** $VER: DLS.h (2025.03.24) P. Stuer - DLS data types **/
+/** $VER: DLS.h (2025.04.28) P. Stuer - DLS data types **/
 
 #pragma once
 
@@ -152,7 +152,7 @@ public:
     std::vector<region_t> Regions;
     std::vector<articulator_t> Articulators;
 
-    info_map_t Properties;
+    properties_t Properties;
 };
 
 /// <summary>
@@ -175,7 +175,7 @@ public:
     wave_sample_t WaveSample;
     std::vector<uint8_t> Data;
 
-    info_map_t Properties;
+    properties_t Properties;
 };
 
 /// <summary>
