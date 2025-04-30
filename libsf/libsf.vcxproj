@@ -168,7 +168,6 @@
     <ClInclude Include="SoundFontReader.h" />
     <ClInclude Include="SoundFont.h" />
     <ClInclude Include="SoundFontWriter.h" />
-    <ClInclude Include="Win32Exception.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DLSReader.cpp" />
@@ -181,7 +180,6 @@
     <ClCompile Include="SoundFontReader.cpp" />
     <ClCompile Include="BaseTypes.cpp" />
     <ClCompile Include="SoundFontWriter.cpp" />
-    <ClCompile Include="Win32Exception.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\LibRIFF\LibRIFF.vcxproj">

@@ -9,6 +9,9 @@
 #include <stdexcept>
 #include <string>
 
+namespace riff
+{
+
 std::string GetErrorMessage(const std::string & errorMessage, DWORD errorCode, ...);
 
 class win32_exception : public std::runtime_error
@@ -18,3 +21,5 @@ public:
 
     win32_exception(const std::string & errorMessage, DWORD errorCode) noexcept : std::runtime_error(GetErrorMessage(errorMessage, errorCode)) {  }
 };
+
+}

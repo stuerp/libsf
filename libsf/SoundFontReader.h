@@ -47,7 +47,7 @@ class soundfont_reader_t : public soundfont_reader_base_t
 public:
     soundfont_reader_t() noexcept : soundfont_reader_base_t() { }
 
-    void Process(const soundfont_reader_options_t & options, soundfont_t & sf);
+    void Process(const soundfont_reader_options_t & options, bank_t & sf);
 };
 
 }

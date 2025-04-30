@@ -42,7 +42,7 @@ void reader_t::Process(const reader_options_t & options, collection_t & dls)
     if (FormType != FOURCC_DLS)
         throw sf::exception("Unexpected header type");
 
-    TRACE_FORM(FormType);
+    TRACE_FORM(FormType, _Header.Size);
     TRACE_INDENT();
 
     std::function<bool(const riff::chunk_header_t & ch)> ChunkHandler = [this, &options, &dls, &ChunkHandler](const riff::chunk_header_t & ch) -> bool

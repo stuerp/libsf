@@ -1,5 +1,5 @@
 
-/** $VER: ECWReader.h (2025.04.23) P. Stuer - Implements a reader for a ECW-compliant sound font. **/
+/** $VER: ECWReader.h (2025.04.23) P. Stuer - Implements a reader for a ECW-compliant wave set. **/
 
 #pragma once
 
@@ -24,7 +24,7 @@ public:
     {
     }
 
-    bool Open(stream_t * stream)
+    bool Open(riff::stream_t * stream)
     {
         _Stream = stream;
 
@@ -81,7 +81,7 @@ private:
     }
 
 protected:
-    stream_t * _Stream;
+    riff::stream_t * _Stream;
 
 private:
 };

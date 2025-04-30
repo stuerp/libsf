@@ -1,5 +1,5 @@
 
-/** $VER: ECWReader.cpp (2025.04.23) P. Stuer - Implements a reader for a ECW-compliant sound font. **/
+/** $VER: ECWReader.cpp (2025.04.30) P. Stuer - Implements a reader for a ECW wave set. **/
 
 #include "pch.h"
 
@@ -20,11 +20,11 @@ void reader_t::Process(waveset_t & ws)
 
     Read(Header);
 
-    ws.Name = ::CodePageToUTF8(850, Header.Name, sizeof(Header.Name));
-    ws.Copyright = ::CodePageToUTF8(850, Header.Copyright, sizeof(Header.Copyright));
-    ws.Description = ::CodePageToUTF8(850, Header.Description, sizeof(Header.Description));
-    ws.Information = ::CodePageToUTF8(850, Header.Information, sizeof(Header.Information));
-    ws.FileName = ::CodePageToUTF8(850, Header.FileName, sizeof(Header.FileName));
+    ws.Name = Header.Name;
+    ws.Copyright = Header.Copyright;
+    ws.Description = Header.Description;
+    ws.Information = Header.Information;
+    ws.FileName = Header.FileName;
 
     ws.BankMaps.resize(Header.BankMapCount);
     Offset(Header.BankMapOffs);

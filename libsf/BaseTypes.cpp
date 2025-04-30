@@ -1,5 +1,5 @@
 
-/** $VER: BaseTypes.cpp (2025.04.28) P. Stuer - Base class for sound fonts **/
+/** $VER: BaseTypes.cpp (2025.04.30) P. Stuer - Base types for sound font handling **/
 
 #include "pch.h"
 
@@ -22,7 +22,7 @@ bool soundfont_reader_base_t::HandleIxxx(uint32_t chunkId, uint32_t chunkSize, p
 
     Value[chunkSize] = '\0';
 
-    properties.push_back({ chunkId, Value });
+    properties.push_back(property_t(chunkId, Value));
 
     return true;
 }

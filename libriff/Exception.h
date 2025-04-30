@@ -1,5 +1,5 @@
 
-/** $VER: Exception.h (2025.04.23) P. Stuer **/
+/** $VER: Exception.h (2025.04.30) P. Stuer **/
 
 #pragma once
 
@@ -8,6 +8,9 @@
 
 #include <stdexcept>
 #include <string>
+
+namespace riff
+{
 
 class exception : public std::runtime_error
 {
@@ -18,3 +21,5 @@ public:
 
     virtual ~exception() noexcept { }
 };
+
+}

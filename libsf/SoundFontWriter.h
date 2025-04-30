@@ -1,5 +1,5 @@
 
-/** $VER: SoundFontWriter.h (2025.04.27) P. Stuer **/
+/** $VER: SoundFontWriter.h (2025.04.30) P. Stuer **/
 
 #pragma once
 
@@ -16,8 +16,9 @@
     #define FOURCC_IVER mmioFOURCC('i','v','e','r')
 
 // sdta list
+    #define FOURCC_SNAM mmioFOURCC('s','n','a','m') // SoundFont v1.00 only
     #define FOURCC_SMPL mmioFOURCC('s','m','p','l')
-    #define FOURCC_SM24 mmioFOURCC('s','m','2','4')
+    #define FOURCC_SM24 mmioFOURCC('s','m','2','4') // SoundFont v2.04 only
 
 // pdta list
     #define FOURCC_PHDR mmioFOURCC('p','h','d','r')
@@ -44,7 +45,7 @@ class soundfont_writer_t : public soundfont_writer_base_t
 public:
     soundfont_writer_t() noexcept : soundfont_writer_base_t() { }
 
-    void Process(const soundfont_writer_options_t & options, soundfont_t & sf);
+    void Process(const soundfont_writer_options_t & options, bank_t & sf);
 };
 
 }

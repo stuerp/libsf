@@ -7,6 +7,9 @@
 #include "Encoding.h"
 #include "Win32Exception.h"
 
+namespace riff
+{
+
 /// <summary>
 /// Opens the stream.
 /// </summary>
@@ -19,7 +22,7 @@ bool file_stream_t::Open(const std::wstring & filePath, bool forWriting)
     _hFile = ::CreateFileW(filePath.c_str(), DesiredAccess, FILE_SHARE_READ, nullptr, CreationDisposition, FlagsAndAttributes, 0);
 
     if (_hFile == INVALID_HANDLE_VALUE)
-        throw win32_exception(::FormatText("Failed to open file \"%s\" for %s", filePath.c_str(), (forWriting ? "writing" : "reading")));
+        throw win32_exception(FormatText("Failed to open file \"%s\" for %s", filePath.c_str(), (forWriting ? "writing" : "reading")));
 
     return true;
 }
@@ -44,10 +47,10 @@ void file_stream_t::Read(void * data, uint64_t size)
     DWORD BytesRead;
 
     if (::ReadFile(_hFile, data, (DWORD) size, &BytesRead, nullptr) == 0)
-        throw win32_exception(::FormatText("Failed to read %llu bytes", size));
+        throw win32_exception(FormatText("Failed to read %llu bytes", size));
 
     if (BytesRead != size)
-        throw win32_exception(::FormatText("Failed to read %llu bytes, got %u bytes", size, BytesRead));
+        throw win32_exception(FormatText("Failed to read %llu bytes, got %u bytes", size, BytesRead));
 }
 
 /// <summary>
@@ -58,10 +61,10 @@ void file_stream_t::Write(const void * data, uint64_t size)
     DWORD BytesWritten;
 
     if (::WriteFile(_hFile, data, (DWORD) size, &BytesWritten, nullptr) == 0)
-        throw win32_exception(::FormatText("Failed to read %llu bytes", size));
+        throw win32_exception(FormatText("Failed to read %llu bytes", size));
 
     if (BytesWritten != size)
-        throw win32_exception(::FormatText("Failed to write %llu bytes, put %u bytes", size, BytesWritten));
+        throw win32_exception(FormatText("Failed to write %llu bytes, put %u bytes", size, BytesWritten));
 }
 
 /// <summary>
@@ -77,7 +80,7 @@ void file_stream_t::Skip(uint64_t size)
     FilePointer.QuadPart = (LONGLONG) size;
 
     if (::SetFilePointerEx(_hFile, FilePointer, (LARGE_INTEGER *) &FilePointer, FILE_CURRENT) == 0)
-        throw win32_exception(::FormatText("Failed to skip %llu bytes", size));
+        throw win32_exception(FormatText("Failed to skip %llu bytes", size));
 }
 
 /// <summary>
@@ -103,7 +106,7 @@ void file_stream_t::Offset(uint64_t size)
     FilePointer.QuadPart = (LONGLONG) size;
 
     if (::SetFilePointerEx(_hFile, FilePointer, (LARGE_INTEGER *) &FilePointer, FILE_BEGIN) == 0)
-        throw win32_exception(::FormatText("Failed to move to offset %llu", size));
+        throw win32_exception(FormatText("Failed to move to offset %llu", size));
 }
 
 /// <summary>
@@ -114,7 +117,7 @@ bool memory_stream_t::Open(const std::wstring & filePath, uint64_t offset, uint6
     _hFile = ::CreateFileW(filePath.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, 0);
 
     if (_hFile == INVALID_HANDLE_VALUE)
-        throw win32_exception(::FormatText("Failed to open file \"%s\" for reading", filePath.c_str()));
+        throw win32_exception(FormatText("Failed to open file \"%s\" for reading", filePath.c_str()));
 
     _hMap = ::CreateFileMappingW(_hFile, NULL, PAGE_READONLY, 0, 0, NULL);
 
@@ -183,4 +186,6 @@ void memory_stream_t::Close() noexcept
         ::CloseHandle(_hFile);
         _hFile = INVALID_HANDLE_VALUE;
     }
+}
+
 }

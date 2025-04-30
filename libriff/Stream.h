@@ -12,6 +12,9 @@
 
 #pragma warning(disable: 4820)
 
+namespace riff
+{
+
 /// <summary>
 /// Implements a stream.
 /// </summary>
@@ -95,7 +98,7 @@ public:
     virtual void Read(void * data, uint64_t size)
     {
         if (_Curr + (ptrdiff_t) size > _Tail)
-            throw ::exception("Insufficient data");
+            throw exception("Insufficient data");
 
         ::memcpy(data, _Curr, (size_t) size);
         _Curr += (ptrdiff_t) size;
@@ -104,7 +107,7 @@ public:
     virtual void Write(const void * data, uint64_t size)
     {
         if (_Curr + (ptrdiff_t) size > _Tail)
-            throw ::exception("Insufficient data");
+            throw exception("Insufficient data");
 
         ::memcpy(_Curr, data, (size_t) size);
         _Curr += (ptrdiff_t) size;
@@ -116,7 +119,7 @@ public:
     virtual void Skip(uint64_t size)
     {
         if (_Curr + (ptrdiff_t) size > _Tail)
-            throw ::exception("Insufficient data");
+            throw exception("Insufficient data");
 
         _Curr += (ptrdiff_t) size;
     }
@@ -135,7 +138,7 @@ public:
     virtual void Offset(uint64_t size)
     {
         if (_Data + (ptrdiff_t) size > _Tail)
-            throw ::exception("Invalid offset");
+            throw exception("Invalid offset");
 
         _Curr = _Data + (ptrdiff_t) size;
     }
@@ -148,3 +151,5 @@ protected:
     uint8_t * _Curr;
     uint8_t * _Tail;
 };
+
+}

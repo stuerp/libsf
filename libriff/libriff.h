@@ -1,5 +1,5 @@
 
-/** $VER: libriff.h (2025.04.23) P. Stuer **/
+/** $VER: libriff.h (2025.04.30) P. Stuer **/
 
 #pragma once
 
@@ -18,7 +18,7 @@ extern uint32_t __TRACE_LEVEL;
 
 #define TRACE_RESET()           {  }
 #define TRACE_INDENT()          {  }
-#define TRACE_FORM(type)        {  }
+#define TRACE_FORM(type, size)  {  }
 #define TRACE_LIST(type, size)  {  }
 #define TRACE_CHUNK(id, size)   {  }
 #define TRACE_UNINDENT()        {  }

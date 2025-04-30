@@ -1,5 +1,5 @@
 
-/** $VER: SF2.h (2025.04.29) P. Stuer - SF2 data types **/
+/** $VER: SF2.h (2025.04.30) P. Stuer - SF2 data types **/
 
 #pragma once
 
@@ -73,16 +73,29 @@ struct sfInstGenList
     uint16_t Amount;            // The value to be assigned to the generator
 };
 
-struct sfSample
+struct sfSample_v1
 {
-    char Name[20];
+//  char Name[20];
+
     uint32_t Start;             // Index from the beginning of the sample data to the start of the sample (in sample data points).
     uint32_t End;               // Index from the beginning of the sample data to the end of the sample (in sample data points).
     uint32_t LoopStart;         // Index from the beginning of the sample data to the loop start of the sample (in sample data points).
     uint32_t LoopEnd;           // Index from the beginning of the sample data to the loop end of the sample (in sample data points).
+};
+
+struct sfSample_v2
+{
+    char Name[20];
+
+    uint32_t Start;             // Index from the beginning of the sample data to the start of the sample (in sample data points).
+    uint32_t End;               // Index from the beginning of the sample data to the end of the sample (in sample data points).
+    uint32_t LoopStart;         // Index from the beginning of the sample data to the loop start of the sample (in sample data points).
+    uint32_t LoopEnd;           // Index from the beginning of the sample data to the loop end of the sample (in sample data points).
+
+    // SoundFont v2.x and later
     uint32_t SampleRate;        // Sample rate in Hz at which this sample was acquired.
-    uint8_t Pitch;              // MIDI key number of the recorded pitch of the sample.
-    int8_t PitchCorrection;     // Pitch correction in cents that should be applied to the sample on playback.
+     uint8_t Pitch;             // MIDI key number of the recorded pitch of the sample.
+      int8_t PitchCorrection;   // Pitch correction in cents that should be applied to the sample on playback.
     uint16_t SampleLink;        // Index of the sample header of the associated right or left stereo sample for SampleTypes LeftSample or RightSample respectively.
     uint16_t SampleType;        // Mask 0xC000 indicates a ROM sample.
 };

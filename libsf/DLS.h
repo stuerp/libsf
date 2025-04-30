@@ -1,5 +1,5 @@
 
-/** $VER: DLS.h (2025.04.28) P. Stuer - DLS data types **/
+/** $VER: DLS.h (2025.04.30) P. Stuer - DLS data types **/
 
 #pragma once
 
@@ -94,7 +94,7 @@ public:
 /// <summary>
 /// Represents an instrument region.
 /// </summary>
-class region_t : public zone_base_t
+class region_t
 {
 public:
     region_t() noexcept : LowKey(), HighKey(), LowVelocity(), HighVelocity(), Options(), KeyGroup(), Layer() { }
@@ -129,7 +129,7 @@ public:
 /// <summary>
 /// Represents an instrument.
 /// </summary>
-class instrument_t : public instrument_base_t
+class instrument_t
 {
 public:
     instrument_t() noexcept : BankMSB(), BankLSB(), Program(), IsPercussion(false) { }
@@ -143,6 +143,8 @@ public:
         Program = program;
         IsPercussion = isPercussion;
     }
+
+    std::string Name;
 
     uint8_t BankMSB; // CC0
     uint8_t BankLSB; // CC32
@@ -158,10 +160,12 @@ public:
 /// <summary>
 /// Represents a wave in the wave pool.
 /// </summary>
-class wave_t : public sample_base_t
+class wave_t
 {
 public:
     wave_t() noexcept { }
+
+    std::string Name;
 
     // Wave Format
     uint16_t FormatTag;
@@ -181,10 +185,12 @@ public:
 /// <summary>
 /// Represents a DLS-compliant collection.
 /// </summary>
-class collection_t : public soundfont_base_t
+class collection_t
 {
 public:
     collection_t() noexcept { }
+
+    properties_t Properties;
 
     // Represents the version of the contents of the sound font.
     uint16_t Major;

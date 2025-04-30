@@ -5,6 +5,9 @@
 
 #include "pch.h"
 
+namespace riff
+{
+
 std::string WideToUTF8(const wchar_t * wide, size_t size);
 std::wstring TextToWide(const char * text, size_t size = 0);
 
@@ -42,3 +45,5 @@ bool IsEUCJP(const char * text, size_t size);
 bool IsShiftJIS(const char * text, size_t size);
 bool IsUTF8(const char * text, size_t size);
 bool IsASCII(const char * text, size_t size);
+
+}

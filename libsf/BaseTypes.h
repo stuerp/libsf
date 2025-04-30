@@ -1,5 +1,5 @@
 
-/** $VER: BaseTypes.h (2025.04.28) P. Stuer - Base class for sound fonts **/
+/** $VER: BaseTypes.h (2025.04.30) P. Stuer - Base types for sound font handling **/
 
 #pragma once
 
@@ -109,70 +109,6 @@ inline std::string GetPropertyValue(const properties_t & properties, const uint3
 
     return (it != properties.end()) ? it->Value : "";
 }
-
-/// <summary>
-/// Base class for a generator.
-/// </summary>
-class generator_base_t
-{
-public:
-    uint16_t Operator;          // The operator
-    uint16_t Amount;            // The value to be assigned to the generator
-};
-
-/// <summary>
-/// Base class for a modulator.
-/// </summary>
-class modulator_base_t
-{
-};
-
-/// <summary>
-/// Base class for a zone.
-/// </summary>
-class zone_base_t
-{
-public:
-    std::vector<generator_base_t> Generators;
-    std::vector<modulator_base_t> Modulators;
-};
-
-/// <summary>
-/// Base class for a sample.
-/// </summary>
-class sample_base_t
-{
-public:
-    std::string Name;
-};
-
-/// <summary>
-/// Base class for an instrument.
-/// </summary>
-class instrument_base_t
-{
-public:
-    instrument_base_t() noexcept { }
-
-    instrument_base_t(const std::string & name) noexcept : Name(name) { }
-
-public:
-    std::string Name;
-
-//  std::vector<zone_base_t> Zones;
-};
-
-/// <summary>
-/// Base class for a sound font.
-/// </summary>
-class soundfont_base_t
-{
-public:
-//  std::vector<instrument_base_t> Instruments;
-    std::vector<sample_base_t> Samples;
-
-    properties_t Properties;
-};
 
 class soundfont_reader_base_t : public riff::reader_t
 {

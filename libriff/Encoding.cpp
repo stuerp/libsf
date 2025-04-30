@@ -7,6 +7,9 @@
 
 #include <map>
 
+namespace riff
+{
+
 static const std::map<const std::string, uint32_t> EncodingToCodePage
 {
     { "shift-jis",        932 },    // Shift-JIS
@@ -330,3 +333,5 @@ struct Test
     { Data1, Text1 },   // Mixed ASCII and Shift-JIS
 };
 #endif
+
+}

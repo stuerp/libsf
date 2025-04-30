@@ -13,7 +13,6 @@
     <ClInclude Include="pch.h" />
     <ClInclude Include="SoundFont.h" />
     <ClInclude Include="SoundFontReader.h" />
-    <ClInclude Include="Win32Exception.h" />
     <ClInclude Include="SoundFontWriter.h" />
     <ClInclude Include="SF2.h" />
   </ItemGroup>
@@ -23,7 +22,6 @@
     <ClCompile Include="ECWReader.cpp" />
     <ClCompile Include="pch.cpp" />
     <ClCompile Include="SoundFontReader.cpp" />
-    <ClCompile Include="Win32Exception.cpp" />
     <ClCompile Include="SoundFontWriter.cpp" />
   </ItemGroup>
 </Project>

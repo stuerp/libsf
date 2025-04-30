@@ -118,7 +118,7 @@ template <typename T> bool reader_t::ReadChunks(uint32_t chunkSize, T&& readChun
 
         {
             if (chunkSize < sizeof(ch))
-                throw exception(::FormatText("Failed to read chunk header: need %u bytes, have %u bytes", sizeof(ch), chunkSize));
+                throw exception(FormatText("Failed to read chunk header: need %u bytes, have %u bytes", sizeof(ch), chunkSize));
 
             Read(&ch, sizeof(ch));
             chunkSize -= sizeof(ch);
@@ -126,7 +126,7 @@ template <typename T> bool reader_t::ReadChunks(uint32_t chunkSize, T&& readChun
 
         {
             if (chunkSize < ch.Size)
-                throw exception(::FormatText("Failed to read chunk data: need %u bytes, have %u bytes", ch.Size, chunkSize));
+                throw exception(FormatText("Failed to read chunk data: need %u bytes, have %u bytes", ch.Size, chunkSize));
 
             readChunk(ch);
             chunkSize -= ch.Size;

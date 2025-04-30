@@ -1,5 +1,5 @@
 
-/** $VER: RIFFReader.cpp (2025.03.14) P. Stuer **/
+/** $VER: RIFFReader.cpp (2025.04.30) P. Stuer **/
 
 #include "pch.h"
 
@@ -30,7 +30,7 @@ bool reader_t::ReadHeader(uint32_t & formType)
     Read(&_Header, sizeof(_Header));
 
     if ((_Header.Id != FOURCC_RIFF) || (_Header.Size < sizeof(formType)))
-        throw ::exception("Invalid header chunk");
+        throw riff::exception("Invalid RIFF chunk");
 
     Read(&formType, sizeof(formType));
 
