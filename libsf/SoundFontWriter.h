@@ -40,10 +40,10 @@ struct soundfont_writer_options_t
 {
 };
 
-class soundfont_writer_t : public soundfont_writer_base_t
+class writer_t : public soundfont_writer_base_t
 {
 public:
-    soundfont_writer_t() noexcept : soundfont_writer_base_t() { }
+    writer_t() noexcept : soundfont_writer_base_t() { }
 
     void Process(const soundfont_writer_options_t & options, bank_t & sf);
 };

@@ -42,10 +42,10 @@ struct soundfont_reader_options_t
     bool ReadSampleData = true;
 };
 
-class soundfont_reader_t : public soundfont_reader_base_t
+class reader_t : public soundfont_reader_base_t
 {
 public:
-    soundfont_reader_t() noexcept : soundfont_reader_base_t() { }
+    reader_t() noexcept : soundfont_reader_base_t() { }
 
     void Process(const soundfont_reader_options_t & options, bank_t & sf);
 };

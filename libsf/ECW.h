@@ -1,5 +1,5 @@
 
-/** $VER: ECW.h (2025.04.23) P. Stuer - ECW data types. Based on ECW.txt from ecw2sfz **/
+/** $VER: ECW.h (2025.04.30) P. Stuer - ECW data types. Based on ECW.txt from ecw2sfz **/
 
 #pragma once
 
@@ -75,19 +75,19 @@ struct header_t
     uint8_t     Padding4[4];
 
     uint32_t    SampleOffs;             // File offset where sample waveform area begins
-    uint32_t    SampleSize;             // Total length of sample waveform area in bytes
+    uint32_t    SampleSize;             // Total length of sample waveform area (in bytes)
 };
 
 // The bank map sssigns one MIDI patch map to each of the 128 MIDI banks.
 struct bank_map_t
 {
-    uint16_t MIDIPatchMap[128];         // MIDI patch map assigned to MIDI bank 0..127.
+    uint16_t MIDIPatchMaps[128];        // MIDI patch map assigned to MIDI bank 0..127.
 };
 
 // The drum kit map assigns one drum note map to each of the 128 MIDI drum kits.
 struct drum_kit_map_t
 {
-    uint16_t DrumNoteMap[128];          // Drum note map assigned to MIDI drum kit 0..127.
+    uint16_t DrumNoteMaps[128];         // Drum note map assigned to MIDI drum kit 0..127.
 };
 
 // The MIDI patch maps assign one instrument to each of the 128 MIDI patches.
@@ -98,7 +98,7 @@ struct drum_kit_map_t
 
 struct midi_patch_map_t
 {
-    uint16_t Instrument[128];           // Instrument assigned to MIDI patch note 0..127 when using a MIDI bank whose entry in the bank map is equal to 0..n-1.
+    uint16_t Instruments[128];          // Instrument assigned to MIDI patch note 0..127 when using a MIDI bank whose entry in the bank map is equal to 0..n-1.
 };
 
 // The drum note maps assign one instrument to each of the 128 MIDI drum notes.
@@ -109,7 +109,7 @@ struct midi_patch_map_t
 
 struct drum_note_map_t
 {
-    uint16_t Instrument[128];           // Instrument assigned to MIDI drum note 0..127 when using a drum kit whose entry in the drum kit map is equal to 0..n-1.
+    uint16_t Instruments[128];          // Instrument assigned to MIDI drum note 0..127 when using a drum kit whose entry in the drum kit map is equal to 0..n-1.
 };
 
 // The instrument headers assign one or more patches (that is, the INTERNAL patches used in the waveset, as opposed to MIDI patches, which are EXTERNAL) to
@@ -132,10 +132,10 @@ struct instrument_header_v1_t
     struct sub_header_v1_t
     {
         uint16_t Patch;                 // Patch assigned to this instrument sub-header 
-        char Amplitude;                 // Amplitude and envelope steepness (signed)
+        int8_t Amplitude;                 // Amplitude and envelope steepness (signed)
         uint8_t Pan;                    // 193 seems to be extreme left and 64 seems to be extreme right
-        char CoarseTune;                // In semitones (signed)
-        char FineTune;                  // In increments of 1/256 of a semitone (signed)
+        int8_t CoarseTune;                // In semitones (signed)
+        int8_t FineTune;                  // In increments of 1/256 of a semitone (signed)
         uint16_t Delay;                 // Delay before onset of note (in milliseconds)
         uint8_t Group;                  // For tremolo strings and most if not all drum kit percussion, has value of either 1 or 2.
         uint8_t Unknown;                // If, in two or more instrument sub-headers, the byte at offset 000ch has the same value, only one of the patches played by those instrument sub-headers can sound simultaneously. Examples of instruments where this is desirable include open/closed hi-hats and open/closed triangles.
@@ -160,18 +160,18 @@ struct instrument_header_v2_t
 // in the .ECW file header. Each patch header is 76 bytes long.
 struct patch_header_t
 {
-    char PitchEnvelopeLevel;            // Magnitude of pitch envelope (signed). Negative values cause pitch to fall rather than rise. A value of 0 effectively disables pitch envelope. (Signed)
-    char ModulationSensitivity;         // MIDI controller 1 (modulation) sensitivity
-    char Scale;                         // A value of 0 denotes a 12-tones-per-octave (i.e. chromatic) scale. A value of 1causes this patch to ignore the MIDI note number, so that every key on the keyboard is the same pitch. A value of 2 denotes a 24-tones-per-octave (i.e. quarter tone) scale.
+    int8_t PitchEnvelopeLevel;          // Magnitude of pitch envelope (signed). Negative values cause pitch to fall rather than rise. A value of 0 effectively disables pitch envelope. (Signed)
+    int8_t ModulationSensitivity;       // MIDI controller 1 (modulation) sensitivity
+    int8_t Scale;                       // A value of 0 denotes a 12-tones-per-octave (i.e. chromatic) scale. A value of 1causes this patch to ignore the MIDI note number, so that every key on the keyboard is the same pitch. A value of 2 denotes a 24-tones-per-octave (i.e. quarter tone) scale.
 
     uint8_t Unknown1[8];
 
     uint16_t Cubbyhole1Index;           // "Cubbyhole" in array #1 assigned to this patch
-    char Detune;                        // Changes tuning slightly
+    int8_t Detune;                      // Changes tuning slightly
 
     uint8_t Unknown2[2];
 
-    char SplitPointAdjust;              // Shifts the split points of the samples played by this patch
+    int8_t SplitPointAdjust;            // Shifts the split points of the samples played by this patch
 
     uint8_t Unknown3[10];
 
@@ -255,9 +255,8 @@ struct patch_header_t
     uint8_t Unknown11;
 };
 
-// The sample header indicate where the individual samples are to be found in the sample waveform area. They also specify how those samples are looped (if at all),
-// and any split points between one sample and another. The number of sample headers is set in the .ECW file header. Each sample header is 16 bytes long.
-
+/** The sample header indicate where the individual samples are to be found in the sample waveform area. They also specify how those samples are looped (if at all),
+    and any split points between one sample and another. The number of sample headers is set in the .ECW file header. Each sample header is 16 bytes long. **/
 struct sample_header_t
 {
     uint8_t NoteMax;                    // If a MIDI note is received with a MIDI note number above this value, the next sample header is used instead.
@@ -269,11 +268,13 @@ struct sample_header_t
                                         // 2 or higher: Enable looping using the loop points specified in the sample header (see below).
                                         // Values of 129 or higher: Shift the loop points forward by an amount proportional to the value minus 128 (i.e. 129 will shift the loop points slightly, while 255 will shift them quite far into the sample waveform area).
                                         // Be careful when experimenting with values over 129 as it is very possible to play past the end of the sample waveform area, which may cause Windows to crash.
-    char FineTune;                      // Fine tune. Seems to be in increments of 1/256 of a semitone (signed)
-    char CoarseTune;                    // Measured in semitones (signed)
-    uint32_t SampleStart;               // Offset in sample waveform area where this sample begins, multiplied by 8. Sample waveform data can be shared by multiple sample headers.
+    int8_t FineTune;                    // In increments of 1/256 of a semitone (signed)
+    int8_t CoarseTune;                  // In semitones (signed)
+
+    // Sample waveform data can be shared by multiple sample headers.
+    uint32_t SampleStart;               // Offset in sample waveform area where this sample begins, multiplied by 8.
     uint32_t LoopStart;                 // Offset in sample waveform area of this sample's loop point, multiplied by 8.
-    uint32_t LoopStop;                  // Offset in sample waveform area of this sample's end loop point, multiplied by 8 (fractional loop lengths permitted).
+    uint32_t LoopEnd;                   // Offset in sample waveform area of this sample's end loop point, multiplied by 8 (fractional loop lengths permitted).
                                         // This is also where the sample ends when looping is disabled. If a sample plays beyond the end of the file, the operating system may lock up.
 };
 
@@ -302,6 +303,8 @@ public:
     std::vector<uint16_t> Array3;
 
     std::vector<sample_header_t> SampleHeaders;
+
+    std::vector<uint8_t> SampleData;
 
 private:
 };

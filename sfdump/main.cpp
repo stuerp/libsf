@@ -13,12 +13,16 @@
 
 #include "Encoding.h"
 
+#include <iterator>
+
 static void ProcessDirectory(const std::wstring & directoryPath, const std::wstring & searchPattern);
 static void ProcessFile(const std::wstring & filePath, uint64_t fileSize);
 static void ProcessDLS(const std::wstring & filePath);
 static void ProcessSF(const std::wstring & filePath);
 static void ProcessECW(const std::wstring & filePath);
-static void ConvertDLS(const sf::dls::collection_t & dls, sf::bank_t & sf);
+
+static void ConvertDLS(const sf::dls::collection_t & dls, sf::bank_t & bank);
+static void ConvertECW(const ecw::waveset_t & ws, sf::bank_t & bank);
 
 static std::string DescribeModulatorController(uint16_t modulator) noexcept;
 static std::string DescribeGeneratorController(uint16_t generator, uint16_t amount) noexcept;
@@ -269,7 +273,7 @@ static void ProcessSF(const std::wstring & filePath)
 
     if (ms.Open(filePath, 0, 0))
     {
-        sf::soundfont_reader_t sr;
+        sf::reader_t sr;
 
         if (sr.Open(&ms, riff::reader_t::option_t::None))
             sr.Process({ true }, Bank);
@@ -282,7 +286,7 @@ static void ProcessSF(const std::wstring & filePath)
 
     ::printf("%*sSoundFont specification version: v%d.%02d\n", __TRACE_LEVEL * 2, "", Bank.Major, Bank.Minor);
     ::printf("%*sSound Engine: \"%s\"\n", __TRACE_LEVEL * 2, "", Bank.SoundEngine.c_str());
-    ::printf("%*sBank Name: \"%s\"\n", __TRACE_LEVEL * 2, "", Bank.BankName.c_str());
+    ::printf("%*sBank Name: \"%s\"\n", __TRACE_LEVEL * 2, "", Bank.Name.c_str());
 
     if ((Bank.ROMName.length() != 0) && !((Bank.ROMMajor == 0) && (Bank.ROMMinor == 0)))
         ::printf("%*sSound Data ROM: %s v%d.%02d\n", __TRACE_LEVEL * 2, "", Bank.ROMName.c_str(), Bank.ROMMajor, Bank.ROMMinor);
@@ -508,7 +512,7 @@ static void ProcessSF(const std::wstring & filePath)
     // Tests the Sound Font writer.
     if (fs.Open(FilePath, true))
     {
-        sf::soundfont_writer_t sw;
+        sf::writer_t sw;
 
         if (sw.Open(&fs, riff::writer_t::option_t::None))
             sw.Process({ }, Bank);
@@ -519,7 +523,7 @@ static void ProcessSF(const std::wstring & filePath)
     // Reload the written Sound Font to test if we can read our own output.
     if (fs.Open(FilePath))
     {
-        sf::soundfont_reader_t sr;
+        sf::reader_t sr;
 
         if (sr.Open(&fs, riff::reader_t::option_t::None))
             sr.Process({ false }, Bank);
@@ -550,11 +554,11 @@ static void ProcessECW(const std::wstring & filePath)
 #ifdef _DEBUG
     uint32_t __TRACE_LEVEL = 0;
 
-    ::printf("%*sName: %s\n", __TRACE_LEVEL * 2, "", riff::CodePageToUTF8(850, ws.Name.c_str(), ws.Name.length()).c_str());
-    ::printf("%*sCopyright: %s\n", __TRACE_LEVEL * 2, "", riff::CodePageToUTF8(850, ws.Copyright.c_str(), ws.Copyright.length()).c_str());
-    ::printf("%*sDescription: %s\n", __TRACE_LEVEL * 2, "", riff::CodePageToUTF8(850, ws.Description.c_str(), ws.Description.length()).c_str());
-    ::printf("%*sInformation: %s\n", __TRACE_LEVEL * 2, "", riff::CodePageToUTF8(850, ws.Information.c_str(), ws.Information.length()).c_str());
-    ::printf("%*sFile Name: %s\n", __TRACE_LEVEL * 2, "", riff::CodePageToUTF8(850, ws.FileName.c_str(), ws.FileName.length()).c_str());
+    ::printf("%*sName: \"%s\"\n", __TRACE_LEVEL * 2, "", riff::CodePageToUTF8(850, ws.Name.c_str(), ws.Name.length()).c_str());
+    ::printf("%*sCopyright: \"%s\"\n", __TRACE_LEVEL * 2, "", riff::CodePageToUTF8(850, ws.Copyright.c_str(), ws.Copyright.length()).c_str());
+    ::printf("%*sDescription: \"%s\"\n", __TRACE_LEVEL * 2, "", riff::CodePageToUTF8(850, ws.Description.c_str(), ws.Description.length()).c_str());
+    ::printf("%*sInformation: \"%s\"\n", __TRACE_LEVEL * 2, "", riff::CodePageToUTF8(850, ws.Information.c_str(), ws.Information.length()).c_str());
+    ::printf("%*sFile Name: \"%s\"\n", __TRACE_LEVEL * 2, "", riff::CodePageToUTF8(850, ws.FileName.c_str(), ws.FileName.length()).c_str());
 
     {
         ::printf("\n%*sBank Maps\n", __TRACE_LEVEL * 2, "");
@@ -569,7 +573,7 @@ static void ProcessECW(const std::wstring & filePath)
 
             size_t j = 0;
 
-            for (const auto & MIDIPatchMap : BankMap.MIDIPatchMap)
+            for (const auto & MIDIPatchMap : BankMap.MIDIPatchMaps)
             {
                 ::printf("%*s%5zu. %5d\n", __TRACE_LEVEL * 2, "", j++, MIDIPatchMap);
             }
@@ -593,7 +597,7 @@ static void ProcessECW(const std::wstring & filePath)
 
             size_t j = 0;
 
-            for (const auto & DrumNoteMap : DrumKitMap.DrumNoteMap)
+            for (const auto & DrumNoteMap : DrumKitMap.DrumNoteMaps)
             {
                 ::printf("%*s%5zu. %5d\n", __TRACE_LEVEL * 2, "", j++, DrumNoteMap);
             }
@@ -617,7 +621,7 @@ static void ProcessECW(const std::wstring & filePath)
 
             size_t j = 0;
 
-            for (const auto & Instrument : MIDIPatchMap.Instrument)
+            for (const auto & Instrument : MIDIPatchMap.Instruments)
             {
                 ::printf("%*s%5zu. %5d\n", __TRACE_LEVEL * 2, "", j++, Instrument);
             }
@@ -641,7 +645,7 @@ static void ProcessECW(const std::wstring & filePath)
 
             size_t j = 0;
 
-            for (const auto & Instrument : DrumNoteMap.Instrument)
+            for (const auto & Instrument : DrumNoteMap.Instruments)
             {
                 ::printf("%*s%5zu. %5d\n", __TRACE_LEVEL * 2, "", j++, Instrument);
             }
@@ -705,14 +709,14 @@ static void ProcessECW(const std::wstring & filePath)
 
         for (const auto & SampleHeader : ws.SampleHeaders)
         {
-            ::printf("%*s%5zu. %3d, Flags: 0x%02X, Fine Tune: %4d, Coarse Tune: %4d, Offset: 0x%08X, Loop: 0x%08X-%08X\n", __TRACE_LEVEL * 2, "", i++,
+            ::printf("%*s%5zu. Max. MIDI Key: %3d, Flags: 0x%02X, Fine Tune: %4d, Coarse Tune: %4d, Offset: %9d, Loop: %9d-%9d\n", __TRACE_LEVEL * 2, "", i++,
                 SampleHeader.NoteMax,
                 SampleHeader.Flags,
                 SampleHeader.FineTune,
                 SampleHeader.CoarseTune,
                 SampleHeader.SampleStart,
                 SampleHeader.LoopStart,
-                SampleHeader.LoopStop
+                SampleHeader.LoopEnd
             );
 
             if (SampleHeader.SampleStart < SampleStart)
@@ -722,6 +726,133 @@ static void ProcessECW(const std::wstring & filePath)
         __TRACE_LEVEL--;
     }
 #endif
+
+    sf::bank_t Bank;
+
+    ConvertECW(ws, Bank);
+}
+
+/// <summary>
+/// Converts an ECW waveset to a SoundFont bank.
+/// </summary>
+static void ConvertECW(const ecw::waveset_t & ws, sf::bank_t & bank)
+{
+    bank.Major = 2;
+    bank.Minor = 4;
+    bank.SoundEngine = "E-mu 10K1";
+    bank.Name = ws.Name;
+
+    {
+         SYSTEMTIME st = {};
+
+        ::GetLocalTime(&st);
+
+        char Date[32] = { };
+        char Time[32] = { };
+
+        ::GetDateFormatA(LOCALE_USER_DEFAULT, 0, &st, "yyyy-MM-dd", Date, sizeof(Date));
+        ::GetTimeFormatA(LOCALE_USER_DEFAULT, 0, &st, "HH:mm:ss", Time, sizeof(Time));
+
+        bank.Properties.push_back(sf::property_t(FOURCC_ICRD, std::string(Date) + " " + std::string(Time)));
+    }
+
+    if (!ws.Information.empty())
+        bank.Properties.push_back(sf::property_t(FOURCC_ICMT, ws.Information));
+
+    if (!ws.Copyright.empty())
+        bank.Properties.push_back(sf::property_t(FOURCC_ICOP, ws.Copyright));
+
+    if (!ws.Description.empty())
+        bank.Properties.push_back(sf::property_t(FOURCC_ISBJ, ws.Description));
+
+    bank.Properties.push_back(sf::property_t(FOURCC_ISFT, "sfdump"));
+
+    bank.SampleData = ws.SampleData;
+
+    // Initialize Hydra.
+    {
+        uint16_t PresetCount = 0;
+
+        {
+            constexpr const uint16_t Banks[] = { 0, 127 };
+
+            for (const uint16_t & Bank : Banks)
+            {
+                const uint16_t Index = ws.BankMaps[0].MIDIPatchMaps[Bank];
+
+                const auto & mpm = ws.MIDIPatchMaps[Index];
+
+                for (const auto & Instrument : mpm.Instruments)
+                {
+                    bank.Presets.push_back(sf::preset_t(riff::FormatText("Preset %04d", PresetCount), Instrument, Bank, PresetCount, 0, 0, 0));
+
+                    bank.PresetZones.push_back(sf::preset_zone_t(PresetCount, 0));
+
+                    bank.PresetZoneGenerators.push_back(sf::preset_zone_generator_t(41, PresetCount)); // Generator "instrument"
+
+                    ++PresetCount;
+                }
+            }
+
+            bank.Presets.push_back(sf::preset_t("EOP"));
+        }
+
+        bank.PresetZoneModulators.push_back(sf::preset_zone_modulator_t(0, 0, 0, 0, 0));
+
+        {
+            for (uint16_t Index = 0; Index < PresetCount; ++Index)
+            {
+                bank.Instruments.push_back(sf::instrument_t(riff::FormatText("Instrument %04d", Index), Index));
+
+                bank.InstrumentZones.push_back(sf::instrument_zone_t(Index));
+
+                bank.InstrumentZoneGenerators.push_back(sf::instrument_zone_generator_t(53, Index)); // Generator "sampleID"
+            }
+
+            bank.Instruments.push_back(sf::instrument_t("EOI"));
+        }
+
+        bank.InstrumentZoneModulators.push_back(sf::instrument_zone_modulator_t(0, 0, 0, 0, 0));
+
+        {
+            uint16_t Index = 0;
+
+            for (const auto & sh : ws.SampleHeaders)
+            {
+                bank.Samples.push_back(sf::sample_t
+                (
+                    riff::FormatText("Sample %04d", Index++),
+                    sh.SampleStart / sizeof(int16_t),
+                    sh.LoopEnd     / sizeof(int16_t),
+                    sh.LoopStart   / sizeof(int16_t),
+                    sh.LoopEnd     / sizeof(int16_t), 22050, sh.NoteMax, 0, 0, sf::SampleTypes::MonoSample
+                ));
+            }
+
+            bank.Samples.push_back(sf::sample_t("EOS"));
+        }
+    }
+    {
+        riff::file_stream_t fs;
+
+        WCHAR FilePath[MAX_PATH] = LR"(F:\MIDI\Library\_ECW\2MEG_R_2.sf2)";
+
+        ::printf("\n\"%s\"\n", riff::WideToUTF8(FilePath).c_str());
+
+        {
+            if (fs.Open(FilePath, true))
+            {
+                sf::writer_t sw;
+
+                if (sw.Open(&fs, riff::writer_t::option_t::PolyphoneCompatible))
+                    sw.Process({ }, bank);
+
+                fs.Close();
+            }
+        }
+
+        ProcessSF(FilePath);
+    }
 }
 
 /// <summary>

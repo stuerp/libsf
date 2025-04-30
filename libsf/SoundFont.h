@@ -123,7 +123,7 @@ public:
     uint16_t Major;             // SoundFont specification major version level to which the file complies.
     uint16_t Minor;             // SoundFont specification minor version level to which the file complies.
     std::string SoundEngine;    // Wavetable sound engine for which the file was optimized (Default “EMU8000”).
-    std::string BankName;       // Name of the SoundFont compatible bank.
+    std::string Name;       // Name of the SoundFont compatible bank.
     std::string ROMName;        // Wavetable sound data ROM to which any ROM samples refer.
     uint16_t ROMMajor;          // Wavetable sound data ROM major revision to which any ROM samples refer.
     uint16_t ROMMinor;          // Wavetable sound data ROM minor revision to which any ROM samples refer.

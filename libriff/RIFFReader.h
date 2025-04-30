@@ -1,5 +1,5 @@
 
-/** $VER: RIFFReader.h (2025.04.25) P. Stuer **/
+/** $VER: RIFFReader.h (2025.04.30) P. Stuer **/
 
 #pragma once
 
@@ -32,7 +32,7 @@ public:
     {
     }
 
-    enum class option_t
+    enum option_t
     {
         None = 0,
         OnlyMandatory = 1

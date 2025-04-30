@@ -16,7 +16,7 @@ using namespace sf;
 /// <summary>
 /// Reads the complete SoundFont bank.
 /// </summary>
-void soundfont_reader_t::Process(const soundfont_reader_options_t & options, bank_t & bank)
+void reader_t::Process(const soundfont_reader_options_t & options, bank_t & bank)
 {
     TRACE_RESET();
     TRACE_INDENT();
@@ -94,12 +94,12 @@ void soundfont_reader_t::Process(const soundfont_reader_options_t & options, ban
                 TRACE_CHUNK(ch.Id, ch.Size);
                 TRACE_INDENT();
 
-                bank.BankName.resize((size_t) ch.Size + 1, '\0');
+                bank.Name.resize((size_t) ch.Size + 1, '\0');
 
-                Read((void *) bank.BankName.data(), ch.Size);
+                Read((void *) bank.Name.data(), ch.Size);
 
                 #ifdef __TRACE
-                ::printf("%*sBank Name: \"%s\"\n", __TRACE_LEVEL * 2, "", bank.BankName.c_str());
+                ::printf("%*sBank Name: \"%s\"\n", __TRACE_LEVEL * 2, "", bank.Name.c_str());
                 #endif
 
                 TRACE_UNINDENT();
@@ -179,6 +179,9 @@ void soundfont_reader_t::Process(const soundfont_reader_options_t & options, ban
 
                 if (options.ReadSampleData)
                 {
+                    if (ch.Size & 1)
+                        throw sf::exception("smpl chunk has odd size");
+
                     bank.SampleData.resize((size_t) ch.Size);
 
                     Read(bank.SampleData.data(), ch.Size);

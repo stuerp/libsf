@@ -16,7 +16,7 @@ using namespace sf;
 /// <summary>
 /// Writes the complete SoundFont bank.
 /// </summary>
-void soundfont_writer_t::Process(const soundfont_writer_options_t & options, bank_t & bank)
+void writer_t::Process(const soundfont_writer_options_t & options, bank_t & bank)
 {
     TRACE_RESET();
     TRACE_INDENT();
@@ -50,7 +50,7 @@ void soundfont_writer_t::Process(const soundfont_writer_options_t & options, ban
 
                     ListSize += WriteChunk(FOURCC_INAM, [this, &options, &bank]() -> uint32_t
                     {
-                        const char * Data = bank.BankName.c_str();
+                        const char * Data = bank.Name.c_str();
                         const uint32_t Size = (uint32_t) ::strlen(Data) + 1; // Including the string terminator.
 
                         return Write(Data, Size);
@@ -116,20 +116,20 @@ void soundfont_writer_t::Process(const soundfont_writer_options_t & options, ban
                         });
                     }
 
-                    if (bank.SampleData.size() != 0)
+                    if ((bank.SampleData.size() != 0) || (_Options & option_t::PolyphoneCompatible))
                     {
                         ListSize += WriteChunk(FOURCC_SMPL, [this, &options, &bank]() -> uint32_t
                         {
                             return Write(bank.SampleData.data(), (uint32_t) bank.SampleData.size());
                         });
-                    }
 
-                    if (bank.SampleDataLSB.size() != 0)
-                    {
-                        ListSize += WriteChunk(FOURCC_SM24, [this, &options, &bank]() -> uint32_t
+                        if (bank.SampleDataLSB.size() != 0)
                         {
-                            return Write(bank.SampleDataLSB.data(), (uint32_t) bank.SampleDataLSB.size());
-                        });
+                            ListSize += WriteChunk(FOURCC_SM24, [this, &options, &bank]() -> uint32_t
+                            {
+                                return Write(bank.SampleDataLSB.data(), (uint32_t) bank.SampleDataLSB.size());
+                            });
+                        }
                     }
 
                     return ListSize;

@@ -68,9 +68,13 @@ void reader_t::Process(waveset_t & ws)
 
     for (auto & SampleHeader : ws.SampleHeaders)
     {
-        // Offsets are read as values in bits. Convert to byte offsets.
+        // Offsets are read as values in bits. Convert to absolute byte offsets.
         SampleHeader.SampleStart /= 8;
-        SampleHeader.LoopStart /= 8;
-        SampleHeader.LoopStop /= 8;
+        SampleHeader.LoopStart   /= 8;
+        SampleHeader.LoopEnd     /= 8;
     }
+
+    ws.SampleData.resize(Header.SampleSize);
+    Offset(Header.SampleOffs);
+    Read(ws.SampleData.data(), Header.SampleSize);
 }
