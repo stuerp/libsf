@@ -130,6 +130,7 @@ public:
 
     std::vector<std::string> SampleNames;   // SoundFont v1.0.0 only
     std::vector<uint8_t> SampleData;
+    std::vector<uint8_t> SampleDataLSB;     // SoundFont v2.0.4 or later
 
     // Hydra
 

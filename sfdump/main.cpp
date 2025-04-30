@@ -302,6 +302,7 @@ static void ProcessSF(const std::wstring & filePath)
     }
 
     ::printf("%*sSample Data: %zu bytes\n", __TRACE_LEVEL * 2, "", Bank.SampleData.size());
+    ::printf("%*sSample Data 24: %zu bytes\n", __TRACE_LEVEL * 2, "", Bank.SampleDataLSB.size());
 
     {
         ::printf("%*sPresets (%zu)\n", __TRACE_LEVEL * 2, "", Bank.Presets.size() - 1);
@@ -853,7 +854,7 @@ static std::string DescribeGeneratorController(uint16_t generator, uint16_t amou
 
         case 46: Text = riff::FormatText("MIDI Key: %d (keynum)", amount); break;
         case 47: Text = riff::FormatText("MIDI Velocity: %d (velocity)", amount); break;
-        case 48: Text = riff::FormatText("Initial Attenuation: %4.0f dB (initialAttenuation)", (int16_t) amount / 10.); break;
+        case 48: Text = riff::FormatText("Initial Attenuation: %.0f dB (initialAttenuation)", (int16_t) amount / 10.); break;
 
         case 49: Text = "Reserved"; break;
 

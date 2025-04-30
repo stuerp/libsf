@@ -124,6 +124,14 @@ void soundfont_writer_t::Process(const soundfont_writer_options_t & options, ban
                         });
                     }
 
+                    if (bank.SampleDataLSB.size() != 0)
+                    {
+                        ListSize += WriteChunk(FOURCC_SM24, [this, &options, &bank]() -> uint32_t
+                        {
+                            return Write(bank.SampleDataLSB.data(), (uint32_t) bank.SampleDataLSB.size());
+                        });
+                    }
+
                     return ListSize;
                 });
             }
