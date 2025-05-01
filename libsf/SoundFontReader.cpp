@@ -7,8 +7,6 @@
 
 #include "libsf.h"
 
-#include <functional>
-
 #include "SF2.h"
 
 using namespace sf;

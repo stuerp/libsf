@@ -9,6 +9,13 @@
 
 WARNING: This is very tightly coupled with foo_midi. The API will change several times before it becomes stable.
 
+## ECW
+
+".ECW file" or "waveset" refers to a file with an extension of ".ECW" which stores articulation and sample data used
+by the MIDI synthesizer of sound cards equipped with an ES1370, ES1371, or ES1373 chip.
+
+These sound cards include the Ensoniq AudioPCI, the Sound Blaster! AudioPCI, the Sound Blaster! PCI64, the Sound Blaster! PCI128, and the Sound Blaster Live!.
+
 ## References
 
 * [IFF File Format Summary](https://www.fileformat.info/format/iff/egff.htm)
@@ -19,3 +26,8 @@ WARNING: This is very tightly coupled with foo_midi. The API will change several
 
 * SoundFont Technical Specification 2.04, Creative/E-mu Systems, 10 September 2002
 * Downloadable Sounds Level 2.2 v1.0, MIDI Manufacturers Association, April 2006
+
+## Acknowledgements
+
+* John N. Engelmann for reverse engineering the [.ECW file format](http://www.johnnengelmann.com/technology/ecw/index.php).
+* [Greg Kennedy](https://greg-kennedy.com/) for [ecw2sfz](https://sourceforge.net/projects/ecw2sfz/).

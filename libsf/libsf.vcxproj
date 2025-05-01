@@ -168,6 +168,7 @@
     <ClInclude Include="SoundFontReader.h" />
     <ClInclude Include="SoundFont.h" />
     <ClInclude Include="SoundFontWriter.h" />
+    <ClInclude Include="Waveset.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DLSReader.cpp" />

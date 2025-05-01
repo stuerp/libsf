@@ -1,5 +1,5 @@
 ﻿
-/** $VER: main.cpp (2025.04.30) P. Stuer **/
+/** $VER: main.cpp (2025.05.01) P. Stuer **/
 
 #include "pch.h"
 
@@ -14,6 +14,7 @@
 #include "Encoding.h"
 
 #include <iterator>
+#include <filesystem>
 
 static void ProcessDirectory(const std::wstring & directoryPath, const std::wstring & searchPattern);
 static void ProcessFile(const std::wstring & filePath, uint64_t fileSize);
@@ -161,6 +162,268 @@ static void ProcessFile(const std::wstring & filePath, uint64_t fileSize)
 }
 
 /// <summary>
+/// Processes an SF bank.
+/// </summary>
+static void ProcessSF(const std::wstring & filePath)
+{
+    sf::bank_t Bank;
+
+    riff::memory_stream_t ms;
+
+    if (ms.Open(filePath, 0, 0))
+    {
+        sf::reader_t sr;
+
+        if (sr.Open(&ms, riff::reader_t::option_t::None))
+            sr.Process({ true }, Bank);
+
+        ms.Close();
+    }
+
+#ifdef _DEBUG
+    uint32_t __TRACE_LEVEL = 0;
+
+    ::printf("%*sSoundFont specification version: v%d.%02d\n", __TRACE_LEVEL * 2, "", Bank.Major, Bank.Minor);
+    ::printf("%*sSound Engine: \"%s\"\n", __TRACE_LEVEL * 2, "", Bank.SoundEngine.c_str());
+    ::printf("%*sBank Name: \"%s\"\n", __TRACE_LEVEL * 2, "", Bank.Name.c_str());
+
+    if ((Bank.ROMName.length() != 0) && !((Bank.ROMMajor == 0) && (Bank.ROMMinor == 0)))
+        ::printf("%*sSound Data ROM: %s v%d.%02d\n", __TRACE_LEVEL * 2, "", Bank.ROMName.c_str(), Bank.ROMMajor, Bank.ROMMinor);
+
+    {
+        ::printf("%*sProperties\n", __TRACE_LEVEL * 2, "");
+        __TRACE_LEVEL++;
+
+        size_t i = 0;
+
+        for (const auto & [ ChunkId, Value ] : Bank.Properties)
+        {
+            ::printf("%*s%s: \"%s\"\n", __TRACE_LEVEL * 2, "", GetChunkName(ChunkId), riff::CodePageToUTF8(850, Value.c_str(), Value.length()).c_str());
+        }
+
+        __TRACE_LEVEL--;
+    }
+
+    ::printf("%*sSample Data: %zu bytes\n", __TRACE_LEVEL * 2, "", Bank.SampleData.size());
+    ::printf("%*sSample Data LSB: %zu bytes\n", __TRACE_LEVEL * 2, "", Bank.SampleDataLSB.size());
+
+    // Dump the presets.
+    {
+        ::printf("%*sPresets (%zu)\n", __TRACE_LEVEL * 2, "", Bank.Presets.size() - 1);
+        __TRACE_LEVEL++;
+
+        size_t i = 0;
+
+        for (const auto & Preset : Bank.Presets)
+        {
+            ::printf("%*s%5zu. \"%-20s\", MIDI Bank %3d, MIDI Program %3d, Zone %6d\n", __TRACE_LEVEL * 2, "", i++, Preset.Name.c_str(), Preset.MIDIBank, Preset.MIDIProgram, Preset.ZoneIndex);
+
+            if (i == Bank.Presets.size() - 1)
+                break;
+        }
+
+        __TRACE_LEVEL--;
+    }
+
+    // Dump the preset zones.
+    {
+        ::printf("%*sPreset Zones (%zu)\n", __TRACE_LEVEL * 2, "", Bank.PresetZones.size());
+
+        __TRACE_LEVEL++;
+
+        size_t i = 0;
+
+        for (const auto & pz : Bank.PresetZones)
+        {
+            ::printf("%*s%5zu. Generator: %5d, Modulator: %5d\n", __TRACE_LEVEL * 2, "", i++, pz.GeneratorIndex, pz.ModulatorIndex);
+        }
+
+        __TRACE_LEVEL--;
+    }
+
+    // Dump the preset zone modulators.
+    if (Bank.PresetZoneModulators.size() > 0)
+    {
+        ::printf("%*sPreset Zone Modulators (%zu)\n", __TRACE_LEVEL * 2, "", Bank.PresetZoneModulators.size());
+
+        __TRACE_LEVEL++;
+
+        size_t i = 0;
+
+        for (const auto & pzm : Bank.PresetZoneModulators)
+        {
+            ::printf("%*s%5zu. Src Op: 0x%04X, Dst Op: %2d, Amount: %6d, Amount Source: 0x%04X, Source Transform: 0x%04X, Src Op: \"%s\"\n", __TRACE_LEVEL * 2, "", i++,
+                pzm.SrcOperator, pzm.DstOperator, pzm.Amount, pzm.AmountSource, pzm.SourceTransform, DescribeModulatorController(pzm.SrcOperator).c_str());
+        }
+
+        __TRACE_LEVEL--;
+    }
+
+    // Dump the preset zone generators.
+    {
+        ::printf("%*sPreset Zone Generators (%zu)\n", __TRACE_LEVEL * 2, "", Bank.PresetZoneGenerators.size());
+
+        __TRACE_LEVEL++;
+
+        size_t i = 0;
+
+        for (const auto & pzg : Bank.PresetZoneGenerators)
+        {
+            ::printf("%*s%5zu. Operator: 0x%04X, Amount: 0x%04X, \"%s\"\n", __TRACE_LEVEL * 2, "", i++,
+                pzg.Operator, pzg.Amount, DescribeGeneratorController(pzg.Operator, pzg.Amount).c_str());
+
+            if (pzg.Operator == 41 /* instrument */)
+                ::putchar('\n');
+        }
+
+        __TRACE_LEVEL--;
+    }
+
+    // Dump the instruments.
+    {
+        ::printf("%*sInstruments (%zu)\n", __TRACE_LEVEL * 2, "", Bank.Instruments.size() - 1);
+
+        __TRACE_LEVEL++;
+
+        size_t i = 0;
+
+        for (const auto & Instrument : Bank.Instruments)
+        {
+            ::printf("%*s%5zu. \"%-20s\", Instrument Zone %6d\n", __TRACE_LEVEL * 2, "", i++, Instrument.Name.c_str(), Instrument.ZoneIndex);
+
+            if (i == Bank.Instruments.size() - 1)
+                break;
+        }
+
+        __TRACE_LEVEL--;
+    }
+
+    // Dump the instrument zones.
+    {
+        ::printf("%*sInstrument Zones (%zu)\n", __TRACE_LEVEL * 2, "", Bank.InstrumentZones.size());
+
+        __TRACE_LEVEL++;
+
+        size_t i = 0;
+
+        for (const auto & iz : Bank.InstrumentZones)
+        {
+            ::printf("%*s%5zu. Generator %5d, Modulator %5d\n", __TRACE_LEVEL * 2, "", i++, iz.GeneratorIndex, iz.ModulatorIndex);
+        }
+
+        __TRACE_LEVEL--;
+    }
+
+    // Dump the instrument zone modulators.
+    if (Bank.InstrumentZoneModulators.size() > 0)
+    {
+        ::printf("%*sInstrument Zone Modulators (%zu)\n", __TRACE_LEVEL * 2, "", Bank.InstrumentZoneModulators.size());
+
+        __TRACE_LEVEL++;
+
+        size_t i = 0;
+
+        for (const auto & izm : Bank.InstrumentZoneModulators)
+        {
+            ::printf("%*s%5zu. Src Op: 0x%04X, Dst Op: 0x%04X, Amount: %6d, Amount Source: 0x%04X, Source Transform: 0x%04X, Src Op: \"%s\", Dst Op: \"%s\"\n", __TRACE_LEVEL * 2, "", i++,
+                izm.SrcOperator, izm.DstOperator, izm.Amount, izm.AmountSource, izm.SourceTransform, DescribeModulatorController(izm.SrcOperator).c_str(), DescribeModulatorController(izm.DstOperator).c_str());
+        }
+
+        __TRACE_LEVEL--;
+    }
+
+    // Dump the instrument zone generators.
+    {
+        ::printf("%*sInstrument Zone Generators (%zu)\n", __TRACE_LEVEL * 2, "", Bank.InstrumentZoneGenerators.size());
+
+        __TRACE_LEVEL++;
+
+        size_t i = 0;
+
+        for (const auto & izg : Bank.InstrumentZoneGenerators)
+        {
+            ::printf("%*s%5zu. Operator: 0x%04X, Amount: 0x%04X, \"%s\"\n", __TRACE_LEVEL * 2, "", i++, izg.Operator, izg.Amount, DescribeGeneratorController(izg.Operator, izg.Amount).c_str());
+
+            if (izg.Operator == 53 /* sampleID */)
+                ::putchar('\n');
+        }
+
+        __TRACE_LEVEL--;
+    }
+
+    // Dump the sample names (SoundFont v1.0 only).
+    if (Bank.Major == 1)
+    {
+        ::printf("%*sSample Names (%zu)\n", __TRACE_LEVEL * 2, "", Bank.SampleNames.size() - 1);
+        __TRACE_LEVEL++;
+
+        size_t i = 0;
+
+        for (const auto & SampleName : Bank.SampleNames)
+        {
+            ::printf("%*s%5zu. \"%-20s\"\n", __TRACE_LEVEL * 2, "", i++, SampleName.c_str());
+
+            if (i == Bank.Samples.size() - 1)
+                break;
+        }
+
+        __TRACE_LEVEL--;
+    }
+
+    // Dump the samples.
+    {
+        ::printf("%*sSamples (%zu)\n", __TRACE_LEVEL * 2, "", Bank.Samples.size() - 1);
+        __TRACE_LEVEL++;
+
+        size_t i = 0;
+
+        for (const auto & Sample : Bank.Samples)
+        {
+            ::printf("%*s%5zu. \"%-20s\", %9d-%9d, Loop: %9d-%9d, %6dHz, Pitch: %3d, Pitch Correction: %3d, Link: %5d, Type: 0x%04X \"%s\"\n", __TRACE_LEVEL * 2, "", i++,
+                Sample.Name.c_str(), Sample.Start, Sample.End, Sample.LoopStart, Sample.LoopEnd,
+                Sample.SampleRate, Sample.Pitch, Sample.PitchCorrection,
+                Sample.SampleLink, Sample.SampleType, DescribeSampleType(Sample.SampleType).c_str());
+
+            if (i == Bank.Samples.size() - 1)
+                break;
+        }
+
+        __TRACE_LEVEL--;
+    }
+#endif
+
+    riff::file_stream_t fs;
+
+    WCHAR FilePath[MAX_PATH] = {};
+
+    ::GetTempFileNameW(L".", L"SF2", 0, FilePath);
+
+    ::printf("\n\"%s\"\n", riff::WideToUTF8(FilePath).c_str());
+
+    // Tests the Sound Font writer.
+    if (fs.Open(FilePath, true))
+    {
+        sf::writer_t sw;
+
+        if (sw.Open(&fs, riff::writer_t::option_t::None))
+            sw.Process({ }, Bank);
+
+        fs.Close();
+    }
+
+    // Reload the written Sound Font to test if we can read our own output.
+    if (fs.Open(FilePath))
+    {
+        sf::reader_t sr;
+
+        if (sr.Open(&fs, riff::reader_t::option_t::None))
+            sr.Process({ false }, Bank);
+
+        fs.Close();
+    }
+}
+
+/// <summary>
 /// Processes a DLS collection.
 /// </summary>
 static void ProcessDLS(const std::wstring & filePath)
@@ -201,7 +464,7 @@ static void ProcessDLS(const std::wstring & filePath)
 
         for (const auto & Region : Instrument.Regions)
         {
-            ::printf("%*sKey: %3d - %3d, Velocity: %3d - %3d, Options: 0x%04X, Key Group: %d, Editing Layer: %d\n", __TRACE_LEVEL * 2, "",
+            ::printf("%*sMIDI Key: %3d - %3d, Velocity: %3d - %3d, Options: 0x%04X, Key Group: %d, Zone: %d\n", __TRACE_LEVEL * 2, "",
                 Region.LowKey, Region.HighKey, Region.LowVelocity, Region.HighVelocity, Region.Options, Region.KeyGroup, Region.Layer);
         }
 
@@ -263,273 +526,16 @@ static void ProcessDLS(const std::wstring & filePath)
 }
 
 /// <summary>
-/// Processes an SF bank.
+/// Converts a DLS collection to a SoundFont bank.
 /// </summary>
-static void ProcessSF(const std::wstring & filePath)
+static void ConvertDLS(const sf::dls::collection_t & dls, sf::bank_t & bank)
 {
-    sf::bank_t Bank;
-
-    riff::memory_stream_t ms;
-
-    if (ms.Open(filePath, 0, 0))
+    for (const auto & Instrument : dls.Instruments)
     {
-        sf::reader_t sr;
-
-        if (sr.Open(&ms, riff::reader_t::option_t::None))
-            sr.Process({ true }, Bank);
-
-        ms.Close();
+        bank.Instruments.push_back(sf::instrument_t(Instrument.Name, -1));
     }
 
-#ifdef _DEBUG
-    uint32_t __TRACE_LEVEL = 0;
-
-    ::printf("%*sSoundFont specification version: v%d.%02d\n", __TRACE_LEVEL * 2, "", Bank.Major, Bank.Minor);
-    ::printf("%*sSound Engine: \"%s\"\n", __TRACE_LEVEL * 2, "", Bank.SoundEngine.c_str());
-    ::printf("%*sBank Name: \"%s\"\n", __TRACE_LEVEL * 2, "", Bank.Name.c_str());
-
-    if ((Bank.ROMName.length() != 0) && !((Bank.ROMMajor == 0) && (Bank.ROMMinor == 0)))
-        ::printf("%*sSound Data ROM: %s v%d.%02d\n", __TRACE_LEVEL * 2, "", Bank.ROMName.c_str(), Bank.ROMMajor, Bank.ROMMinor);
-
-    {
-        ::printf("%*sProperties\n", __TRACE_LEVEL * 2, "");
-        __TRACE_LEVEL++;
-
-        size_t i = 0;
-
-        for (const auto & [ ChunkId, Value ] : Bank.Properties)
-        {
-            ::printf("%*s%s: \"%s\"\n", __TRACE_LEVEL * 2, "", GetChunkName(ChunkId), riff::CodePageToUTF8(850, Value.c_str(), Value.length()).c_str());
-        }
-
-        __TRACE_LEVEL--;
-    }
-
-    ::printf("%*sSample Data: %zu bytes\n", __TRACE_LEVEL * 2, "", Bank.SampleData.size());
-    ::printf("%*sSample Data 24: %zu bytes\n", __TRACE_LEVEL * 2, "", Bank.SampleDataLSB.size());
-
-    {
-        ::printf("%*sPresets (%zu)\n", __TRACE_LEVEL * 2, "", Bank.Presets.size() - 1);
-        __TRACE_LEVEL++;
-
-        size_t i = 0;
-
-        for (const auto & Preset : Bank.Presets)
-        {
-            ::printf("%*s%5zu. \"%-20s\", MIDI Bank %3d, MIDI Program %3d, Zone %6d\n", __TRACE_LEVEL * 2, "", i++, Preset.Name.c_str(), Preset.MIDIBank, Preset.MIDIProgram, Preset.ZoneIndex);
-
-            if (i == Bank.Presets.size() - 1)
-                break;
-        }
-
-        __TRACE_LEVEL--;
-    }
-
-    {
-        ::printf("%*sPreset Zones (%zu)\n", __TRACE_LEVEL * 2, "", Bank.PresetZones.size() - 1);
-
-        __TRACE_LEVEL++;
-
-        size_t i = 0;
-
-        for (const auto & pz : Bank.PresetZones)
-        {
-            ::printf("%*s%5zu. Generator: %5d, Modulator: %5d\n", __TRACE_LEVEL * 2, "", i++, pz.GeneratorIndex, pz.ModulatorIndex);
-
-            if (i == Bank.PresetZones.size() - 1)
-                break;
-        }
-
-        __TRACE_LEVEL--;
-    }
-
-    if (Bank.PresetZoneModulators.size() > 0)
-    {
-        ::printf("%*sPreset Zone Modulators (%zu)\n", __TRACE_LEVEL * 2, "", Bank.PresetZoneModulators.size() - 1);
-
-        __TRACE_LEVEL++;
-
-        size_t i = 0;
-
-        for (const auto & pzm : Bank.PresetZoneModulators)
-        {
-            ::printf("%*s%5zu. Src Op: 0x%04X, Dst Op: %2d, Amount: %6d, Amount Source: 0x%04X, Source Transform: 0x%04X, Src Op: \"%s\"\n", __TRACE_LEVEL * 2, "", i++,
-                pzm.SrcOperator, pzm.DstOperator, pzm.Amount, pzm.AmountSource, pzm.SourceTransform, DescribeModulatorController(pzm.SrcOperator).c_str());
-
-            if (i == Bank.PresetZoneModulators.size() - 1)
-                break;
-        }
-
-        __TRACE_LEVEL--;
-    }
-
-    {
-        ::printf("%*sPreset Zone Generators (%zu)\n", __TRACE_LEVEL * 2, "", Bank.PresetZoneGenerators.size() - 1);
-
-        __TRACE_LEVEL++;
-
-        size_t i = 0;
-
-        for (const auto & pzg : Bank.PresetZoneGenerators)
-        {
-            ::printf("%*s%5zu. Operator: 0x%04X, Amount: 0x%04X, \"%s\"\n", __TRACE_LEVEL * 2, "", i++,
-                pzg.Operator, pzg.Amount, DescribeGeneratorController(pzg.Operator, pzg.Amount).c_str());
-
-            if (pzg.Operator == 41 /* instrument */)
-                ::putchar('\n');
-
-            if (i == Bank.PresetZoneGenerators.size() - 1)
-                break;
-        }
-
-        __TRACE_LEVEL--;
-    }
-
-    {
-        ::printf("%*sInstruments (%zu)\n", __TRACE_LEVEL * 2, "", Bank.Instruments.size() - 1);
-
-        __TRACE_LEVEL++;
-
-        size_t i = 0;
-
-        for (const auto & Instrument : Bank.Instruments)
-        {
-            ::printf("%*s%5zu. \"%-20s\", Zone %6d\n", __TRACE_LEVEL * 2, "", i++, Instrument.Name.c_str(), Instrument.ZoneIndex);
-
-            if (i == Bank.Instruments.size() - 1)
-                break;
-        }
-
-        __TRACE_LEVEL--;
-    }
-
-    {
-        ::printf("%*sInstrument Zones (%zu)\n", __TRACE_LEVEL * 2, "", Bank.InstrumentZones.size() - 1);
-
-        __TRACE_LEVEL++;
-
-        size_t i = 0;
-
-        for (const auto & iz : Bank.InstrumentZones)
-        {
-            ::printf("%*s%5zu. Generator %5d, Modulator %5d\n", __TRACE_LEVEL * 2, "", i++, iz.GeneratorIndex, iz.ModulatorIndex);
-
-            if (i == Bank.InstrumentZones.size() - 1)
-                break;
-        }
-
-        __TRACE_LEVEL--;
-    }
-
-    if (Bank.InstrumentZoneModulators.size() > 0)
-    {
-        ::printf("%*sInstrument Zone Modulators (%zu)\n", __TRACE_LEVEL * 2, "", Bank.InstrumentZoneModulators.size() - 1);
-
-        __TRACE_LEVEL++;
-
-        size_t i = 0;
-
-        for (const auto & izm : Bank.InstrumentZoneModulators)
-        {
-            ::printf("%*s%5zu. Src Op: 0x%04X, Dst Op: 0x%04X, Amount: %6d, Amount Source: 0x%04X, Source Transform: 0x%04X, Src Op: \"%s\", Dst Op: \"%s\"\n", __TRACE_LEVEL * 2, "", i++,
-                izm.SrcOperator, izm.DstOperator, izm.Amount, izm.AmountSource, izm.SourceTransform, DescribeModulatorController(izm.SrcOperator).c_str(), DescribeModulatorController(izm.DstOperator).c_str());
-
-            if (i == Bank.InstrumentZoneModulators.size() - 1)
-                break;
-        }
-
-        __TRACE_LEVEL--;
-    }
-
-    {
-        ::printf("%*sInstrument Zone Generators (%zu)\n", __TRACE_LEVEL * 2, "", Bank.InstrumentZoneGenerators.size() - 1);
-
-        __TRACE_LEVEL++;
-
-        size_t i = 0;
-
-        for (const auto & izg : Bank.InstrumentZoneGenerators)
-        {
-            ::printf("%*s%5zu. Operator: 0x%04X, Amount: 0x%04X, \"%s\"\n", __TRACE_LEVEL * 2, "", i++, izg.Operator, izg.Amount, DescribeGeneratorController(izg.Operator, izg.Amount).c_str());
-
-            if (izg.Operator == 53 /* sampleID */)
-                ::putchar('\n');
-
-            if (i == Bank.InstrumentZoneGenerators.size() - 1)
-                break;
-        }
-
-        __TRACE_LEVEL--;
-    }
-
-    if (Bank.Major == 1)
-    {
-        ::printf("%*sSample Names (%zu)\n", __TRACE_LEVEL * 2, "", Bank.SampleNames.size() - 1);
-        __TRACE_LEVEL++;
-
-        size_t i = 0;
-
-        for (const auto & SampleName : Bank.SampleNames)
-        {
-            ::printf("%*s%5zu. \"%-20s\"\n", __TRACE_LEVEL * 2, "", i++, SampleName.c_str());
-
-            if (i == Bank.Samples.size() - 1)
-                break;
-        }
-
-        __TRACE_LEVEL--;
-    }
-
-    {
-        ::printf("%*sSamples (%zu)\n", __TRACE_LEVEL * 2, "", Bank.Samples.size() - 1);
-        __TRACE_LEVEL++;
-
-        size_t i = 0;
-
-        for (const auto & Sample : Bank.Samples)
-        {
-            ::printf("%*s%5zu. \"%-20s\", %9d-%9d, Loop: %9d-%9d, %6dHz, Pitch: %3d, Pitch Correction: %3d, Link: %5d, Type: 0x%04X \"%s\"\n", __TRACE_LEVEL * 2, "", i++,
-                Sample.Name.c_str(), Sample.Start, Sample.End, Sample.LoopStart, Sample.LoopEnd,
-                Sample.SampleRate, Sample.Pitch, Sample.PitchCorrection,
-                Sample.SampleLink, Sample.SampleType, DescribeSampleType(Sample.SampleType).c_str());
-
-            if (i == Bank.Samples.size() - 1)
-                break;
-        }
-
-        __TRACE_LEVEL--;
-    }
-#endif
-
-    riff::file_stream_t fs;
-
-    WCHAR FilePath[MAX_PATH] = {};
-
-    ::GetTempFileNameW(L".", L"SF2", 0, FilePath);
-
-    ::printf("\n\"%s\"\n", riff::WideToUTF8(FilePath).c_str());
-
-    // Tests the Sound Font writer.
-    if (fs.Open(FilePath, true))
-    {
-        sf::writer_t sw;
-
-        if (sw.Open(&fs, riff::writer_t::option_t::None))
-            sw.Process({ }, Bank);
-
-        fs.Close();
-    }
-
-    // Reload the written Sound Font to test if we can read our own output.
-    if (fs.Open(FilePath))
-    {
-        sf::reader_t sr;
-
-        if (sr.Open(&fs, riff::reader_t::option_t::None))
-            sr.Process({ false }, Bank);
-
-        fs.Close();
-    }
+    bank.Properties = dls.Properties;
 }
 
 /// <summary>
@@ -560,6 +566,7 @@ static void ProcessECW(const std::wstring & filePath)
     ::printf("%*sInformation: \"%s\"\n", __TRACE_LEVEL * 2, "", riff::CodePageToUTF8(850, ws.Information.c_str(), ws.Information.length()).c_str());
     ::printf("%*sFile Name: \"%s\"\n", __TRACE_LEVEL * 2, "", riff::CodePageToUTF8(850, ws.FileName.c_str(), ws.FileName.length()).c_str());
 
+    // Dump the bank maps.
     {
         ::printf("\n%*sBank Maps\n", __TRACE_LEVEL * 2, "");
         __TRACE_LEVEL++;
@@ -575,7 +582,7 @@ static void ProcessECW(const std::wstring & filePath)
 
             for (const auto & MIDIPatchMap : BankMap.MIDIPatchMaps)
             {
-                ::printf("%*s%5zu. %5d\n", __TRACE_LEVEL * 2, "", j++, MIDIPatchMap);
+                ::printf("%*s%5zu. Patch Map %5d\n", __TRACE_LEVEL * 2, "", j++, MIDIPatchMap);
             }
 
             __TRACE_LEVEL--;
@@ -584,6 +591,7 @@ static void ProcessECW(const std::wstring & filePath)
         __TRACE_LEVEL--;
     }
 
+    // Dump the drum kit maps.
     {
         ::printf("\n%*sDrum Kit Maps\n", __TRACE_LEVEL * 2, "");
         __TRACE_LEVEL++;
@@ -599,7 +607,7 @@ static void ProcessECW(const std::wstring & filePath)
 
             for (const auto & DrumNoteMap : DrumKitMap.DrumNoteMaps)
             {
-                ::printf("%*s%5zu. %5d\n", __TRACE_LEVEL * 2, "", j++, DrumNoteMap);
+                ::printf("%*s%5zu. Drum Note Map %5d\n", __TRACE_LEVEL * 2, "", j++, DrumNoteMap);
             }
 
             __TRACE_LEVEL--;
@@ -608,6 +616,7 @@ static void ProcessECW(const std::wstring & filePath)
         __TRACE_LEVEL--;
     }
 
+    // Dump the MIDI Patch maps.
     {
         ::printf("\n%*sMIDI Patch Maps\n", __TRACE_LEVEL * 2, "");
         __TRACE_LEVEL++;
@@ -623,7 +632,7 @@ static void ProcessECW(const std::wstring & filePath)
 
             for (const auto & Instrument : MIDIPatchMap.Instruments)
             {
-                ::printf("%*s%5zu. %5d\n", __TRACE_LEVEL * 2, "", j++, Instrument);
+                ::printf("%*sMIDI Program %3zu = ECW Instrument %5d\n", __TRACE_LEVEL * 2, "", j++, Instrument);
             }
 
             __TRACE_LEVEL--;
@@ -632,6 +641,7 @@ static void ProcessECW(const std::wstring & filePath)
         __TRACE_LEVEL--;
     }
 
+    // Dump the MIDI Drum Note maps.
     {
         ::printf("\n%*sDrum Note Maps\n", __TRACE_LEVEL * 2, "");
         __TRACE_LEVEL++;
@@ -647,7 +657,7 @@ static void ProcessECW(const std::wstring & filePath)
 
             for (const auto & Instrument : DrumNoteMap.Instruments)
             {
-                ::printf("%*s%5zu. %5d\n", __TRACE_LEVEL * 2, "", j++, Instrument);
+                ::printf("%*sMIDI Program %3zu = ECW Instrument %5d\n", __TRACE_LEVEL * 2, "", j++, Instrument);
             }
 
             __TRACE_LEVEL--;
@@ -656,41 +666,56 @@ static void ProcessECW(const std::wstring & filePath)
         __TRACE_LEVEL--;
     }
 
+    // Dump the instruments.
     {
         ::printf("\n%*sInstruments\n", __TRACE_LEVEL * 2, "");
         __TRACE_LEVEL++;
 
         size_t i = 0;
 
-        for (const auto & InstrumentHeader : ws.InstrumentHeaders)
+        for (const auto & InstrumentHeader : ws.Instruments)
         {
             if (InstrumentHeader.Type == 2)
             {
-                const auto & ih = (ecw::instrument_header_v1_t &) InstrumentHeader;
+                const auto & ih = (ecw::instrument_v1_t &) InstrumentHeader;
 
-                ::printf("%*s%5zu. v1, Sub Type: %d, Note: %3d, Patch: %5d, Amplitude: %4d, Pan: %3d, Coarse Tune: %4d, Fine Tune: %4d, Delay: %5d, Group: %3d\n", __TRACE_LEVEL * 2, "", i++,
-                    ih.SubType,
-                    ih.NoteThreshold,
-                    ih.SubHeaders[0].Patch,
-                    ih.SubHeaders[0].Amplitude,
-                    ih.SubHeaders[0].Pan,
-                    ih.SubHeaders[0].CoarseTune,
-                    ih.SubHeaders[0].FineTune,
-                    ih.SubHeaders[0].Delay,
-                    ih.SubHeaders[0].Group
-                );
+                ::printf("%*s%5zu. v1, Sub Type: %d, Note: %3d\n", __TRACE_LEVEL * 2, "", i++, ih.SubType, ih.NoteThreshold);
+
+                __TRACE_LEVEL++;
+
+                if (ih.SubType < 3)
+                    ::printf("%*s       Header 0, Patch: %5d, Amplitude: %4d, Pan: %4d, Coarse Tune: %4d, Fine Tune: %4d, Delay: %5d, Group: %3d\n", __TRACE_LEVEL * 2, "",
+                        ih.SubHeaders[0].PatchIndex,
+                        ih.SubHeaders[0].Amplitude,
+                        ih.SubHeaders[0].Pan,
+                        ih.SubHeaders[0].CoarseTune,
+                        ih.SubHeaders[0].FineTune,
+                        ih.SubHeaders[0].Delay,
+                        ih.SubHeaders[0].Group
+                    );
+
+                if (ih.SubType > 0)
+                    ::printf("%*s       Header 1, Patch: %5d, Amplitude: %4d, Pan: %4d, Coarse Tune: %4d, Fine Tune: %4d, Delay: %5d, Group: %3d\n", __TRACE_LEVEL * 2, "",
+                        ih.SubHeaders[1].PatchIndex,
+                        ih.SubHeaders[1].Amplitude,
+                        ih.SubHeaders[1].Pan,
+                        ih.SubHeaders[1].CoarseTune,
+                        ih.SubHeaders[1].FineTune,
+                        ih.SubHeaders[1].Delay,
+                        ih.SubHeaders[1].Group
+                    );
+
+                __TRACE_LEVEL--;
             }
             else
             if (InstrumentHeader.Type == 255)
             {
-                const auto & ih = (ecw::instrument_header_v2_t &) InstrumentHeader;
+                const auto & ih = (ecw::instrument_v2_t &) InstrumentHeader;
 
-                ::printf("%*s%5zu. v2", __TRACE_LEVEL * 2, "", i++);
+                ::printf("%*s%5zu. v2\n", __TRACE_LEVEL * 2, "", i++);
 
                 for (const auto & sh : ih.SubHeaders)
-                    ::printf(", Index: %5d, Note: %3d", sh.Index, sh.NoteThreshold);
-
-                ::putchar('\n');
+                    ::printf("%*s       Instrument: %5d, Note: %3d\n", __TRACE_LEVEL * 2, "", sh.InstrumentIndex, sh.NoteThreshold);
             }
             else
                 ::printf("%*s%5zu. Unknown instrument type\n", __TRACE_LEVEL * 2, "", i++);
@@ -699,37 +724,138 @@ static void ProcessECW(const std::wstring & filePath)
         __TRACE_LEVEL--;
     }
 
+    // Dump the patches.
     {
-        uint32_t SampleStart = ~0;
+        ::printf("\n%*sPatches\n", __TRACE_LEVEL * 2, "");
+        __TRACE_LEVEL++;
 
+        size_t i = 0;
+
+        for (const auto & ph : ws.Patches)
+        {
+            ::printf("%*s%5zu. Pitch Env: %4d, Modulation: %4d, Scale: %4d, Array 1 Index: %5d, Detune: %4d\n", __TRACE_LEVEL * 2, "", i++,
+                ph.PitchEnvelopeLevel,
+                ph.ModulationSensitivity,
+                ph.Scale,
+                ph.Array1Index,
+                ph.Detune
+            );
+        }
+
+        __TRACE_LEVEL--;
+    }
+
+    {
+        ::printf("\n%*sArray 1 (%d)\n", __TRACE_LEVEL * 2, "", (int) ws.Array1.size());
+        __TRACE_LEVEL++;
+
+        size_t i = 0;
+
+        for (const auto & Item : ws.Array1)
+        {
+            if (Item.Index != 0xFFFF)
+                ::printf("%*s%5zu. Slot: %5d, Name: \"%s\"\n", __TRACE_LEVEL * 2, "", i, Item.Index, Item.Name.c_str());
+            else
+                ::printf("%*s%5zu. Unused\n", __TRACE_LEVEL * 2, "", i);
+
+            ++i;
+        }
+
+        __TRACE_LEVEL--;
+    }
+
+    {
+        ::printf("\n%*sArray 2 (%d)\n", __TRACE_LEVEL * 2, "", (int) ws.Array2.size());
+        __TRACE_LEVEL++;
+
+        size_t i = 0;
+
+        for (const auto & Item : ws.Array2)
+        {
+            if (Item.Index != 0)
+                ::printf("%*s%5zu. Slot: %5d, Name: \"%s\"\n", __TRACE_LEVEL * 2, "", i, Item.Index, Item.Name.c_str());
+            else
+                ::printf("%*s%5zu. Unused\n", __TRACE_LEVEL * 2, "", i);
+
+            ++i;
+        }
+
+        __TRACE_LEVEL--;
+    }
+
+    {
+        ::printf("\n%*sArray 3 (%d)\n", __TRACE_LEVEL * 2, "", (int) ws.Array3.size());
+        __TRACE_LEVEL++;
+
+        size_t i = 0;
+
+        for (const auto & Item : ws.Array3)
+        {
+            if (Item.Index != 0)
+                ::printf("%*s%5zu. Slot: %5d, Name: \"%s\"\n", __TRACE_LEVEL * 2, "", i, Item.Index, Item.Name.c_str());
+            else
+                ::printf("%*s%5zu. Unused\n", __TRACE_LEVEL * 2, "", i);
+
+            ++i;
+        }
+
+        __TRACE_LEVEL--;
+    }
+
+    {
         ::printf("\n%*sSamples\n", __TRACE_LEVEL * 2, "");
         __TRACE_LEVEL++;
 
         size_t i = 0;
 
-        for (const auto & SampleHeader : ws.SampleHeaders)
+        for (const auto & s : ws.Samples)
         {
-            ::printf("%*s%5zu. Max. MIDI Key: %3d, Flags: 0x%02X, Fine Tune: %4d, Coarse Tune: %4d, Offset: %9d, Loop: %9d-%9d\n", __TRACE_LEVEL * 2, "", i++,
-                SampleHeader.NoteMax,
-                SampleHeader.Flags,
-                SampleHeader.FineTune,
-                SampleHeader.CoarseTune,
-                SampleHeader.SampleStart,
-                SampleHeader.LoopStart,
-                SampleHeader.LoopEnd
+            ::printf("%*s%5zu. \"%-14s\", MIDI Key: %3d-%3d, Flags: 0x%02X, Fine Tune: %4d, Coarse Tune: %4d, Offset: %9d, Loop: %9d-%9d\n", __TRACE_LEVEL * 2, "", i++,
+                s.Name.c_str(),
+                s.LowKey, s.HighKey,
+                s.Flags,
+                s.FineTune,
+                s.CoarseTune,
+                s.SampleStart,
+                s.LoopStart,
+                s.LoopEnd
             );
-
-            if (SampleHeader.SampleStart < SampleStart)
-                SampleStart = SampleHeader.SampleStart;
         }
 
         __TRACE_LEVEL--;
     }
 #endif
 
-    sf::bank_t Bank;
+    // Test the waveset to SoundFont bank conversion.
+    {
+        sf::bank_t Bank;
 
-    ConvertECW(ws, Bank);
+        ConvertECW(ws, Bank);
+
+        {
+            std::filesystem::path FilePath(filePath);
+
+            FilePath.replace_extension(L".sf2");
+
+            riff::file_stream_t fs;
+
+            ::printf("\n\"%s\"\n", riff::WideToUTF8(FilePath.wstring()).c_str());
+
+            {
+                if (fs.Open(FilePath.wstring(), true))
+                {
+                    sf::writer_t sw;
+
+                    if (sw.Open(&fs, riff::writer_t::option_t::PolyphoneCompatible))
+                        sw.Process({ }, Bank);
+
+                    fs.Close();
+                }
+            }
+
+            ProcessSF(FilePath);
+        }
+    }
 }
 
 /// <summary>
@@ -771,8 +897,67 @@ static void ConvertECW(const ecw::waveset_t & ws, sf::bank_t & bank)
 
     // Initialize Hydra.
     {
-        uint16_t PresetCount = 0;
+        // Add the samples.
+        {
+            for (const auto & s : ws.Samples)
+            {
+                uint8_t Pitch = 127 + s.CoarseTune;
 
+                if (s.FineTune < 0)
+                    Pitch--;
+
+                int8_t PitchCorrection = 0;
+
+                bank.Samples.push_back(sf::sample_t
+                (
+                    s.Name,
+                    s.SampleStart / sizeof(int16_t),
+                    s.LoopEnd     / sizeof(int16_t),
+                    s.LoopStart   / sizeof(int16_t),
+                    s.LoopEnd     / sizeof(int16_t),
+                    22050,
+                    Pitch,
+                    PitchCorrection,
+                    0,
+                    sf::SampleTypes::MonoSample
+                ));
+            }
+
+            bank.Samples.push_back(sf::sample_t("EOS"));
+        }
+
+        // Add the instruments.
+        {
+            for (const auto & Slot : ws.Array3)
+            {
+                if (Slot.Index == 0)
+                    continue;
+
+                uint16_t i = Slot.Index;
+
+                bank.Instruments.push_back(sf::instrument_t(Slot.Name, (uint16_t) bank.InstrumentZones.size()));
+
+                for (auto it = std::next(ws.Samples.begin(), i); (it != ws.Samples.end()); ++it)
+                {
+                    if (it->Name != Slot.Name)
+                        break;
+
+                    bank.InstrumentZones.push_back(sf::instrument_zone_t((uint16_t) bank.InstrumentZoneGenerators.size(), (uint16_t) bank.InstrumentZoneModulators.size()));
+
+                    bank.InstrumentZoneGenerators.push_back(sf::instrument_zone_generator_t(43, MAKEWORD(it->LowKey, it->HighKey))); // Generator "keyRange"
+                    bank.InstrumentZoneGenerators.push_back(sf::instrument_zone_generator_t(53, i)); // Generator "sampleID"
+
+                    ++i;
+                }
+            }
+
+            bank.Instruments.push_back(sf::instrument_t("EOI"));
+
+            // Add the instrument zone modulators.
+            bank.InstrumentZoneModulators.push_back(sf::instrument_zone_modulator_t(0, 0, 0, 0, 0));
+        }
+/*
+        // Add the presets.
         {
             constexpr const uint16_t Banks[] = { 0, 127 };
 
@@ -784,74 +969,20 @@ static void ConvertECW(const ecw::waveset_t & ws, sf::bank_t & bank)
 
                 for (const auto & Instrument : mpm.Instruments)
                 {
-                    bank.Presets.push_back(sf::preset_t(riff::FormatText("Preset %04d", PresetCount), Instrument, Bank, PresetCount, 0, 0, 0));
+                    bank.Presets.push_back(sf::preset_t(bank.Instruments[Instrument].Name, Instrument, Bank, (uint16_t) bank.PresetZones.size(), 0, 0, 0));
 
-                    bank.PresetZones.push_back(sf::preset_zone_t(PresetCount, 0));
+                    bank.PresetZones.push_back(sf::preset_zone_t((uint16_t) bank.PresetZoneGenerators.size(), (uint16_t) bank.PresetZoneModulators.size()));
 
-                    bank.PresetZoneGenerators.push_back(sf::preset_zone_generator_t(41, PresetCount)); // Generator "instrument"
-
-                    ++PresetCount;
+                    bank.PresetZoneGenerators.push_back(sf::preset_zone_generator_t(41, Instrument)); // Generator "instrument"
                 }
             }
 
             bank.Presets.push_back(sf::preset_t("EOP"));
+
+            // Add the preset zone modulators.
+            bank.PresetZoneModulators.push_back(sf::preset_zone_modulator_t(0, 0, 0, 0, 0));
         }
-
-        bank.PresetZoneModulators.push_back(sf::preset_zone_modulator_t(0, 0, 0, 0, 0));
-
-        {
-            for (uint16_t Index = 0; Index < PresetCount; ++Index)
-            {
-                bank.Instruments.push_back(sf::instrument_t(riff::FormatText("Instrument %04d", Index), Index));
-
-                bank.InstrumentZones.push_back(sf::instrument_zone_t(Index));
-
-                bank.InstrumentZoneGenerators.push_back(sf::instrument_zone_generator_t(53, Index)); // Generator "sampleID"
-            }
-
-            bank.Instruments.push_back(sf::instrument_t("EOI"));
-        }
-
-        bank.InstrumentZoneModulators.push_back(sf::instrument_zone_modulator_t(0, 0, 0, 0, 0));
-
-        {
-            uint16_t Index = 0;
-
-            for (const auto & sh : ws.SampleHeaders)
-            {
-                bank.Samples.push_back(sf::sample_t
-                (
-                    riff::FormatText("Sample %04d", Index++),
-                    sh.SampleStart / sizeof(int16_t),
-                    sh.LoopEnd     / sizeof(int16_t),
-                    sh.LoopStart   / sizeof(int16_t),
-                    sh.LoopEnd     / sizeof(int16_t), 22050, sh.NoteMax, 0, 0, sf::SampleTypes::MonoSample
-                ));
-            }
-
-            bank.Samples.push_back(sf::sample_t("EOS"));
-        }
-    }
-    {
-        riff::file_stream_t fs;
-
-        WCHAR FilePath[MAX_PATH] = LR"(F:\MIDI\Library\_ECW\2MEG_R_2.sf2)";
-
-        ::printf("\n\"%s\"\n", riff::WideToUTF8(FilePath).c_str());
-
-        {
-            if (fs.Open(FilePath, true))
-            {
-                sf::writer_t sw;
-
-                if (sw.Open(&fs, riff::writer_t::option_t::PolyphoneCompatible))
-                    sw.Process({ }, bank);
-
-                fs.Close();
-            }
-        }
-
-        ProcessSF(FilePath);
+*/
     }
 }
 
@@ -1072,17 +1203,4 @@ static const char * GetChunkName(const uint32_t chunkId) noexcept
     auto it = ChunkNames.find(chunkId);
 
     return (it != ChunkNames.end()) ? it->second : "Unknown";
-}
-
-/// <summary>
-/// Converts a DLS collection to a SoundFont bank.
-/// </summary>
-static void ConvertDLS(const sf::dls::collection_t & dls, sf::bank_t & bank)
-{
-    for (const auto & Instrument : dls.Instruments)
-    {
-        bank.Instruments.push_back(sf::instrument_t(Instrument.Name, -1));
-    }
-
-    bank.Properties = dls.Properties;
 }

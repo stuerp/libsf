@@ -1,9 +1,10 @@
 
-/** $VER: libsf.h (2025.04.23) P. Stuer **/
+/** $VER: libsf.h (2025.05.01) P. Stuer **/
 
 #pragma once
 
 #include "Exception.h"
+#include "Encoding.h"
 
 #include "DLSReader.h"
 #include "SoundFontReader.h"

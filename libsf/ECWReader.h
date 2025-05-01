@@ -1,11 +1,11 @@
 
-/** $VER: ECWReader.h (2025.04.23) P. Stuer - Implements a reader for a ECW-compliant wave set. **/
+/** $VER: ECWReader.h (2025.05.01) P. Stuer - Implements a reader for a ECW-compliant wave set. **/
 
 #pragma once
 
 #include "pch.h"
 
-#include "ECW.h"
+#include "Waveset.h"
 
 namespace ecw
 {

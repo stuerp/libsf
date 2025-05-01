@@ -1,5 +1,5 @@
 
-/** $VER: ECW.h (2025.05.01) P. Stuer - ECW data types on disk. Based on ECW.txt and ECW Decompiler. **/
+/** $VER: Waveset.h (2025.05.01) P. Stuer - Waveset data types **/
 
 #pragma once
 
@@ -12,7 +12,7 @@ namespace ecw
 
 #pragma pack(push, 1)
 
-struct ecwHeader
+struct header_t
 {
     char        Id[4];                  // "ECLW"
 
@@ -74,60 +74,61 @@ struct ecwHeader
 
     uint8_t     Padding4[4];
 
-    uint32_t    SampleDataOffs;         // File offset where sample waveform area begins
-    uint32_t    SampleDataSize;         // Total length of sample waveform area (in bytes)
+    uint32_t    SampleOffs;             // File offset where sample waveform area begins
+    uint32_t    SampleSize;             // Total length of sample waveform area (in bytes)
 };
 
 // The bank map sssigns one MIDI patch map to each of the 128 MIDI banks.
-struct ecwBankMap
+struct bank_map_t
 {
     uint16_t MIDIPatchMaps[128];        // MIDI patch map assigned to MIDI bank 0..127.
 };
 
 // The drum kit map assigns one drum note map to each of the 128 MIDI drum kits.
-struct ecwDrumKitMap
+struct drum_kit_map_t
 {
     uint16_t DrumNoteMaps[128];         // Drum note map assigned to MIDI drum kit 0..127.
 };
 
-// Assigns one ECW instrument to each of the 128 MIDI patches.
+// The MIDI patch maps assign one instrument to each of the 128 MIDI patches.
 // Each MIDI patch map corresponds to one or more MIDI banks. One MIDI patch map can be used by more than one MIDI bank; in fact, all of the MIDI banks can use the
 // same MIDI patch map if desired (which would allow a smaller filesize and save system RAM). The number of MIDI patch maps is set in the .ECW file header.
 // Each MIDI patch map is 256 bytes long.
 // If there are multiple MIDI patch maps (according to the file header), then the MIDI patch maps must follow one another immediately with no gaps between.
-struct ecwMIDIPatchMap
+
+struct midi_patch_map_t
 {
     uint16_t Instruments[128];          // Instrument assigned to MIDI patch note 0..127 when using a MIDI bank whose entry in the bank map is equal to 0..n-1.
 };
 
-// Assigns one ECW instrument to each of the 128 MIDI drum notes.
+// The drum note maps assign one instrument to each of the 128 MIDI drum notes.
 // Each drum note map corresponds to one or more MIDI drum kits. One drum note map can be used by more than one drum kit; in fact, all of the drum kits can use
 // the same drum note map if desired (which would allow a smaller filesize and save system RAM). The number of drum note maps is set in the .ECW file header.
 // Each drum note map is 256 bytes long.
 // If there are multiple drum kit maps (according to the file header), then the drum kit maps must follow one another immediately with no gaps between.
-struct ecwDrumNoteMap
+
+struct drum_note_map_t
 {
     uint16_t Instruments[128];          // Instrument assigned to MIDI drum note 0..127 when using a drum kit whose entry in the drum kit map is equal to 0..n-1.
 };
 
-// Describes an instrument and its patches and certain properties such as tuning and pan. (23 bytes)
-struct ecwInstrument
+// The instrument headers assign one or more patches (that is, the INTERNAL patches used in the waveset, as opposed to MIDI patches, which are EXTERNAL) to
+// each of the instruments. The instrument headers also affect certain properties of the instruments, such as tuning and pan. The number of instrument headers is
+// set in the .ECW file header. Each instrument header is 23 bytes long.
+struct instrument_t
 {
     uint8_t Type;
     uint8_t Data[22];
 };
 
-struct ecwInstrument_v1
+struct instrument_v1_t
 {
     uint8_t Type;                       // Value 2
 
-    uint8_t SubType;                    // 0: Use only the first instrument sub-header.
-                                        // 1: Use both sub-headers simultaneously for each note played.
-                                        // 2: A split point is used to select which of the sub-headers is used for a given note.
-                                        // 3: Use only the second sub-header.
+    uint8_t SubType;                    // 0: Use only the first instrument sub-header / 1: Use both sub-headers simultaneously for each note played / 2: A split point is used to select which of the sub-headers is used for a given note. / 3: Use only the second sub-header.
     uint8_t NoteThreshold;              // The note number above which only the second instrument sub-header is used; otherwise, only the first instrument sub-header is used.
 
-    struct ecwSubHeader_v1
+    struct sub_header_v1_t
     {
         uint16_t PatchIndex;            // Patch assigned to this instrument sub-header 
         int8_t Amplitude;               // Amplitude and envelope steepness (signed)
@@ -140,21 +141,22 @@ struct ecwInstrument_v1
     } SubHeaders[2];
 };
 
-struct ecwInstrument_v2
+struct instrument_v2_t
 {
     uint8_t Type;                       // Value 255
 
     uint8_t Unknown;
 
-    struct ecwSubHeader_v2
+    struct sub_header_v2_t
     {
-        uint16_t InstrumentIndex;       // The number of another instrument.
+        uint16_t InstrumentIndex;                 // The number of another instrument header.
         uint8_t NoteThreshold;          // When a MIDI note is played with a note number less than or equal to the value of this byte, use the instrument header specified by the Index.
     } SubHeaders[7];
 };
 
-// Describes a patch and certain properties.(76 bytes)
-struct ecwPatch
+// The patch (which refers to the INTERNAL patches used in the waveset, as opposed to MIDI patches, which are EXTERNAL) assigns one slot in array 1 to each patch.
+// The patch also affect certain properties of the patches, such as the pitch and amplitude envelopes. The number of patch headers is set in the .ECW file header. (76 bytes).
+struct patch_t
 {
     int8_t PitchEnvelopeLevel;          // Magnitude of pitch envelope (signed). Negative values cause pitch to fall rather than rise. A value of 0 effectively disables pitch envelope. (Signed)
     int8_t ModulationSensitivity;       // MIDI controller 1 (modulation) sensitivity
@@ -252,34 +254,69 @@ struct ecwPatch
 };
 
 /** Describes a sample set. (22 bytes) **/
-struct ecwSampleSet
+struct sample_set_t
 {
+    std::string Name;
+
     uint32_t SampleIndex;
     uint16_t Array1Index;               // Index into Array 1
     uint16_t Code;
-    char Name[14];                      // Name of the sample set
 };
 
-/** Descibes a sample. (16 bytes) **/
-struct ecwSample
+/** Descibes a sample. **/
+class sample_t
 {
-    uint8_t SplitPoint;                 // Highest MIDI note number to use this sample for.
-    uint8_t Flags;                      // Determines whether the sample is looped, whether to apply tuning adjustments from patch and instrument headers when the sample is used as part of a drum kit, and whether to shift loop points further into the sample waveform area.
-                                        // When set to 0, no tuning adjustments are made when the sample is used in a drum kit.
-                                        // 0 .. 1: Disables looping.
-                                        // 2 or higher: Enable looping using the loop points specified in the sample header (see below).
-                                        // Values of 129 or higher: Shift the loop points forward by an amount proportional to the value minus 128 (i.e. 129 will shift the loop points slightly, while 255 will shift them quite far into the sample waveform area).
-                                        // Be careful when experimenting with values over 129 as it is very possible to play past the end of the sample waveform area, which may cause Windows to crash.
-    int8_t FineTune;                    // In increments of 1/256 of a semitone (signed)
-    int8_t CoarseTune;                  // In semitones (signed)
+public:
+    std::string Name;
 
-    // Sample waveform data can be shared by multiple sample headers.
-    uint32_t SampleStart;               // Offset in sample waveform area where this sample begins, multiplied by 8.
-    uint32_t LoopStart;                 // Offset in sample waveform area of this sample's loop point, multiplied by 8.
-    uint32_t LoopEnd;                   // Offset in sample waveform area of this sample's end loop point, multiplied by 8 (fractional loop lengths permitted).
-                                        // This is also where the sample ends when looping is disabled. If a sample plays beyond the end of the file, the operating system may lock up.
+    uint8_t LowKey;
+    uint8_t HighKey;
+    uint8_t Flags;
+    int8_t FineTune;
+    int8_t CoarseTune;
+    uint32_t SampleStart;
+    uint32_t LoopStart;
+    uint32_t LoopEnd;
 };
 
 #pragma pack(pop)
+
+class slot_t
+{
+public:
+    uint16_t Index;
+    std::string Name;
+};
+
+class waveset_t
+{
+public:
+    waveset_t() noexcept { }
+
+    std::string Name;
+    std::string Description;
+    std::string Information;
+    std::string Copyright;
+    std::string FileName;
+
+    std::vector<bank_map_t> BankMaps;
+    std::vector<drum_kit_map_t> DrumKitMaps;
+    std::vector<midi_patch_map_t> MIDIPatchMaps;
+    std::vector<drum_note_map_t> DrumNoteMaps;
+
+    std::vector<instrument_t> Instruments;
+    std::vector<patch_t> Patches;
+
+    std::vector<slot_t> Array1;
+    std::vector<slot_t> Array2;
+    std::vector<slot_t> Array3;
+
+    std::vector<sample_set_t> SampleSets;
+    std::vector<sample_t> Samples;
+
+    std::vector<uint8_t> SampleData;
+
+private:
+};
 
 }
