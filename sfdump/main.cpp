@@ -392,11 +392,11 @@ static void ProcessSF(const std::wstring & filePath)
     }
 #endif
 
+    std::filesystem::path FilePath(filePath);
+
+    FilePath.replace_extension(L".new.sf2");
+
     riff::file_stream_t fs;
-
-    WCHAR FilePath[MAX_PATH] = {};
-
-    ::GetTempFileNameW(L".", L"SF2", 0, FilePath);
 
     ::printf("\n\"%s\"\n", riff::WideToUTF8(FilePath).c_str());
 
