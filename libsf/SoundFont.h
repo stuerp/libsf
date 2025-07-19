@@ -1,5 +1,5 @@
 
-/** $VER: SoundFont.h (2025.04.30) P. Stuer - SoundFont data types **/
+/** $VER: Soundfont.h (2025.04.30) P. Stuer - Soundfont data types **/
 
 #pragma once
 
@@ -19,7 +19,7 @@ public:
     std::string Name;
     uint16_t MIDIProgram;
     uint16_t MIDIBank;
-    uint16_t ZoneIndex;         // Index in the presetís zone list.
+    uint16_t ZoneIndex;         // Index in the preset‚Äôs zone list.
     uint32_t Library;           // Unused
     uint32_t Genre;             // Unused
     uint32_t Morphology;        // Unused
@@ -122,7 +122,7 @@ public:
 
     uint16_t Major;             // SoundFont specification major version level to which the file complies.
     uint16_t Minor;             // SoundFont specification minor version level to which the file complies.
-    std::string SoundEngine;    // Wavetable sound engine for which the file was optimized (Default ìEMU8000î).
+    std::string SoundEngine;    // Wavetable sound engine for which the file was optimized (Default ‚ÄúEMU8000‚Äù).
     std::string Name;       // Name of the SoundFont compatible bank.
     std::string ROMName;        // Wavetable sound data ROM to which any ROM samples refer.
     uint16_t ROMMajor;          // Wavetable sound data ROM major revision to which any ROM samples refer.
