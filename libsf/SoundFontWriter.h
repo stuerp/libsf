@@ -1,5 +1,5 @@
 
-/** $VER: SoundFontWriter.h (2025.04.30) P. Stuer **/
+/** $VER: SoundFontWriter.h (2025.07.27) P. Stuer **/
 
 #pragma once
 
@@ -16,11 +16,13 @@
     #define FOURCC_IVER mmioFOURCC('i','v','e','r')
 
 // sdta list
+#define FOURCC_SDTA mmioFOURCC('s','d','t','a')
     #define FOURCC_SNAM mmioFOURCC('s','n','a','m') // SoundFont v1.00 only
     #define FOURCC_SMPL mmioFOURCC('s','m','p','l')
     #define FOURCC_SM24 mmioFOURCC('s','m','2','4') // SoundFont v2.04 only
 
 // pdta list
+#define FOURCC_PDTA mmioFOURCC('p','d','t','a')
     #define FOURCC_PHDR mmioFOURCC('p','h','d','r')
     #define FOURCC_PBAG mmioFOURCC('p','b','a','g')
     #define FOURCC_PMOD mmioFOURCC('p','m','o','d')

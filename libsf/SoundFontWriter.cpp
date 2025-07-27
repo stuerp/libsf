@@ -3,8 +3,6 @@
 
 #include "pch.h"
 
-#define __TRACE
-
 #include "libsf.h"
 
 #include <functional>

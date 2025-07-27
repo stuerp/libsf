@@ -1,26 +1,19 @@
-﻿
-/** $VER: main.cpp (2025.05.01) P. Stuer **/
+
+/** $VER: main.cpp (2025.07.27) P. Stuer **/
 
 #include "pch.h"
-
-#include <pathcch.h>
-#include <shlwapi.h>
-
-#pragma comment(lib, "pathcch")
-#pragma comment(lib, "shlwapi")
 
 #include <libsf.h>
 
 #include "Encoding.h"
 
-#include <iterator>
-#include <filesystem>
+static void ProcessDirectory(const fs::path & directoryPath);
+static void ProcessFile(const fs::path & filePath);
+static void ExamineFile(const fs::path & filePath);
 
-static void ProcessDirectory(const std::wstring & directoryPath, const std::wstring & searchPattern);
-static void ProcessFile(const std::wstring & filePath, uint64_t fileSize);
-static void ProcessDLS(const std::wstring & filePath);
-static void ProcessSF(const std::wstring & filePath);
-static void ProcessECW(const std::wstring & filePath);
+static void ProcessDLS(const fs::path & filePath);
+static void ProcessSF(const fs::path & filePath);
+static void ProcessECW(const fs::path & filePath);
 
 static void ConvertDLS(const sf::dls::collection_t & dls, sf::bank_t & bank);
 static void ConvertECW(const ecw::waveset_t & ws, sf::bank_t & bank);
@@ -31,127 +24,139 @@ static std::string DescribeSampleType(uint16_t sampleType) noexcept;
 
 static const char * GetChunkName(const uint32_t chunkId) noexcept;
 
-std::wstring FilePath;
+fs::path FilePath;
 
-const WCHAR * Filters[] = { L".dls", L".sbk", L".sf2", L".sf3", L".ecw" };
+const std::vector<fs::path> Filters = { /*".dls", L".sbk",*/ ".sf2", ".sf3", /*L".ecw"*/ };
+
+class arguments_t
+{
+public:
+    void Initialize(int argc, char * argv[]) noexcept
+    {
+        for (int i = 1; i < argc; ++i)
+        {
+            if (argv[i][0] == '-')
+            {
+                if (::_stricmp(argv[i], "-presetzones") == 0) Items["presetzones"] = "";
+            }
+
+            Items["pathname"] = argv[i];
+        }
+    }
+
+    std::string operator[] (const std::string & key)
+    {
+        return Items[key];
+    }
+
+    bool IsSet(const std::string & key) const noexcept
+    {
+        return Items.contains(key);
+    }
+
+private:
+    std::map<std::string, std::string> Items;
+};
+
+arguments_t Arguments;
 
 typedef std::unordered_map<uint32_t, const char *> info_map_t;
 
-int wmain(int argc, wchar_t * argv[])
+int main(int argc, char * argv[])
 {
+    Arguments.Initialize(argc, argv);
+
     ::printf("\xEF\xBB\xBF"); // UTF-8 BOM
 
     if (argc < 2)
     {
         ::printf("Error: Insufficient arguments.");
+
         return -1;
     }
 
-    FilePath = argv[1];
-
-    if (!::PathFileExistsW(FilePath.c_str()))
+    if (!::fs::exists(Arguments["pathname"]))
     {
-        ::printf("Failed to access \"%s\": path does not exist.\n", riff::WideToUTF8(FilePath).c_str());
+        ::printf("Failed to access \"%s\": path does not exist.\n", Arguments["pathname"].c_str());
+
         return -1;
     }
 
-    WCHAR DirectoryPath[MAX_PATH];
+    fs::path Path = std::filesystem::canonical(Arguments["pathname"]);
 
-    if (::GetFullPathNameW(FilePath.c_str(), _countof(DirectoryPath), DirectoryPath, nullptr) == 0)
-    {
-        ::printf("Failed to expand \"%s\": Error %u.\n", riff::WideToUTF8(FilePath).c_str(), (uint32_t) ::GetLastError());
-        return -1;
-    }
-
-    if (!::PathIsDirectoryW(FilePath.c_str()))
-    {
-        ::PathCchRemoveFileSpec(DirectoryPath, _countof(DirectoryPath));
-
-        ProcessDirectory(DirectoryPath, ::PathFindFileNameW(FilePath.c_str()));
-    }
+    if (fs::is_directory(Path))
+        ProcessDirectory(Path);
     else
-        ProcessDirectory(DirectoryPath, L"*.*");
+        ProcessFile(Path);
 
     return 0;
 }
 
 /// <summary>
-/// Processes a directory.
+/// Returns true if the string matches one of the list.
 /// </summary>
-static void ProcessDirectory(const std::wstring & directoryPath, const std::wstring & searchPattern)
+static bool IsOneOf(const fs::path & item, const std::vector<fs::path> & list) noexcept
 {
-    ::printf("\"%s\"\n", riff::WideToUTF8(directoryPath).c_str());
-
-    WCHAR PathName[MAX_PATH];
-
-    if (!SUCCEEDED(::PathCchCombineEx(PathName, _countof(PathName), directoryPath.c_str(), searchPattern.c_str(), PATHCCH_ALLOW_LONG_PATHS)))
-        return;
-
-    WIN32_FIND_DATA fd = {};
-
-    HANDLE hFind = ::FindFirstFileW(PathName, &fd);
-
-    if (hFind == INVALID_HANDLE_VALUE)
-        return;
-
-    BOOL Success = TRUE;
-
-    if (::wcscmp(fd.cFileName, L".") == 0)
+    for (const auto & Item : list)
     {
-        Success = ::FindNextFileW(hFind, &fd);
-
-        if (Success && ::wcscmp(fd.cFileName, L"..") == 0)
-            Success = ::FindNextFileW(hFind, &fd);
+        if (::_stricmp(item.string().c_str(), Item.string().c_str()) == 0)
+            return true;
     }
 
-    while (Success)
+    return false;
+}
+
+static void ProcessDirectory(const fs::path & directoryPath)
+{
+    ::printf("\"%s\"\n", directoryPath.string().c_str());
+
+    for (const auto & Entry : fs::directory_iterator(directoryPath))
     {
-        if (SUCCEEDED(::PathCchCombineEx(PathName, _countof(PathName), directoryPath.c_str(), fd.cFileName, PATHCCH_ALLOW_LONG_PATHS)))
+        if (Entry.is_directory())
         {
-            if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
-                ProcessDirectory(PathName, searchPattern);
-            else
-            {
-                uint64_t FileSize = (((uint64_t) fd.nFileSizeHigh) << 32) + fd.nFileSizeLow;
-
-                ProcessFile(PathName, FileSize);
-            }
+            ProcessDirectory(Entry.path());
         }
-
-        Success = ::FindNextFileW(hFind, &fd);
+        else
+        if (IsOneOf(Entry.path().extension(), Filters))
+        {
+            ProcessFile(Entry.path());
+        }
     }
-
-    ::FindClose(hFind);
 }
 
 /// <summary>
 /// Processes the specified file.
 /// </summary>
-static void ProcessFile(const std::wstring & filePath, uint64_t fileSize)
+static void ProcessFile(const fs::path & filePath)
 {
-    ::printf("\n\"%s\", %llu bytes\n", riff::WideToUTF8(filePath).c_str(), fileSize);
+    auto FileSize = fs::file_size(filePath);
 
-    const WCHAR * FileExtension;
+    ::printf("\n\"%s\", %llu bytes\n", filePath.string().c_str(), (uint64_t) FileSize);
 
-    HRESULT hr = ::PathCchFindExtension(filePath.c_str(), filePath.length() + 1, &FileExtension);
+    ExamineFile(filePath);
+}
 
-    if (!SUCCEEDED(hr))
-        return;
+/// <summary>
+/// Examines the specified file.
+/// </summary>
+static void ExamineFile(const fs::path & filePath)
+{
+    const std::string FileExtension = filePath.extension().string();
 
     try
     {
-        if (::_wcsicmp(FileExtension, L".dls") == 0)
+        if (::_stricmp(FileExtension.c_str(), ".dls") == 0)
             ProcessDLS(filePath);
         else
-        if ((::_wcsicmp(FileExtension, L".sbk") == 0) || (::_wcsicmp(FileExtension, L".sf2") == 0) || (::_wcsicmp(FileExtension, L".sf3") == 0))
+        if ((::_stricmp(FileExtension.c_str(), ".sbk") == 0) || (::_stricmp(FileExtension.c_str(), ".sf2") == 0) || (::_stricmp(FileExtension.c_str(), ".sf3") == 0))
             ProcessSF(filePath);
         else
-        if (::_wcsicmp(FileExtension, L".ecw") == 0)
+        if (::_stricmp(FileExtension.c_str(), ".ecw") == 0)
             ProcessECW(filePath);
     }
     catch (sf::exception e)
     {
-        ::printf("Failed to process sound font: %s\n\n", e.what());
+        ::printf("Failed to process soundfont: %s\n\n", e.what());
     }
     catch (riff::exception e)
     {
@@ -164,7 +169,7 @@ static void ProcessFile(const std::wstring & filePath, uint64_t fileSize)
 /// <summary>
 /// Processes an SF bank.
 /// </summary>
-static void ProcessSF(const std::wstring & filePath)
+static void ProcessSF(const fs::path & filePath)
 {
     sf::bank_t Bank;
 
@@ -180,7 +185,6 @@ static void ProcessSF(const std::wstring & filePath)
         ms.Close();
     }
 
-#ifdef _DEBUG
     uint32_t __TRACE_LEVEL = 0;
 
     ::printf("%*sSoundFont specification version: v%d.%02d\n", __TRACE_LEVEL * 2, "", Bank.Major, Bank.Minor);
@@ -216,7 +220,7 @@ static void ProcessSF(const std::wstring & filePath)
 
         for (const auto & Preset : Bank.Presets)
         {
-            ::printf("%*s%5zu. \"%-20s\", MIDI Bank %3d, MIDI Program %3d, Zone %6d\n", __TRACE_LEVEL * 2, "", i++, Preset.Name.c_str(), Preset.MIDIBank, Preset.MIDIProgram, Preset.ZoneIndex);
+            ::printf("%*s%5zu. \"%-20s\", Bank %5d, Program %3d, Zone %6d\n", __TRACE_LEVEL * 2, "", i++, Preset.Name.c_str(), Preset.MIDIBank, Preset.MIDIProgram, Preset.ZoneIndex);
 
             if (i == Bank.Presets.size() - 1)
                 break;
@@ -226,6 +230,7 @@ static void ProcessSF(const std::wstring & filePath)
     }
 
     // Dump the preset zones.
+    if (Arguments.IsSet("presetzones"))
     {
         ::printf("%*sPreset Zones (%zu)\n", __TRACE_LEVEL * 2, "", Bank.PresetZones.size());
 
@@ -242,7 +247,7 @@ static void ProcessSF(const std::wstring & filePath)
     }
 
     // Dump the preset zone modulators.
-    if (Bank.PresetZoneModulators.size() > 0)
+    if (Arguments.IsSet("presetzonemodulators"))
     {
         ::printf("%*sPreset Zone Modulators (%zu)\n", __TRACE_LEVEL * 2, "", Bank.PresetZoneModulators.size());
 
@@ -260,6 +265,7 @@ static void ProcessSF(const std::wstring & filePath)
     }
 
     // Dump the preset zone generators.
+    if (Arguments.IsSet("presetzonegenerators"))
     {
         ::printf("%*sPreset Zone Generators (%zu)\n", __TRACE_LEVEL * 2, "", Bank.PresetZoneGenerators.size());
 
@@ -280,6 +286,7 @@ static void ProcessSF(const std::wstring & filePath)
     }
 
     // Dump the instruments.
+    if (Arguments.IsSet("instruments"))
     {
         ::printf("%*sInstruments (%zu)\n", __TRACE_LEVEL * 2, "", Bank.Instruments.size() - 1);
 
@@ -299,6 +306,7 @@ static void ProcessSF(const std::wstring & filePath)
     }
 
     // Dump the instrument zones.
+    if (Arguments.IsSet("instrumentzones"))
     {
         ::printf("%*sInstrument Zones (%zu)\n", __TRACE_LEVEL * 2, "", Bank.InstrumentZones.size());
 
@@ -315,7 +323,7 @@ static void ProcessSF(const std::wstring & filePath)
     }
 
     // Dump the instrument zone modulators.
-    if (Bank.InstrumentZoneModulators.size() > 0)
+    if (Arguments.IsSet("instrumentzonemodulators"))
     {
         ::printf("%*sInstrument Zone Modulators (%zu)\n", __TRACE_LEVEL * 2, "", Bank.InstrumentZoneModulators.size());
 
@@ -333,6 +341,7 @@ static void ProcessSF(const std::wstring & filePath)
     }
 
     // Dump the instrument zone generators.
+    if (Arguments.IsSet("instrumentzonegenerators"))
     {
         ::printf("%*sInstrument Zone Generators (%zu)\n", __TRACE_LEVEL * 2, "", Bank.InstrumentZoneGenerators.size());
 
@@ -352,25 +361,29 @@ static void ProcessSF(const std::wstring & filePath)
     }
 
     // Dump the sample names (SoundFont v1.0 only).
-    if (Bank.Major == 1)
+    if (Arguments.IsSet("samplenames"))
     {
-        ::printf("%*sSample Names (%zu)\n", __TRACE_LEVEL * 2, "", Bank.SampleNames.size() - 1);
-        __TRACE_LEVEL++;
-
-        size_t i = 0;
-
-        for (const auto & SampleName : Bank.SampleNames)
+        if (Bank.Major == 1)
         {
-            ::printf("%*s%5zu. \"%-20s\"\n", __TRACE_LEVEL * 2, "", i++, SampleName.c_str());
+            ::printf("%*sSample Names (%zu)\n", __TRACE_LEVEL * 2, "", Bank.SampleNames.size() - 1);
+            __TRACE_LEVEL++;
 
-            if (i == Bank.Samples.size() - 1)
-                break;
+            size_t i = 0;
+
+            for (const auto & SampleName : Bank.SampleNames)
+            {
+                ::printf("%*s%5zu. \"%-20s\"\n", __TRACE_LEVEL * 2, "", i++, SampleName.c_str());
+
+                if (i == Bank.Samples.size() - 1)
+                    break;
+            }
+
+            __TRACE_LEVEL--;
         }
-
-        __TRACE_LEVEL--;
     }
 
     // Dump the samples.
+    if (Arguments.IsSet("samples"))
     {
         ::printf("%*sSamples (%zu)\n", __TRACE_LEVEL * 2, "", Bank.Samples.size() - 1);
         __TRACE_LEVEL++;
@@ -390,8 +403,8 @@ static void ProcessSF(const std::wstring & filePath)
 
         __TRACE_LEVEL--;
     }
-#endif
 
+/*
     std::filesystem::path FilePath(filePath);
 
     FilePath.replace_extension(L".new.sf2");
@@ -421,12 +434,13 @@ static void ProcessSF(const std::wstring & filePath)
 
         fs.Close();
     }
+*/
 }
 
 /// <summary>
 /// Processes a DLS collection.
 /// </summary>
-static void ProcessDLS(const std::wstring & filePath)
+static void ProcessDLS(const fs::path & filePath)
 {
     sf::dls::collection_t dls;
 
@@ -522,7 +536,7 @@ static void ProcessDLS(const std::wstring & filePath)
 
     sf::bank_t sf;
 
-    ConvertDLS(dls, sf);
+//  ConvertDLS(dls, sf);
 }
 
 /// <summary>
@@ -541,7 +555,7 @@ static void ConvertDLS(const sf::dls::collection_t & dls, sf::bank_t & bank)
 /// <summary>
 /// Processes an ECW wave set.
 /// </summary>
-static void ProcessECW(const std::wstring & filePath)
+static void ProcessECW(const fs::path & filePath)
 {
     ecw::waveset_t ws;
 
@@ -830,7 +844,7 @@ static void ProcessECW(const std::wstring & filePath)
     {
         sf::bank_t Bank;
 
-        ConvertECW(ws, Bank);
+//      ConvertECW(ws, Bank);
 
         {
             std::filesystem::path FilePath(filePath);

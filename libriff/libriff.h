@@ -1,11 +1,10 @@
 
-/** $VER: libriff.h (2025.04.30) P. Stuer **/
+/** $VER: libriff.h (2025.07.27) P. Stuer **/
 
 #pragma once
 
-extern uint32_t __TRACE_LEVEL;
-
 #ifdef __TRACE
+extern uint32_t __TRACE_LEVEL;
 
 #define TRACE_RESET()           { __TRACE_LEVEL = 0; }
 #define TRACE_INDENT()          { ::printf("%*s{\n", __TRACE_LEVEL * 2, ""); __TRACE_LEVEL++; }
