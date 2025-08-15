@@ -26,7 +26,7 @@ static const char * GetChunkName(const uint32_t chunkId) noexcept;
 
 fs::path FilePath;
 
-const std::vector<fs::path> Filters = { /*".dls", L".sbk",*/ ".sf2", ".sf3", /*L".ecw"*/ };
+const std::vector<fs::path> Filters = { ".dls", L".sbk", ".sf2", ".sf3", ".ecw" };
 
 class arguments_t
 {
