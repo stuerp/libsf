@@ -268,13 +268,13 @@ void reader_t::Process(const soundfont_reader_options_t & options, bank_t & bank
                     sfModList Modulator = { };
                     const size_t Count = ch.Size / sizeof(Modulator);
 
-                    bank.PresetZoneModulators.resize(Count);
+                    bank.PresetModulators.resize(Count);
 
                     for (size_t i = 0; i < Count; ++i)
                     {
                         Read(&Modulator, sizeof(Modulator));
 
-                        bank.PresetZoneModulators[i] = preset_zone_modulator_t(Modulator.SrcOperator, Modulator.DstOperator, Modulator.Amount, Modulator.AmountSource, Modulator.SourceTransform);
+                        bank.PresetModulators[i] = modulator_t(Modulator.SrcOperator, Modulator.DstOperator, Modulator.Amount, Modulator.AmountSource, Modulator.SourceTransform);
 
                         #ifdef __TRACE
                         ::printf("%*s%5zu. Src Op: 0x%04X, Dst Op: %2d, Amount: %6d, Amount Source: 0x%04X, Source Transform: 0x%04X\n", __TRACE_LEVEL * 2, "", i,
@@ -298,13 +298,13 @@ void reader_t::Process(const soundfont_reader_options_t & options, bank_t & bank
                 sfGenList Generator = { };
                 const size_t Count = ch.Size / sizeof(Generator);
 
-                bank.PresetZoneGenerators.resize(Count);
+                bank.PresetGenerators.resize(Count);
 
                 for (size_t i = 0; i < Count; ++i)
                 {
                     Read(&Generator, sizeof(Generator));
 
-                    bank.PresetZoneGenerators[i] = preset_zone_generator_t(Generator.Operator, Generator.Amount);
+                    bank.PresetGenerators[i] = generator_t(Generator.Operator, Generator.Amount);
 
                     #ifdef __TRACE
                     ::printf("%*s%5zu. Operator: 0x%04X, Amount: 0x%04X\n", __TRACE_LEVEL * 2, "", i, Generator.Operator, Generator.Amount);
@@ -378,13 +378,13 @@ void reader_t::Process(const soundfont_reader_options_t & options, bank_t & bank
                     sfInstModList Modulator = { };
                     const size_t Count = ch.Size / sizeof(Modulator);
 
-                    bank.InstrumentZoneModulators.resize(Count);
+                    bank.InstrumentModulators.resize(Count);
 
                     for (size_t i = 0; i < Count; ++i)
                     {
                         Read(&Modulator, sizeof(Modulator));
 
-                        bank.InstrumentZoneModulators[i] = instrument_zone_modulator_t(Modulator.SrcOperator, Modulator.DstOperator, Modulator.Amount, Modulator.AmountSource, Modulator.SourceTransform);
+                        bank.InstrumentModulators[i] = modulator_t(Modulator.SrcOperator, Modulator.DstOperator, Modulator.Amount, Modulator.AmountSource, Modulator.SourceTransform);
 
                         #ifdef __TRACE
                         ::printf("%*s%5zu. Src Op: 0x%04X, Dst Op: %2d, Amount: %6d, Amount Source: 0x%04X, Source Transform: 0x%04X\n", __TRACE_LEVEL * 2, "", i,
@@ -408,13 +408,13 @@ void reader_t::Process(const soundfont_reader_options_t & options, bank_t & bank
                 sfInstGenList Generator = { };
                 const size_t Count = ch.Size / sizeof(Generator);
 
-                bank.InstrumentZoneGenerators.resize(Count);
+                bank.InstrumentGenerators.resize(Count);
 
                 for (size_t i = 0; i < Count; ++i)
                 {
                     Read(&Generator, sizeof(Generator));
 
-                    bank.InstrumentZoneGenerators[i] = instrument_zone_generator_t(Generator.Operator, Generator.Amount);
+                    bank.InstrumentGenerators[i] = generator_t(Generator.Operator, Generator.Amount);
 
                     #ifdef __TRACE
                     ::printf("%*s%5zu. Operator: 0x%04X, Amount: 0x%04X\n", __TRACE_LEVEL * 2, "", i,

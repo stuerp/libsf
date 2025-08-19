@@ -187,9 +187,9 @@ void writer_t::Process(const soundfont_writer_options_t & options, bank_t & bank
                         }
                         else
                         {
-                            for (const auto & pzm : bank.PresetZoneModulators)
+                            for (const auto & pzm : bank.PresetModulators)
                             {
-                                const sfModList ml = { pzm.SrcOperator, pzm.DstOperator, pzm.Amount, pzm.AmountSource, pzm.SourceTransform };
+                                const sfModList ml = { pzm.sfModSrcOper, pzm.sfModDestOper, pzm.modAmount, pzm.sfModAmtSrcOper, pzm.sfModTransOper };
 
                                 Size += Write(&ml, sizeof(ml));
                             }
@@ -202,7 +202,7 @@ void writer_t::Process(const soundfont_writer_options_t & options, bank_t & bank
                     {
                         uint32_t Size = 0;
 
-                        for (const auto & pzg : bank.PresetZoneGenerators)
+                        for (const auto & pzg : bank.PresetGenerators)
                         {
                             const sfGenList gl = { pzg.Operator, pzg.Amount };
 
@@ -254,9 +254,9 @@ void writer_t::Process(const soundfont_writer_options_t & options, bank_t & bank
                         }
                         else
                         {
-                            for (const auto & izm : bank.InstrumentZoneModulators)
+                            for (const auto & izm : bank.InstrumentModulators)
                             {
-                                const sfInstModList iml = { izm.SrcOperator, izm.DstOperator, izm.Amount, izm.AmountSource, izm.SourceTransform };
+                                const sfInstModList iml = { izm.sfModSrcOper, izm.sfModDestOper, izm.modAmount, izm.sfModAmtSrcOper, izm.sfModTransOper };
 
                                 Size += Write(&iml, sizeof(iml));
                             }
@@ -269,7 +269,7 @@ void writer_t::Process(const soundfont_writer_options_t & options, bank_t & bank
                     {
                         uint32_t Size = 0;
 
-                        for (const auto & izg : bank.InstrumentZoneGenerators)
+                        for (const auto & izg : bank.InstrumentGenerators)
                         {
                             const sfInstGenList igl = { izg.Operator, izg.Amount };
 

@@ -1,5 +1,5 @@
 
-/** $VER: main.cpp (2025.08.17) P. Stuer **/
+/** $VER: main.cpp (2025.08.19) P. Stuer **/
 
 #include "pch.h"
 
@@ -20,13 +20,16 @@ static void ProcessECW(const fs::path & filePath);
 static void ConvertDLS(const sf::dls::collection_t & dls, sf::bank_t & bank);
 static void ConvertECW(const ecw::waveset_t & ws, sf::bank_t & bank);
 
-static std::string DescribeModulatorController(uint16_t modulator) noexcept;
-static std::string DescribeGeneratorController(uint16_t generator, uint16_t amount) noexcept;
-static std::string DescribeSampleType(uint16_t sampleType) noexcept;
+static void DumpPresets(const bank_t & bank) noexcept;
+static void DumpPresetZones(const bank_t & bank) noexcept;
+static void DumpPresetZoneList(const bank_t & bank, size_t fromIndex, size_t toIndex) noexcept;
+static void DumpPresetZoneGenerators(const bank_t & bank, size_t index) noexcept;
+static void DumpPresetZoneModulators(const bank_t & bank, size_t fromIndex, size_t toIndex) noexcept;
 
 static const char * GetChunkName(const uint32_t chunkId) noexcept;
 
 fs::path FilePath;
+uint32_t __TRACE_LEVEL = 0;
 
 const std::vector<fs::path> Filters = { ".dls", L".sbk", ".sf2", ".sf3", ".ecw" };
 
@@ -39,6 +42,7 @@ public:
         {
             if (argv[i][0] == '-')
             {
+                if ((::_stricmp(argv[i], "-all") == 0) || (::_stricmp(argv[i], "-presets") == 0)) Items["presets"] = "";
                 if ((::_stricmp(argv[i], "-all") == 0) || (::_stricmp(argv[i], "-presetzones") == 0)) Items["presetzones"] = "";
                 if ((::_stricmp(argv[i], "-all") == 0) || (::_stricmp(argv[i], "-presetzonemodulators") == 0)) Items["presetzonemodulators"] = "";
                 if ((::_stricmp(argv[i], "-all") == 0) || (::_stricmp(argv[i], "-presetzonegenerators") == 0)) Items["presetzonegenerators"] = "";
@@ -78,8 +82,6 @@ typedef std::unordered_map<uint32_t, const char *> info_map_t;
 int main(int argc, char * argv[])
 {
     Arguments.Initialize(argc, argv);
-
-    ::printf("\xEF\xBB\xBF"); // UTF-8 BOM
 
     if (argc < 2)
     {
@@ -142,11 +144,22 @@ static void ProcessDirectory(const fs::path & directoryPath)
 /// </summary>
 static void ProcessFile(const fs::path & filePath)
 {
+    FILE * fp = nullptr;
+
+    fs::path StdOut = filePath;
+
+    if ((::freopen_s(&fp, StdOut.replace_extension(".log").string().c_str(), "w", stdout) != 0) || (fp == nullptr))
+        return;
+
+    ::printf("\xEF\xBB\xBF"); // UTF-8 BOM
+
     auto FileSize = fs::file_size(filePath);
 
     ::printf("\n\"%s\", %llu bytes\n", filePath.string().c_str(), (uint64_t) FileSize);
 
     ExamineFile(filePath);
+
+    ::fclose(fp);
 }
 
 /// <summary>
@@ -197,9 +210,12 @@ static void ProcessSF(const fs::path & filePath)
 
         ms.Close();
     }
-
-    uint32_t __TRACE_LEVEL = 0;
-
+/*
+    std::sort(Bank.Presets.begin(), Bank.Presets.end() - 1, [](const preset_t & a, const preset_t & b)
+    {
+        return (a.Name < b.Name);
+    });
+*/
     ::printf("%*sSoundFont specification version: v%d.%02d\n", __TRACE_LEVEL * 2, "", Bank.Major, Bank.Minor);
     ::printf("%*sSound Engine: \"%s\"\n", __TRACE_LEVEL * 2, "", Bank.SoundEngine.c_str());
     ::printf("%*sBank Name: \"%s\"\n", __TRACE_LEVEL * 2, "", Bank.Name.c_str());
@@ -224,53 +240,24 @@ static void ProcessSF(const fs::path & filePath)
     ::printf("%*sSample Data: %zu bytes\n", __TRACE_LEVEL * 2, "", Bank.SampleData.size());
     ::printf("%*sSample Data LSB: %zu bytes\n", __TRACE_LEVEL * 2, "", Bank.SampleDataLSB.size());
 
-    // Dump the presets.
-    {
-        ::printf("%*sPresets (%zu)\n", __TRACE_LEVEL * 2, "", Bank.Presets.size() - 1);
-        __TRACE_LEVEL++;
+    if (Arguments.IsSet("presets"))
+        DumpPresets(Bank);
 
-        size_t i = 0;
-
-        for (const auto & Preset : Bank.Presets)
-        {
-            ::printf("%*s%5zu. \"%-20s\", Bank %5d, Program %3d, Zone %6d\n", __TRACE_LEVEL * 2, "", i++, Preset.Name.c_str(), Preset.MIDIBank, Preset.MIDIProgram, Preset.ZoneIndex);
-
-            if (i == Bank.Presets.size() - 1)
-                break;
-        }
-
-        __TRACE_LEVEL--;
-    }
-
-    // Dump the preset zones.
     if (Arguments.IsSet("presetzones"))
-    {
-        ::printf("%*sPreset Zones (%zu)\n", __TRACE_LEVEL * 2, "", Bank.PresetZones.size());
-
-        __TRACE_LEVEL++;
-
-        size_t i = 0;
-
-        for (const auto & pz : Bank.PresetZones)
-        {
-            ::printf("%*s%5zu. Generator: %5d, Modulator: %5d\n", __TRACE_LEVEL * 2, "", i++, pz.GeneratorIndex, pz.ModulatorIndex);
-        }
-
-        __TRACE_LEVEL--;
-    }
+        DumpPresetZones(Bank);
 
     // Dump the preset zone modulators.
     if (Arguments.IsSet("presetzonemodulators"))
     {
-        ::printf("%*sPreset Zone Modulators (%zu)\n", __TRACE_LEVEL * 2, "", Bank.PresetZoneModulators.size());
+        ::printf("%*sPreset Zone Modulators (%zu)\n", __TRACE_LEVEL * 2, "", Bank.PresetModulators.size());
 
         __TRACE_LEVEL++;
 
         size_t i = 0;
 
-        for (const auto & pzm : Bank.PresetZoneModulators)
+        for (const auto & pzm : Bank.PresetModulators)
         {
-            ::printf("%*s%5zu. Src Op: 0x%04X, Dst Op: %2d, Amount: %6d, Amount Source: 0x%04X, Source Transform: 0x%04X, Src Op: \"%s\"\n", __TRACE_LEVEL * 2, "", i++, pzm.SrcOperator, pzm.DstOperator, pzm.Amount, pzm.AmountSource, pzm.SourceTransform, DescribeModulatorController(pzm.SrcOperator).c_str());
+            ::printf("%*s%5zu. Src Op: 0x%04X, Dst Op: %2d, Amount: %6d, Amount Source: 0x%04X, Source Transform: 0x%04X, Src Op: \"%s\"\n", __TRACE_LEVEL * 2, "", i++, pzm.sfModSrcOper, pzm.sfModDestOper, pzm.modAmount, pzm.sfModAmtSrcOper, pzm.sfModTransOper, Bank.DescribeModulatorSource(pzm.sfModSrcOper).c_str());
         }
 
         __TRACE_LEVEL--;
@@ -279,7 +266,7 @@ static void ProcessSF(const fs::path & filePath)
     // Dump the preset zone generators.
     if (Arguments.IsSet("presetzonegenerators"))
     {
-        ::printf("%*sPreset Zone Generators (%zu)\n", __TRACE_LEVEL * 2, "", Bank.PresetZoneGenerators.size());
+        ::printf("%*sPreset Zone Generators (%zu)\n", __TRACE_LEVEL * 2, "", Bank.PresetGenerators.size());
 
         __TRACE_LEVEL++;
 
@@ -287,9 +274,9 @@ static void ProcessSF(const fs::path & filePath)
 
         size_t i = 0;
 
-        for (const auto & pzg : Bank.PresetZoneGenerators)
+        for (const auto & pzg : Bank.PresetGenerators)
         {
-            ::printf("%*s%5zu. Operator: 0x%04X, Amount: 0x%04X, \"%s\"\n", __TRACE_LEVEL * 2, "", i++, pzg.Operator, pzg.Amount, DescribeGeneratorController(pzg.Operator, pzg.Amount).c_str());
+            ::printf("%*s%5zu. Operator: 0x%04X, Amount: 0x%04X, \"%s\"\n", __TRACE_LEVEL * 2, "", i++, pzg.Operator, pzg.Amount, Bank.DescribeGenerator(pzg.Operator, pzg.Amount).c_str());
 
             if (pzg.Operator == Generator::instrument) // 8.1.2 Should only appear in the PGEN sub-chunk, and it must appear as the last generator enumerator in all but the global preset zone.
             {
@@ -342,15 +329,17 @@ static void ProcessSF(const fs::path & filePath)
     // Dump the instrument zone modulators.
     if (Arguments.IsSet("instrumentzonemodulators"))
     {
-        ::printf("%*sInstrument Zone Modulators (%zu)\n", __TRACE_LEVEL * 2, "", Bank.InstrumentZoneModulators.size());
+        ::printf("%*sInstrument Zone Modulators (%zu)\n", __TRACE_LEVEL * 2, "", Bank.InstrumentModulators.size());
 
         __TRACE_LEVEL++;
 
         size_t i = 0;
 
-        for (const auto & izm : Bank.InstrumentZoneModulators)
+        for (const auto & Modulator : Bank.InstrumentModulators)
         {
-            ::printf("%*s%5zu. Src Op: 0x%04X, Dst Op: 0x%04X, Amount: %6d, Amount Source: 0x%04X, Source Transform: 0x%04X, Src Op: \"%s\", Dst Op: \"%s\"\n", __TRACE_LEVEL * 2, "", i++, izm.SrcOperator, izm.DstOperator, izm.Amount, izm.AmountSource, izm.SourceTransform, DescribeModulatorController(izm.SrcOperator).c_str(), DescribeModulatorController(izm.DstOperator).c_str());
+            ::printf("%*s%5zu. Src Op: 0x%04X, Dst Op: 0x%04X, Amount: %6d, Amount Source: 0x%04X, Source Transform: 0x%04X, Src Op: \"%s\", Dst Op: \"%s\"\n", __TRACE_LEVEL * 2, "", i++,
+                Modulator.sfModSrcOper, Modulator.sfModDestOper, Modulator.modAmount, Modulator.sfModAmtSrcOper, Modulator.sfModTransOper,
+                Bank.DescribeModulatorSource(Modulator.sfModSrcOper).c_str(), Bank.DescribeModulatorSource(Modulator.sfModDestOper).c_str());
         }
 
         __TRACE_LEVEL--;
@@ -359,7 +348,7 @@ static void ProcessSF(const fs::path & filePath)
     // Dump the instrument zone generators.
     if (Arguments.IsSet("instrumentzonegenerators"))
     {
-        ::printf("%*sInstrument Zone Generators (%zu)\n", __TRACE_LEVEL * 2, "", Bank.InstrumentZoneGenerators.size());
+        ::printf("%*sInstrument Zone Generators (%zu)\n", __TRACE_LEVEL * 2, "", Bank.InstrumentGenerators.size());
 
         __TRACE_LEVEL++;
 
@@ -368,13 +357,13 @@ static void ProcessSF(const fs::path & filePath)
 
         size_t i = 0;
 
-        for (const auto & izg : Bank.InstrumentZoneGenerators)
+        for (const auto & Generator : Bank.InstrumentGenerators)
         {
-            ::printf("%*s%5zu. Operator: 0x%04X, Amount: 0x%04X, \"%s\"", __TRACE_LEVEL * 2, "", i++, izg.Operator, izg.Amount, DescribeGeneratorController(izg.Operator, izg.Amount).c_str());
+            ::printf("%*s%5zu. Operator: 0x%04X, Amount: 0x%04X, \"%s\"", __TRACE_LEVEL * 2, "", i++, Generator.Operator, Generator.Amount, Bank.DescribeGenerator(Generator.Operator, Generator.Amount).c_str());
 
             if (StartOfList)
             {
-                if (izg.Operator == Generator::keyRange)
+                if (Generator.Operator == Generator::keyRange)
                     ::putchar('\n');
                 else
                     ::printf(" Warning: keyRange must be the first generator in the zone generator list.\n"); // 8.1.2
@@ -385,7 +374,7 @@ static void ProcessSF(const fs::path & filePath)
             {
                 ::putchar('\n');
 
-                if (izg.Operator == Generator::velRange)
+                if (Generator.Operator == Generator::velRange)
                 {
                     if (OldOperator == Generator::keyRange)
                         ::putchar('\n'); // 8.1.2 Optional, but when it does appear, it must be preceded only by keyRange in the zone generator list.
@@ -393,7 +382,7 @@ static void ProcessSF(const fs::path & filePath)
                         ::printf(" Warning: velRange must be preceded by keyRange.\n"); // 8.1.2
                 }
                 else
-                if (izg.Operator == Generator::sampleID)
+                if (Generator.Operator == Generator::sampleID)
                 {
                     ::putchar('\n'); // 8.1.2 Should appear only in the IGEN sub-chunk and must appear as the last generator enumerator in all but the global zone.
 
@@ -401,7 +390,7 @@ static void ProcessSF(const fs::path & filePath)
                 }
             }
 
-            OldOperator = izg.Operator;
+            OldOperator = Generator.Operator;
         }
 
         __TRACE_LEVEL--;
@@ -439,10 +428,10 @@ static void ProcessSF(const fs::path & filePath)
 
         for (const auto & Sample : Bank.Samples)
         {
-            ::printf("%*s%5zu. \"%-20s\", %9d-%9d, Loop: %9d-%9d, %6dHz, Pitch: %3d, Pitch Correction: %3d, Link: %5d, Type: 0x%04X \"%s\"", __TRACE_LEVEL * 2, "", i++,
+            ::printf("%*s%5zu. \"%-20s\", %9d-%9d, Loop: %9d-%9d, %6d Hz, Pitch (Root Key): %3d, Pitch Correction: %3d, Linked Sample: %5d, Type: 0x%04X \"%s\"", __TRACE_LEVEL * 2, "", i++,
                 Sample.Name.c_str(), Sample.Start, Sample.End, Sample.LoopStart, Sample.LoopEnd,
                 Sample.SampleRate, Sample.Pitch, Sample.PitchCorrection,
-                Sample.SampleLink, Sample.SampleType, DescribeSampleType(Sample.SampleType).c_str());
+                Sample.SampleLink, Sample.SampleType, Bank.DescribeSampleType(Sample.SampleType).c_str());
 
             if ((Sample.End - Sample.Start) < 48)
                 ::printf(" Warning: Sample should have at least 48 data points.\n");
@@ -1022,10 +1011,10 @@ static void ConvertECW(const ecw::waveset_t & ws, sf::bank_t & bank)
                     if (it->Name != Slot.Name)
                         break;
 
-                    bank.InstrumentZones.push_back(sf::instrument_zone_t((uint16_t) bank.InstrumentZoneGenerators.size(), (uint16_t) bank.InstrumentZoneModulators.size()));
+                    bank.InstrumentZones.push_back(sf::instrument_zone_t((uint16_t) bank.InstrumentGenerators.size(), (uint16_t) bank.InstrumentModulators.size()));
 
-                    bank.InstrumentZoneGenerators.push_back(sf::instrument_zone_generator_t(43, MAKEWORD(it->LowKey, it->HighKey))); // Generator "keyRange"
-                    bank.InstrumentZoneGenerators.push_back(sf::instrument_zone_generator_t(53, i)); // Generator "sampleID"
+                    bank.InstrumentGenerators.push_back(sf::generator_t(Generator::keyRange, MAKEWORD(it->LowKey, it->HighKey)));
+                    bank.InstrumentGenerators.push_back(sf::generator_t(Generator::sampleID, i));
 
                     ++i;
                 }
@@ -1034,7 +1023,7 @@ static void ConvertECW(const ecw::waveset_t & ws, sf::bank_t & bank)
             bank.Instruments.push_back(sf::instrument_t("EOI"));
 
             // Add the instrument zone modulators.
-            bank.InstrumentZoneModulators.push_back(sf::instrument_zone_modulator_t(0, 0, 0, 0, 0));
+            bank.InstrumentModulators.push_back(sf::modulator_t(0, 0, 0, 0, 0));
         }
 /*
         // Add the presets.
@@ -1067,72 +1056,125 @@ static void ConvertECW(const ecw::waveset_t & ws, sf::bank_t & bank)
 }
 
 /// <summary>
-/// Describes a SoundFont modulator controller.
+/// Dumps the presets.
 /// </summary>
-static std::string DescribeModulatorController(uint16_t modulator) noexcept
+static void DumpPresets(const bank_t & bank) noexcept
 {
-    std::string Text;
+    ::printf("%*sPresets (%zu)\n", __TRACE_LEVEL * 2, "", bank.Presets.size() - 1);
+    __TRACE_LEVEL++;
 
-    if (modulator & 0x0080) //  MIDI Continuous Controller Flag set?
+    size_t i = 0;
+
+    for (auto Preset = bank.Presets.begin(); Preset < bank.Presets.end(); ++Preset)
     {
-        char t[64];
+        ::printf("%*s%5zu. \"%s\", Bank %d, Program %d, Zone %d\n", __TRACE_LEVEL * 4, "", i++, Preset->Name.c_str(), Preset->MIDIBank, Preset->MIDIProgram, Preset->ZoneIndex);
 
-        // Use the MIDI Controller palette of controllers.
-        ::snprintf(t, _countof(t), "MIDI Controller %d", modulator & 0x007F);
+        DumpPresetZoneList(bank, Preset->ZoneIndex, (Preset + 1)->ZoneIndex);
 
-        Text = t;
-    }
-    else
-    {
-        // Use the General Controller palette of controllers.
-        switch (modulator & 0x007F)
-        {
-            case   0: Text = "No controller"; break;            // No controller is to be used. The output of this controller module should be treated as if its value were set to ‘1’. It should not be a means to turn off a modulator.
-
-            case   2: Text = "Note-On Velocity"; break;         // The controller source to be used is the velocity value which is sent from the MIDI note-on command which generated the given sound.
-            case   3: Text = "Note-On Key Number"; break;       // The controller source to be used is the key number value which was sent from the MIDI note-on command which generated the given sound.
-            case  10: Text = "Poly Pressure"; break;            // The controller source to be used is the poly-pressure amount that is sent from the MIDI poly-pressure command.
-            case  13: Text = "Channel Pressure"; break;         // The controller source to be used is the channel pressure amount that is sent from the MIDI channel-pressure command.
-            case  14: Text = "Pitch Wheel"; break;              // The controller source to be used is the pitch wheel amount which is sent from the MIDI pitch wheel command
-            case  16: Text = "Pitch Wheel Sensitivity"; break;  // The controller source to be used is the pitch wheel sensitivity amount which is sent from the MIDI RPN 0 pitch wheel sensitivity command.
-            case 127: Text = "Link"; break;                     // The controller source is the output of another modulator. This is NOT SUPPORTED as an Amount Source.
-
-            default: Text = "Reserved"; break;
-        }
+        if (i == bank.Presets.size() - 1)
+            break; // Don't dump EOP
     }
 
-    // Direction
-    Text.append((modulator & 0x0100) ? ", Max to min" : ", Min to max");
-
-    // Polarity
-    Text.append((modulator & 0x0200) ? ", -1 to 1 (Bipolar)" : ", 0 to 1 (Unipolar)");
-
-    // Type
-    switch (modulator >> 10)
-    {
-        case   0: Text += ", Linear"; break;    // The controller moves linearly from the minimum to the maximum value in the direction and with the polarity specified by the ‘D’ and ‘P’ bits.
-        case   1: Text += ", Concave"; break;   // The controller moves in a concave fashion from the minimum to the maximum value in the direction and with the polarity specified by the ‘D’ and ‘P’ bits.
-        case   2: Text += ", Convex"; break;    // The controller moves in a concex fashion from the minimum to the maximum value in the direction and with the polarity specified by the ‘D’ and ‘P’ bits.
-        case   3: Text += ", Switch"; break;    // The controller output is at a minimum value while the controller input moves from the minimum to half of the maximum, after which the controller output is at a maximum. This occurs in the direction and with the polarity specified by the ‘D’ and ‘P’ bits.
-
-        default: Text += ", Reserved"; break;
-    }
-
-    return Text;
+    __TRACE_LEVEL--;
 }
 
 /// <summary>
-/// Describes a SoundFont generator controller.
+/// Dumps a preset zone.
 /// </summary>
-static std::string DescribeGeneratorController(uint16_t generator, uint16_t amount) noexcept
+static void DumpPresetZoneList(const bank_t & bank, size_t fromIndex, size_t toIndex) noexcept
+{
+    __TRACE_LEVEL++;
+
+    for (size_t Index = fromIndex; Index < toIndex; ++Index)
+    {
+        const auto & pz1 = bank.PresetZones[Index];
+        const auto & pz2 = bank.PresetZones[Index + 1];
+
+        ::printf("%*s%5zu. Generator: %d, Modulator: %d\n", __TRACE_LEVEL * 4, "", Index,
+            pz1.GeneratorIndex, pz1.ModulatorIndex);
+
+        DumpPresetZoneGenerators(bank, pz1.GeneratorIndex);
+        DumpPresetZoneModulators(bank, pz1.ModulatorIndex, pz2.ModulatorIndex);
+    }
+
+    __TRACE_LEVEL--;
+}
+
+/// <summary>
+/// Dumps a preset zone generator.
+/// </summary>
+static void DumpPresetZoneGenerators(const bank_t & bank, size_t index) noexcept
+{
+    __TRACE_LEVEL++;
+
+    auto Generator = bank.PresetGenerators.begin() + index;
+
+    for (; Generator < bank.PresetGenerators.end(); ++Generator, ++index)
+    {
+        ::printf("%*s%5zu. Operator: 0x%04X, Amount: 0x%04X, \"%s\"\n", __TRACE_LEVEL * 4, "", index,
+            Generator->Operator, Generator->Amount, bank.DescribeGenerator(Generator->Operator, Generator->Amount).c_str());
+
+        // 8.1.2 Should only appear in the PGEN sub-chunk, and it must appear as the last generator enumerator in all but the global preset zone.
+        if (Generator->Operator == Generator::instrument)
+            break;
+    }
+
+    __TRACE_LEVEL--;
+}
+
+/// <summary>
+/// Dumps a preset zone modulator.
+/// </summary>
+static void DumpPresetZoneModulators(const bank_t & bank, size_t fromIndex, size_t toIndex) noexcept
+{
+    __TRACE_LEVEL++;
+
+    auto Modulator = bank.PresetModulators.begin() + fromIndex;
+
+    for (size_t Index = fromIndex; Index < toIndex; ++Modulator, ++Index)
+    {
+        ::printf("%*s%5zu. Src Op: 0x%04X (%s), Dst Op: 0x%04X (%s), Mod Amount: %6d, Mod Amount Source: 0x%04X (%s), Mod Transform Op: 0x%04X (%s)\n", __TRACE_LEVEL * 4, "", Index,
+            Modulator->sfModSrcOper,                          bank.DescribeModulatorSource(Modulator->sfModSrcOper).c_str(),
+            Modulator->sfModDestOper,                         bank.DescribeModulatorSource(Modulator->sfModDestOper).c_str(),
+            Modulator->modAmount, Modulator->sfModAmtSrcOper, bank.DescribeModulatorSource(Modulator->sfModAmtSrcOper).c_str(),
+            Modulator->sfModTransOper,                        bank.DescribeModulatorTransform(Modulator->sfModTransOper).c_str()
+        );
+    }
+
+    __TRACE_LEVEL--;
+}
+
+/// <summary>
+/// Dumps the preset zones.
+/// </summary>
+static void DumpPresetZones(const bank_t & bank) noexcept
+{
+    ::printf("%*sPreset Zones (%zu)\n", __TRACE_LEVEL * 2, "", bank.PresetZones.size());
+
+    __TRACE_LEVEL++;
+
+    size_t i = 0;
+
+    for (const auto & pz : bank.PresetZones)
+    {
+        ::printf("%*s%5zu. Generator: %5d, Modulator: %5d\n", __TRACE_LEVEL * 2, "", i++, pz.GeneratorIndex, pz.ModulatorIndex);
+    }
+
+    __TRACE_LEVEL--;
+}
+
+/// <summary>
+/// Describes a SoundFont Generator (8.1).
+/// </summary>
+std::string bank_t::DescribeGenerator(uint16_t generator, uint16_t amount) const noexcept
 {
     std::string Text;
 
     switch (generator & 0x007F)
     {
         // Index generators
-        case Generator::instrument:                 Text = riff::FormatText("Instrument Index %d (instrument)", amount); break;
-        case Generator::sampleID:                   Text = riff::FormatText("Sample Index %d (sampleID)", amount); break;
+        case Generator::instrument:                 Text = riff::FormatText("Instrument Index %d, \"%s\" (instrument)", amount, Instruments[amount].Name.c_str()); break;
+        case Generator::sampleID:                   Text = riff::FormatText("Sample Index %d, \"%s\" (sampleID)", amount, Samples[amount].Name.c_str()); break;
 
         // Range generators
         case Generator::keyRange:                   Text = riff::FormatText("Key Range %d - %d (keyRange)", amount & 0x00FF, (amount >> 8) & 0x00FF); break;
@@ -1160,17 +1202,18 @@ static std::string DescribeGeneratorController(uint16_t generator, uint16_t amou
         case Generator::exclusiveClass:             Text = riff::FormatText("Exclusive Class: %s (exclusiveClass)", (amount != 0) ? "Yes" : "No"); break;
 
         // Value generators directly affects a signal processing parameter.
-        case Generator::modLfoToPitch:              Text = "modLfoToPitch"; break;
-        case Generator::modEnvToPitch:              Text = "modEnvToPitch"; break;
-        case Generator::modLfoToFilterFc:           Text = "modLfoToFilterFc"; break;
-        case Generator::modEnvToFilterFc:           Text = "modEnvToFilterFc"; break;
-        case Generator::modLfoToVolume:             Text = riff::FormatText("Modulation LFO Volume Influence: %d centibels (modLfoToVolume)", (int16_t) amount); break;
-
-        case Generator::vibLfoToPitch:              Text = "vibLfoToPitch"; break;
-
-        case Generator::initialFilterFc:            Text = "initialFilterFc"; break;
-        case Generator::initialFilterQ:             Text = "initialFilterQ"; break;
+        case Generator::initialFilterFc:            Text = riff::FormatText("Initial Lowpass Filter Cutoff Frequency: %d cents (initialFilterFc)", (int16_t) amount); break;
+        case Generator::initialFilterQ:             Text = riff::FormatText("Initial Lowpass Filter Resonance: %d centibels (initialFilterQ)", (int16_t) amount); break;
         case Generator::initialAttenuation:         Text = riff::FormatText("Initial Attenuation: %.0f dB (initialAttenuation)", (int16_t) amount / 10.); break;
+
+        case Generator::modLfoToPitch:              Text = riff::FormatText("Modulation LFO influence on Pitch: %d cents (modLfoToPitch)", (int16_t) amount); break;
+        case Generator::modLfoToFilterFc:           Text = riff::FormatText("Modulation LFO influence on Filter Cutoff Frequency: %d cents (modLfoToFilterFc)", (int16_t) amount); break;
+        case Generator::modLfoToVolume:             Text = riff::FormatText("Modulation LFO influence on Volume: %d centibels (modLfoToVolume)", (int16_t) amount); break;
+
+        case Generator::modEnvToPitch:              Text = riff::FormatText("Modulation Envelope influence on Pitch: %d cents (modEnvToPitch)", (int16_t) amount); break;
+        case Generator::modEnvToFilterFc:           Text = riff::FormatText("Modulation Envelope influence on Filter Cutoff Frequency: %d cents (modEnvToFilterFc)", (int16_t) amount); break;
+
+        case Generator::vibLfoToPitch:              Text = riff::FormatText("Vibrato LFO influence on Pitch: %d cents (vibLfoToPitch)", (int16_t) amount); break;
 
         case Generator::chorusEffectsSend:          Text = riff::FormatText("Chorus: %.1f%% (chorusEffectsSend)", (int16_t) amount / 10.); break;
         case Generator::reverbEffectsSend:          Text = riff::FormatText("Reverb: %.1f%% (reverbEffectsSend)", (int16_t) amount / 10.); break;
@@ -1227,9 +1270,84 @@ static std::string DescribeGeneratorController(uint16_t generator, uint16_t amou
 }
 
 /// <summary>
+/// Describes a SoundFont Modulator Source (8.2).
+/// </summary>
+std::string bank_t::DescribeModulatorSource(uint16_t modulator) const noexcept
+{
+    std::string Text;
+
+    // 8.2.1. Is the MIDI Continuous Controller Flag set?
+    if (modulator & 0x0080)
+    {
+        char t[64];
+
+        // Use the MIDI Controller palette of controllers. The ‘index’ field value corresponds to one of the 128 MIDI Continuous Controller messages as defined in the MIDI specification.
+        ::snprintf(t, _countof(t), "MIDI Controller %d", modulator & 0x007F);
+
+        Text = t;
+    }
+    else
+    {
+        // Use the General Controller palette of controllers.
+        switch (modulator & 0x007F)
+        {
+            case   0: Text = "No controller"; return Text;      // No controller is to be used. The output of this controller module should be treated as if its value were set to ‘1’. It should not be a means to turn off a modulator.
+
+            case   2: Text = "Note-On Velocity"; break;         // The controller source to be used is the velocity value which is sent from the MIDI note-on command which generated the given sound.
+            case   3: Text = "Note-On Key Number"; break;       // The controller source to be used is the key number value which was sent from the MIDI note-on command which generated the given sound.
+            case  10: Text = "Poly Pressure"; break;            // The controller source to be used is the poly-pressure amount that is sent from the MIDI poly-pressure command.
+            case  13: Text = "Channel Pressure"; break;         // The controller source to be used is the channel pressure amount that is sent from the MIDI channel-pressure command.
+            case  14: Text = "Pitch Wheel"; break;              // The controller source to be used is the pitch wheel amount which is sent from the MIDI pitch wheel command
+            case  16: Text = "Pitch Wheel Sensitivity"; break;  // The controller source to be used is the pitch wheel sensitivity amount which is sent from the MIDI RPN 0 pitch wheel sensitivity command.
+
+            case 127: Text = "Link"; break;                     // The controller source is the output of another modulator. This is NOT SUPPORTED as an Amount Source.
+
+            default: Text = "Reserved"; break;
+        }
+    }
+
+    // Source Direction
+    Text.append((modulator & 0x0100) ? ", Max to min" : ", Min to max");
+
+    // Source Polarity
+    Text.append((modulator & 0x0200) ? ", -1 to 1 (Bipolar)" : ", 0 to 1 (Unipolar)");
+
+    // Source Type
+    switch (modulator >> 10)
+    {
+        case   0: Text += ", Linear"; break;    // The controller moves linearly from the minimum to the maximum value in the direction and with the polarity specified by the ‘D’ and ‘P’ bits.
+        case   1: Text += ", Concave"; break;   // The controller moves in a concave fashion from the minimum to the maximum value in the direction and with the polarity specified by the ‘D’ and ‘P’ bits.
+        case   2: Text += ", Convex"; break;    // The controller moves in a concex fashion from the minimum to the maximum value in the direction and with the polarity specified by the ‘D’ and ‘P’ bits.
+        case   3: Text += ", Switch"; break;    // The controller output is at a minimum value while the controller input moves from the minimum to half of the maximum, after which the controller output is at a maximum. This occurs in the direction and with the polarity specified by the ‘D’ and ‘P’ bits.
+
+        default: Text += ", Reserved"; break;
+    }
+
+    return Text;
+}
+
+/// <summary>
+/// Describes a SoundFont Modulator Transform (8.3).
+/// </summary>
+std::string bank_t::DescribeModulatorTransform(uint16_t modulator) const noexcept
+{
+    std::string Text;
+
+    switch (modulator)
+    {
+        case 0: Text = "Linear"; break;         // The output value of the multiplier is to be fed directly to the summing node of the given destination.
+        case 2: Text = "Absolute Value"; break; // The output value of the multiplier is to be the absolute value of the input value, as defined by the relationship: output = square root ((input value)^2) or alternatively output = output * sgn(output)
+
+        default: Text = "Reserved"; break;
+    }
+
+    return Text;
+}
+
+/// <summary>
 /// Describes a sample type.
 /// </summary>
-static std::string DescribeSampleType(uint16_t sampleType) noexcept
+std::string bank_t::DescribeSampleType(uint16_t sampleType) const noexcept
 {
     std::string Text;
 
