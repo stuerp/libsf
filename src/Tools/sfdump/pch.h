@@ -1,5 +1,5 @@
 
-/** $VER: pch.h (2025.07.27) P. Stuer **/
+/** $VER: pch.h (2025.08.20) P. Stuer **/
 
 #pragma once
 
@@ -20,6 +20,8 @@
 #include <stdlib.h>
 #include <strsafe.h>
 #include <string.h>
+
+#include <io.h>
 
 #pragma warning(disable: 4242)
 #include <algorithm>

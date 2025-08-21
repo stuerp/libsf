@@ -1,5 +1,5 @@
 
-/** $VER: DLS.h (2025.04.30) P. Stuer - DLS data types **/
+/** $VER: DLS.h (2025.08.20) P. Stuer - DLS data types **/
 
 #pragma once
 
@@ -18,6 +18,9 @@ namespace sf::dls
 /// </summary>
 class connection_block_t
 {
+public:
+    connection_block_t() noexcept : Source(), Control(), Destination(), Transform(), Scale() { }
+
 public:
     uint16_t Source;
     uint16_t Control;
@@ -41,10 +44,13 @@ public:
 class wave_link_t
 {
 public:
-    uint16_t Options;
-    uint16_t PhaseGroup;
-    uint32_t Channel;
-    uint32_t TableIndex;
+    wave_link_t() noexcept : Options(), PhaseGroup(), Channel(), CueIndex() { }
+
+public:
+    uint16_t Options;       // Specifies flag options for this wave link. (fusOptions)
+    uint16_t PhaseGroup;    // Specifies a group number for samples which are phase locked. (usPhaseGroup)
+    uint32_t Channel;       // Specifies the channel placement of the sample. This is used to place mono sounds within a stereo pair or for multi-track placement. (ulChannel)
+    uint32_t CueIndex;      // Specifies the 0 based index of the cue entry in the wave pool table. (ulTableIndex)
 
     static const uint32_t WAVELINK_CHANNEL_LEFT   = 0x0001;
     static const uint32_t WAVELINK_CHANNEL_RIGHT  = 0x0002;
@@ -59,13 +65,9 @@ public:
 class wave_sample_loop_t
 {
 public:
-    wave_sample_loop_t(uint32_t type, uint32_t start, uint32_t length)
-    {
-        Type   = type;
-        Start  = start;
-        Length = length;
-    }
+    wave_sample_loop_t(uint32_t type, uint32_t start, uint32_t length) noexcept : Type(type), Start(start), Length(length) { }
 
+public:
     uint32_t Type;      // Loop type
     uint32_t Start;     // Start point of the loop in samples as an absolute offset from the beginning of the data in the "data" subchunk of the "wave-list" wave file chunk.
     uint32_t Length;    // Length of the loop in samples.
@@ -75,15 +77,18 @@ public:
 };
 
 /// <summary>
-/// Represents a wave sample.
+/// Represents a wave sample. (1.14.10 Wave Sample)
 /// </summary>
 class wave_sample_t
 {
 public:
-    uint16_t UnityNote;     // MIDI note which will replay the sample at original pitch. (0..127)
-    int16_t FineTune;       // Tuning offset from the UnityNote in 16 bit relative pitch
-    int32_t Gain;           // Gain to be applied to this sample in 32 bit relative gain.
-    uint32_t Options;
+    wave_sample_t() noexcept : UnityNote(60), FineTune(), Gain(), Options() { }
+
+public:
+    uint16_t UnityNote; // Specifies the MIDI note which will replay the sample at original pitch. This value ranges from 0 to 127 (a value of 60 represents Middle C, as defined by the MIDI specification).
+    int16_t FineTune;   // Specifies the tuning offset from the UnityNote in 16 bit relative pitch.
+    int32_t Gain;       // Specifies the gain to be applied to this sample in 32 bit relative gain units. This is used primarily to balance multi-sample splits.
+    uint32_t Options;   // Specifies flag options for the digital audio sample. Flags are defined for disabling 16 bit to 8-bit truncation of samples and compression of samples by the driver.
 
     std::vector<wave_sample_loop_t> Loops;
 
@@ -110,6 +115,7 @@ public:
         Layer = layer;
     }
 
+public:
     uint16_t LowKey;        // Key range
     uint16_t HighKey;
     uint16_t LowVelocity;   // Velocity range
@@ -144,6 +150,7 @@ public:
         IsPercussion = isPercussion;
     }
 
+public:
     std::string Name;
 
     uint8_t BankMSB; // CC0
@@ -163,8 +170,9 @@ public:
 class wave_t
 {
 public:
-    wave_t() noexcept { }
+    wave_t() noexcept : FormatTag(WAVE_FORMAT_PCM), Channels(1), SamplesPerSec(), AvgBytesPerSec(), BlockAlign(), BitsPerSample(16) { }
 
+public:
     std::string Name;
 
     // Wave Format
@@ -190,6 +198,7 @@ class collection_t
 public:
     collection_t() noexcept { }
 
+public:
     properties_t Properties;
 
     // Represents the version of the contents of the sound font.
@@ -201,8 +210,6 @@ public:
     std::vector<instrument_t> Instruments;
     std::vector<wave_t> Waves;
     std::vector<uint32_t> Cues;
-
-private:
 };
 
 #pragma warning(default: 4820) // x bytes padding

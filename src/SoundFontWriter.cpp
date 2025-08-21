@@ -1,5 +1,5 @@
 
-/** $VER: SoundFontWriter.cpp (2025.04.30) P. Stuer - Writes a SoundFont bank. **/
+/** $VER: SoundFontWriter.cpp (2025.08.20) P. Stuer - Writes a SoundFont bank. **/
 
 #include "pch.h"
 
@@ -114,7 +114,7 @@ void writer_t::Process(const soundfont_writer_options_t & options, bank_t & bank
                         });
                     }
 
-                    if ((bank.SampleData.size() != 0) || (_Options & option_t::PolyphoneCompatible))
+                    if ((_Options & Options::PolyphoneCompatible) || (((_Options & Options::PolyphoneCompatible) == 0) && (bank.SampleData.size() != 0)))
                     {
                         ListSize += WriteChunk(FOURCC_SMPL, [this, &options, &bank]() -> uint32_t
                         {

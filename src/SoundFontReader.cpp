@@ -1,5 +1,5 @@
 
-/** $VER: SoundFontReader.cpp (2025.04.30) P. Stuer - Reads a SoundFont bank. **/
+/** $VER: SoundFontReader.cpp (2025.08.20) P. Stuer - Reads a SoundFont bank. **/
 
 #include "pch.h"
 
@@ -277,7 +277,7 @@ void reader_t::Process(const soundfont_reader_options_t & options, bank_t & bank
                         bank.PresetModulators[i] = modulator_t(Modulator.SrcOperator, Modulator.DstOperator, Modulator.Amount, Modulator.AmountSource, Modulator.SourceTransform);
 
                         #ifdef __TRACE
-                        ::printf("%*s%5zu. Src Op: 0x%04X, Dst Op: %2d, Amount: %6d, Amount Source: 0x%04X, Source Transform: 0x%04X\n", __TRACE_LEVEL * 2, "", i,
+                        ::printf("%*s%5zu. Src Op: 0x%04X, Dst Op: 0x%04X, Amount: %6d, Amount Source: 0x%04X, Source Transform: 0x%04X\n", __TRACE_LEVEL * 2, "", i,
                             Modulator.SrcOperator, Modulator.DstOperator, Modulator.Amount, Modulator.AmountSource, Modulator.SourceTransform);
                         #endif
                     }

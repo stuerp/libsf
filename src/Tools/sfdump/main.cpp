@@ -1,5 +1,5 @@
 
-/** $VER: main.cpp (2025.08.19) P. Stuer **/
+/** $VER: main.cpp (2025.08.20) P. Stuer **/
 
 #include "pch.h"
 
@@ -21,17 +21,25 @@ static void ConvertDLS(const sf::dls::collection_t & dls, sf::bank_t & bank);
 static void ConvertECW(const ecw::waveset_t & ws, sf::bank_t & bank);
 
 static void DumpPresets(const bank_t & bank) noexcept;
-static void DumpPresetZones(const bank_t & bank) noexcept;
 static void DumpPresetZoneList(const bank_t & bank, size_t fromIndex, size_t toIndex) noexcept;
-static void DumpPresetZoneGenerators(const bank_t & bank, size_t index) noexcept;
+static void DumpPresetZoneGenerators(const bank_t & bank, size_t fromIndex, size_t toIndex) noexcept;
 static void DumpPresetZoneModulators(const bank_t & bank, size_t fromIndex, size_t toIndex) noexcept;
+
+static void DumpInstruments(const bank_t & bank) noexcept;
+static void DumpInstrumentZoneList(const bank_t & bank, size_t fromIndex, size_t toIndex) noexcept;
+static void DumpInstrumentZoneGenerators(const bank_t & bank, size_t fromIndex, size_t toIndex) noexcept;
+static void DumpInstrumentZoneModulators(const bank_t & bank, size_t fromIndex, size_t toIndex) noexcept;
+
+static void DumpPresetZones(const bank_t & bank) noexcept;
+
+static void DumpSamples(const bank_t & bank) noexcept;
 
 static const char * GetChunkName(const uint32_t chunkId) noexcept;
 
 fs::path FilePath;
 uint32_t __TRACE_LEVEL = 0;
 
-const std::vector<fs::path> Filters = { ".dls", L".sbk", ".sf2", ".sf3", ".ecw" };
+const std::vector<fs::path> Filters = { ".sbk", ".sf2", ".sf3", ".dls", ".ecw" };
 
 class arguments_t
 {
@@ -43,20 +51,24 @@ public:
             if (argv[i][0] == '-')
             {
                 if ((::_stricmp(argv[i], "-all") == 0) || (::_stricmp(argv[i], "-presets") == 0)) Items["presets"] = "";
-                if ((::_stricmp(argv[i], "-all") == 0) || (::_stricmp(argv[i], "-presetzones") == 0)) Items["presetzones"] = "";
-                if ((::_stricmp(argv[i], "-all") == 0) || (::_stricmp(argv[i], "-presetzonemodulators") == 0)) Items["presetzonemodulators"] = "";
-                if ((::_stricmp(argv[i], "-all") == 0) || (::_stricmp(argv[i], "-presetzonegenerators") == 0)) Items["presetzonegenerators"] = "";
+
+                if (::_stricmp(argv[i], "-presetzones") == 0)          Items["presetzones"] = "";
+                if (::_stricmp(argv[i], "-presetzonemodulators") == 0) Items["presetzonemodulators"] = "";
+                if (::_stricmp(argv[i], "-presetzonegenerators") == 0) Items["presetzonegenerators"] = "";
 
                 if ((::_stricmp(argv[i], "-all") == 0) || (::_stricmp(argv[i], "-instruments") == 0)) Items["instruments"] = "";
-                if ((::_stricmp(argv[i], "-all") == 0) || (::_stricmp(argv[i], "-instrumentzones") == 0)) Items["instrumentzones"] = "";
-                if ((::_stricmp(argv[i], "-all") == 0) || (::_stricmp(argv[i], "-instrumentzonemodulators")) == 0) Items["instrumentzonemodulators"] = "";
-                if ((::_stricmp(argv[i], "-all") == 0) || (::_stricmp(argv[i], "-instrumentzonegenerators")) == 0) Items["instrumentzonegenerators"] = "";
 
-                if ((::_stricmp(argv[i], "-all") == 0) || (::_stricmp(argv[i], "-samplenames") == 0)) Items["samplenames"] = "";
+                if (::_stricmp(argv[i], "-instrumentzones") == 0)          Items["instrumentzones"] = "";
+                if (::_stricmp(argv[i], "-instrumentzonemodulators") == 0) Items["instrumentzonemodulators"] = "";
+                if (::_stricmp(argv[i], "-instrumentzonegenerators") == 0) Items["instrumentzonegenerators"] = "";
+
+                if (::_stricmp(argv[i], "-samplenames") == 0) Items["samplenames"] = "";
+
                 if ((::_stricmp(argv[i], "-all") == 0) || (::_stricmp(argv[i], "-samples") == 0)) Items["samples"] = "";
 
             }
             else
+            if (Items["pathname"].empty())
                 Items["pathname"] = argv[i];
         }
     }
@@ -123,7 +135,7 @@ static bool IsOneOf(const fs::path & item, const std::vector<fs::path> & list) n
 
 static void ProcessDirectory(const fs::path & directoryPath)
 {
-    ::printf("\"%s\"\n", directoryPath.string().c_str());
+    ::printf("\"%s\"\n", (const char *) directoryPath.u8string().c_str());
 
     for (const auto & Entry : fs::directory_iterator(directoryPath))
     {
@@ -144,6 +156,8 @@ static void ProcessDirectory(const fs::path & directoryPath)
 /// </summary>
 static void ProcessFile(const fs::path & filePath)
 {
+    int StdOutFD = ::_dup(::_fileno(stdout));
+
     FILE * fp = nullptr;
 
     fs::path StdOut = filePath;
@@ -155,11 +169,13 @@ static void ProcessFile(const fs::path & filePath)
 
     auto FileSize = fs::file_size(filePath);
 
-    ::printf("\n\"%s\", %llu bytes\n", filePath.string().c_str(), (uint64_t) FileSize);
+    ::printf("\"%s\", %llu bytes\n", (const char *) filePath.u8string().c_str(), (uint64_t) FileSize);
 
     ExamineFile(filePath);
 
-    ::fclose(fp);
+    (void) _dup2(StdOutFD, _fileno(stdout));
+
+    _close(StdOutFD);
 }
 
 /// <summary>
@@ -210,12 +226,7 @@ static void ProcessSF(const fs::path & filePath)
 
         ms.Close();
     }
-/*
-    std::sort(Bank.Presets.begin(), Bank.Presets.end() - 1, [](const preset_t & a, const preset_t & b)
-    {
-        return (a.Name < b.Name);
-    });
-*/
+
     ::printf("%*sSoundFont specification version: v%d.%02d\n", __TRACE_LEVEL * 2, "", Bank.Major, Bank.Minor);
     ::printf("%*sSound Engine: \"%s\"\n", __TRACE_LEVEL * 2, "", Bank.SoundEngine.c_str());
     ::printf("%*sBank Name: \"%s\"\n", __TRACE_LEVEL * 2, "", Bank.Name.c_str());
@@ -255,9 +266,13 @@ static void ProcessSF(const fs::path & filePath)
 
         size_t i = 0;
 
-        for (const auto & pzm : Bank.PresetModulators)
+        for (const auto & Modulator : Bank.PresetModulators)
         {
-            ::printf("%*s%5zu. Src Op: 0x%04X, Dst Op: %2d, Amount: %6d, Amount Source: 0x%04X, Source Transform: 0x%04X, Src Op: \"%s\"\n", __TRACE_LEVEL * 2, "", i++, pzm.sfModSrcOper, pzm.sfModDestOper, pzm.modAmount, pzm.sfModAmtSrcOper, pzm.sfModTransOper, Bank.DescribeModulatorSource(pzm.sfModSrcOper).c_str());
+        ::printf("%*s%5zu. Src Op: 0x%04X (%s), Dst Op: 0x%04X (%s), Mod Amount: %6d, Mod Amount Source: 0x%04X (%s), Mod Transform Op: 0x%04X (%s)\n", __TRACE_LEVEL * 4, "", i++,
+            Modulator.sfModSrcOper,                          Bank.DescribeModulatorSource(Modulator.sfModSrcOper).c_str(),
+            Modulator.sfModDestOper,                         Bank.DescribeModulatorSource(Modulator.sfModDestOper).c_str(),
+            Modulator.modAmount, Modulator.sfModAmtSrcOper, Bank.DescribeModulatorSource(Modulator.sfModAmtSrcOper).c_str(),
+            Modulator.sfModTransOper,                        Bank.DescribeModulatorTransform(Modulator.sfModTransOper).c_str());
         }
 
         __TRACE_LEVEL--;
@@ -274,11 +289,13 @@ static void ProcessSF(const fs::path & filePath)
 
         size_t i = 0;
 
-        for (const auto & pzg : Bank.PresetGenerators)
+        for (const auto & Generator : Bank.PresetGenerators)
         {
-            ::printf("%*s%5zu. Operator: 0x%04X, Amount: 0x%04X, \"%s\"\n", __TRACE_LEVEL * 2, "", i++, pzg.Operator, pzg.Amount, Bank.DescribeGenerator(pzg.Operator, pzg.Amount).c_str());
+            ::printf("%*s%5zu. Operator: 0x%04X, Amount: 0x%04X, \"%s\"\n", __TRACE_LEVEL * 4, "", i++,
+                Generator.Operator, Generator.Amount, Bank.DescribeGenerator(Generator.Operator, Generator.Amount).c_str());
 
-            if (pzg.Operator == Generator::instrument) // 8.1.2 Should only appear in the PGEN sub-chunk, and it must appear as the last generator enumerator in all but the global preset zone.
+            // 8.1.2 Should only appear in the PGEN sub-chunk, and it must appear as the last generator enumerator in all but the global preset zone.
+            if (Generator.Operator == Generator::instrument) // 8.1.2 Should only appear in the PGEN sub-chunk, and it must appear as the last generator enumerator in all but the global preset zone.
             {
                 ::putchar('\n');
 
@@ -291,23 +308,7 @@ static void ProcessSF(const fs::path & filePath)
 
     // Dump the instruments.
     if (Arguments.IsSet("instruments"))
-    {
-        ::printf("%*sInstruments (%zu)\n", __TRACE_LEVEL * 2, "", Bank.Instruments.size() - 1);
-
-        __TRACE_LEVEL++;
-
-        size_t i = 0;
-
-        for (const auto & Instrument : Bank.Instruments)
-        {
-            ::printf("%*s%5zu. \"%-20s\", Instrument Zone %6d\n", __TRACE_LEVEL * 2, "", i++, Instrument.Name.c_str(), Instrument.ZoneIndex);
-
-            if (i == Bank.Instruments.size() - 1)
-                break;
-        }
-
-        __TRACE_LEVEL--;
-    }
+        DumpInstruments(Bank);
 
     // Dump the instrument zones.
     if (Arguments.IsSet("instrumentzones"))
@@ -352,45 +353,12 @@ static void ProcessSF(const fs::path & filePath)
 
         __TRACE_LEVEL++;
 
-        bool StartOfList = true;
-        uint16_t OldOperator = Generator::Invalid;
-
         size_t i = 0;
 
         for (const auto & Generator : Bank.InstrumentGenerators)
         {
-            ::printf("%*s%5zu. Operator: 0x%04X, Amount: 0x%04X, \"%s\"", __TRACE_LEVEL * 2, "", i++, Generator.Operator, Generator.Amount, Bank.DescribeGenerator(Generator.Operator, Generator.Amount).c_str());
-
-            if (StartOfList)
-            {
-                if (Generator.Operator == Generator::keyRange)
-                    ::putchar('\n');
-                else
-                    ::printf(" Warning: keyRange must be the first generator in the zone generator list.\n"); // 8.1.2
-
-                StartOfList = false;
-            }
-            else
-            {
-                ::putchar('\n');
-
-                if (Generator.Operator == Generator::velRange)
-                {
-                    if (OldOperator == Generator::keyRange)
-                        ::putchar('\n'); // 8.1.2 Optional, but when it does appear, it must be preceded only by keyRange in the zone generator list.
-                    else
-                        ::printf(" Warning: velRange must be preceded by keyRange.\n"); // 8.1.2
-                }
-                else
-                if (Generator.Operator == Generator::sampleID)
-                {
-                    ::putchar('\n'); // 8.1.2 Should appear only in the IGEN sub-chunk and must appear as the last generator enumerator in all but the global zone.
-
-                    StartOfList = true;
-                }
-            }
-
-            OldOperator = Generator.Operator;
+            ::printf("%*s%5zu. Operator: 0x%04X, Amount: 0x%04X, \"%s\"\n", __TRACE_LEVEL * 2, "", i++,
+                Generator.Operator, Generator.Amount, Bank.DescribeGenerator(Generator.Operator, Generator.Amount).c_str());
         }
 
         __TRACE_LEVEL--;
@@ -399,16 +367,16 @@ static void ProcessSF(const fs::path & filePath)
     // Dump the sample names (SoundFont v1.0 only).
     if (Arguments.IsSet("samplenames"))
     {
-        if (Bank.Major == 1)
+        if ((Bank.Major == 1) && (Bank.SampleNames.size() != 0))
         {
-            ::printf("%*sSample Names (%zu)\n", __TRACE_LEVEL * 2, "", Bank.SampleNames.size() - 1);
+            ::printf("%*sSample Names (%zu)\n", __TRACE_LEVEL * 4, "", Bank.SampleNames.size() - 1);
             __TRACE_LEVEL++;
 
             size_t i = 0;
 
             for (const auto & SampleName : Bank.SampleNames)
             {
-                ::printf("%*s%5zu. \"%-20s\"\n", __TRACE_LEVEL * 2, "", i++, SampleName.c_str());
+                ::printf("%*s%5zu. \"%-20s\"\n", __TRACE_LEVEL * 4, "", i++, SampleName.c_str());
 
                 if (i == Bank.Samples.size() - 1)
                     break;
@@ -420,45 +388,7 @@ static void ProcessSF(const fs::path & filePath)
 
     // Dump the samples.
     if (Arguments.IsSet("samples"))
-    {
-        ::printf("%*sSamples (%zu)\n", __TRACE_LEVEL * 2, "", Bank.Samples.size() - 1);
-        __TRACE_LEVEL++;
-
-        size_t i = 0;
-
-        for (const auto & Sample : Bank.Samples)
-        {
-            ::printf("%*s%5zu. \"%-20s\", %9d-%9d, Loop: %9d-%9d, %6d Hz, Pitch (Root Key): %3d, Pitch Correction: %3d, Linked Sample: %5d, Type: 0x%04X \"%s\"", __TRACE_LEVEL * 2, "", i++,
-                Sample.Name.c_str(), Sample.Start, Sample.End, Sample.LoopStart, Sample.LoopEnd,
-                Sample.SampleRate, Sample.Pitch, Sample.PitchCorrection,
-                Sample.SampleLink, Sample.SampleType, Bank.DescribeSampleType(Sample.SampleType).c_str());
-
-            if ((Sample.End - Sample.Start) < 48)
-                ::printf(" Warning: Sample should have at least 48 data points.\n");
-            else
-            if (Sample.LoopStart != Sample.LoopEnd)
-            {
-                if (Sample.Start >= (Sample.LoopStart - 7))
-                    ::printf(" Warning: Sample start should be at least 8 data points before sample loop start\n");
-                else
-                if (Sample.End <= (Sample.LoopEnd - 7))
-                    ::printf(" Warning: Sample end should be at least 8 data points after sample loop end\n");
-                else
-                if ((Sample.LoopEnd - Sample.LoopStart) < 32)
-                    ::printf(" Warning: Sample loop should have at least 32 data points.\n");
-                else
-                    ::putchar('\n');
-            }
-            else
-                ::putchar('\n');
-
-            if (i == Bank.Samples.size() - 1)
-                break;
-        }
-
-        __TRACE_LEVEL--;
-    }
-
+        DumpSamples(Bank);
 /*
     std::filesystem::path FilePath(filePath);
 
@@ -506,7 +436,7 @@ static void ProcessDLS(const fs::path & filePath)
         sf::dls::reader_t dr;
 
         if (dr.Open(&fs, riff::reader_t::option_t::None))
-            dr.Process({ false }, dls);
+            dr.Process({ true }, dls);
 
         fs.Close();
     }
@@ -589,9 +519,28 @@ static void ProcessDLS(const fs::path & filePath)
     }
 #endif
 
-    sf::bank_t sf;
+    sf::bank_t Bank;
 
-//  ConvertDLS(dls, sf);
+    ConvertDLS(dls, Bank);
+
+    fs::path FilePath(filePath);
+
+    FilePath.replace_extension(L".sf2");
+
+    ::printf("\n\"%s\"\n", (const char *) FilePath.u8string().c_str());
+
+    // Tests the Sound Font writer.
+    if (fs.Open(FilePath, true))
+    {
+        sf::writer_t sw;
+
+        if (sw.Open(&fs, riff::writer_t::Options::PolyphoneCompatible))
+            sw.Process({  }, Bank);
+
+        fs.Close();
+    }
+
+    ProcessSF(FilePath);
 }
 
 /// <summary>
@@ -599,12 +548,138 @@ static void ProcessDLS(const fs::path & filePath)
 /// </summary>
 static void ConvertDLS(const sf::dls::collection_t & dls, sf::bank_t & bank)
 {
-    for (const auto & Instrument : dls.Instruments)
+    bank.Major       = 2;
+    bank.Minor       = 4;
+    bank.SoundEngine = "E-mu 10K1";
+    bank.Name        = GetPropertyValue(dls.Properties, FOURCC_INAM);
+
     {
-        bank.Instruments.push_back(sf::instrument_t(Instrument.Name, -1));
+         SYSTEMTIME st = {};
+
+        ::GetLocalTime(&st);
+
+        char Date[32] = { };
+        char Time[32] = { };
+
+        ::GetDateFormatA(LOCALE_USER_DEFAULT, 0, &st, "yyyy-MM-dd", Date, sizeof(Date));
+        ::GetTimeFormatA(LOCALE_USER_DEFAULT, 0, &st, "HH:mm:ss", Time, sizeof(Time));
+
+        bank.Properties.push_back(sf::property_t(FOURCC_ICRD, std::string(Date) + " " + std::string(Time)));
     }
 
-    bank.Properties = dls.Properties;
+    for (const auto & Property : dls.Properties)
+    {
+        if (Property.Id == FOURCC_INAM)
+            continue;
+
+        bank.Properties.push_back(sf::property_t(Property.Id, Property.Value));
+    }
+
+    // Write the Hydra.
+    {
+        // Add the presets.
+        {
+/*
+            constexpr const uint16_t Banks[] = { 0, 127 };
+
+            for (const uint16_t & Bank : Banks)
+            {
+                const uint16_t Index = ws.BankMaps[0].MIDIPatchMaps[Bank];
+
+                const auto & mpm = ws.MIDIPatchMaps[Index];
+
+                for (const auto & Instrument : mpm.Instruments)
+                {
+                    bank.Presets.push_back(sf::preset_t(bank.Instruments[Instrument].Name, Instrument, Bank, (uint16_t) bank.PresetZones.size(), 0, 0, 0));
+
+                    bank.PresetZones.push_back(sf::preset_zone_t((uint16_t) bank.PresetZoneGenerators.size(), (uint16_t) bank.PresetZoneModulators.size()));
+
+                    bank.PresetZoneGenerators.push_back(sf::preset_zone_generator_t(41, Instrument)); // Generator "instrument"
+                }
+            }
+*/
+            bank.Presets.push_back(sf::preset_t("EOP"));
+/*
+            // Add the preset zone modulators.
+            bank.PresetZoneModulators.push_back(sf::preset_zone_modulator_t(0, 0, 0, 0, 0));
+*/
+        }
+
+        // Add the instruments.
+        {
+            for (const auto & Instrument : dls.Instruments)
+            {
+                bank.Instruments.push_back(sf::instrument_t(Instrument.Name, (uint16_t) bank.InstrumentZones.size()));
+
+                for (const auto & Region : Instrument.Regions)
+                {
+                    const auto & Zone = instrument_zone_t((uint16_t) bank.InstrumentGenerators.size(), (uint16_t) bank.InstrumentModulators.size());
+
+                    const uint16_t SampleID = (uint16_t) Region.WaveLink.CueIndex; // dls.Cues[CueIndex] is actually an offset but we use the cue index as an index into the sample list.
+
+                    bank.InstrumentGenerators.push_back(sf::generator_t(Generator::keyRange, MAKEWORD(Region.LowKey,      Region.HighKey)));
+                    bank.InstrumentGenerators.push_back(sf::generator_t(Generator::velRange, MAKEWORD(Region.LowVelocity, Region.HighVelocity)));
+                    bank.InstrumentGenerators.push_back(sf::generator_t(Generator::sampleID, SampleID));
+
+                    bank.InstrumentZones.push_back(Zone);
+                }
+            }
+
+            bank.Instruments.push_back(sf::instrument_t("EOI"));
+
+            // Add the instrument zone modulators.
+            bank.InstrumentModulators.push_back(sf::modulator_t(0, 0, 0, 0, 0));
+        }
+
+        // Add the samples.
+        {
+            for (const auto & wave : dls.Waves)
+            {
+                // FIXME: Support stereo samples
+                if (wave.Channels != 1)
+                    continue;
+
+                size_t OldSize = bank.SampleData.size();
+
+                // FIXME: Calculate the size of the sample data and resize once.
+                bank.SampleData.resize(OldSize + wave.Data.size());
+                std::memcpy(bank.SampleData.data() + OldSize, wave.Data.data(), wave.Data.size());
+
+                const auto BytesPerSample = wave.BitsPerSample >> 3;
+
+                sf::sample_t Sample =
+                {
+                    .Name = wave.Name,
+
+                    .Start = (uint32_t) ( OldSize                     / BytesPerSample),
+                    .End   = (uint32_t) ((OldSize + wave.Data.size()) / BytesPerSample),
+
+                    .SampleRate      = wave.SamplesPerSec,
+                    .Pitch           = (uint8_t) wave.WaveSample.UnityNote,
+                    .PitchCorrection =  (int8_t) wave.WaveSample.FineTune,
+
+                    .SampleType      = sf::SampleTypes::MonoSample
+                };
+
+                if (wave.WaveSample.Loops.size() != 0)
+                {
+                    const auto & Loop = wave.WaveSample.Loops[0];
+
+                    Sample.LoopStart = Sample.Start     + Loop.Start;
+                    Sample.LoopEnd   = Sample.LoopStart + Loop.Length;
+                }
+                else
+                {
+                    Sample.LoopStart = 0;
+                    Sample.LoopEnd   = Sample.End - 1;
+                }
+
+                bank.Samples.push_back(Sample);
+            }
+
+            bank.Samples.push_back(sf::sample_t("EOS"));
+        }
+    }
 }
 
 /// <summary>
@@ -915,7 +990,7 @@ static void ProcessECW(const fs::path & filePath)
                 {
                     sf::writer_t sw;
 
-                    if (sw.Open(&fs, riff::writer_t::option_t::PolyphoneCompatible))
+                    if (sw.Open(&fs, riff::writer_t::Options::PolyphoneCompatible))
                         sw.Process({ }, Bank);
 
                     fs.Close();
@@ -1060,26 +1135,27 @@ static void ConvertECW(const ecw::waveset_t & ws, sf::bank_t & bank)
 /// </summary>
 static void DumpPresets(const bank_t & bank) noexcept
 {
-    ::printf("%*sPresets (%zu)\n", __TRACE_LEVEL * 2, "", bank.Presets.size() - 1);
+    if (bank.Presets.size() == 0)
+        return;
+
+    ::printf("%*sPresets (%zu)\n", __TRACE_LEVEL * 4, "", bank.Presets.size() - 1);
+
     __TRACE_LEVEL++;
 
     size_t i = 0;
 
-    for (auto Preset = bank.Presets.begin(); Preset < bank.Presets.end(); ++Preset)
+    for (auto Preset = bank.Presets.begin(); Preset < bank.Presets.end() - 1; ++Preset)
     {
         ::printf("%*s%5zu. \"%s\", Bank %d, Program %d, Zone %d\n", __TRACE_LEVEL * 4, "", i++, Preset->Name.c_str(), Preset->MIDIBank, Preset->MIDIProgram, Preset->ZoneIndex);
 
         DumpPresetZoneList(bank, Preset->ZoneIndex, (Preset + 1)->ZoneIndex);
-
-        if (i == bank.Presets.size() - 1)
-            break; // Don't dump EOP
     }
 
     __TRACE_LEVEL--;
 }
 
 /// <summary>
-/// Dumps a preset zone.
+/// Dumps a preset zone list.
 /// </summary>
 static void DumpPresetZoneList(const bank_t & bank, size_t fromIndex, size_t toIndex) noexcept
 {
@@ -1087,49 +1163,203 @@ static void DumpPresetZoneList(const bank_t & bank, size_t fromIndex, size_t toI
 
     for (size_t Index = fromIndex; Index < toIndex; ++Index)
     {
-        const auto & pz1 = bank.PresetZones[Index];
-        const auto & pz2 = bank.PresetZones[Index + 1];
+        const auto & z1 = bank.PresetZones[Index];
+        const auto & z2 = bank.PresetZones[Index + 1];
 
-        ::printf("%*s%5zu. Generator: %d, Modulator: %d\n", __TRACE_LEVEL * 4, "", Index,
-            pz1.GeneratorIndex, pz1.ModulatorIndex);
+        // 7.3 A global zone is determined by the fact that the last generator in the list is not an instrument generator.
+        bool IsGlobalZone = (fromIndex != toIndex) &&
+            ((z1.GeneratorIndex == z2.GeneratorIndex) ||
+             (z1.GeneratorIndex < z2.GeneratorIndex) && (bank.PresetGenerators[z2.GeneratorIndex - 1].Operator != Generator::instrument));
 
-        DumpPresetZoneGenerators(bank, pz1.GeneratorIndex);
-        DumpPresetZoneModulators(bank, pz1.ModulatorIndex, pz2.ModulatorIndex);
+        ::printf("%*s%5zu. Generator: %d, Modulator: %d%s\n", __TRACE_LEVEL * 4, "", Index,
+            z1.GeneratorIndex, z1.ModulatorIndex,
+            (IsGlobalZone ? " (Global zone)" : ""));
+
+        DumpPresetZoneGenerators(bank, z1.GeneratorIndex, z2.GeneratorIndex);
+        DumpPresetZoneModulators(bank, z1.ModulatorIndex, z2.ModulatorIndex);
     }
 
     __TRACE_LEVEL--;
 }
 
 /// <summary>
-/// Dumps a preset zone generator.
+/// Dumps a preset zone generator list.
 /// </summary>
-static void DumpPresetZoneGenerators(const bank_t & bank, size_t index) noexcept
+static void DumpPresetZoneGenerators(const bank_t & bank, size_t fromIndex, size_t toIndex) noexcept
 {
     __TRACE_LEVEL++;
 
-    auto Generator = bank.PresetGenerators.begin() + index;
+    uint16_t OldOperator = Generator::Invalid;
 
-    for (; Generator < bank.PresetGenerators.end(); ++Generator, ++index)
+    auto Generator = bank.PresetGenerators.begin() + fromIndex;
+
+    for (size_t Index = fromIndex; Index < toIndex; ++Generator, ++Index)
     {
-        ::printf("%*s%5zu. Operator: 0x%04X, Amount: 0x%04X, \"%s\"\n", __TRACE_LEVEL * 4, "", index,
+        ::printf("%*s%5zu. Operator: 0x%04X, Amount: 0x%04X, \"%s\"", __TRACE_LEVEL * 4, "", Index,
             Generator->Operator, Generator->Amount, bank.DescribeGenerator(Generator->Operator, Generator->Amount).c_str());
 
-        // 8.1.2 Should only appear in the PGEN sub-chunk, and it must appear as the last generator enumerator in all but the global preset zone.
+        if (Generator->Operator == Generator::keyRange)
+        {
+            if (Index != fromIndex)
+                ::printf(" Warning: keyRange must be the first generator in the zone generator list.\n"); // 8.1.2
+            else
+                ::putchar('\n');
+        }
+        else
+        if (Generator->Operator == Generator::velRange)
+        {
+            if ((Index != fromIndex) && (OldOperator != Generator::keyRange))
+                ::printf(" Warning: velRange must be only preceded by keyRange.\n"); // 8.1.2
+            else
+                ::putchar('\n');
+        }
+        else
         if (Generator->Operator == Generator::instrument)
-            break;
+        {
+            if (Index != toIndex - 1)
+                ::printf(" Warning: instrument must be the last generator.\n"); // 8.1.2 Should only appear in the PGEN sub-chunk, and it must appear as the last generator enumerator in all but the global preset zone.
+            else
+                ::putchar('\n');
+        }
+        else
+            ::putchar('\n'); // 8.1.2 
+
+        OldOperator = Generator->Operator;
     }
 
     __TRACE_LEVEL--;
 }
 
 /// <summary>
-/// Dumps a preset zone modulator.
+/// Dumps a preset zone modulator list.
 /// </summary>
 static void DumpPresetZoneModulators(const bank_t & bank, size_t fromIndex, size_t toIndex) noexcept
 {
     __TRACE_LEVEL++;
 
     auto Modulator = bank.PresetModulators.begin() + fromIndex;
+
+    for (size_t Index = fromIndex; Index < toIndex; ++Modulator, ++Index)
+    {
+        ::printf("%*s%5zu. Src Op: 0x%04X (%s), Dst Op: 0x%04X (%s), Mod Amount: %6d, Mod Amount Source: 0x%04X (%s), Mod Transform Op: 0x%04X (%s)\n", __TRACE_LEVEL * 4, "", Index,
+            Modulator->sfModSrcOper,                          bank.DescribeModulatorSource(Modulator->sfModSrcOper).c_str(),
+            Modulator->sfModDestOper,                         bank.DescribeModulatorSource(Modulator->sfModDestOper).c_str(),
+            Modulator->modAmount, Modulator->sfModAmtSrcOper, bank.DescribeModulatorSource(Modulator->sfModAmtSrcOper).c_str(),
+            Modulator->sfModTransOper,                        bank.DescribeModulatorTransform(Modulator->sfModTransOper).c_str()
+        );
+    }
+
+    __TRACE_LEVEL--;
+}
+
+/// <summary>
+/// Dumps the instruments.
+/// </summary>
+static void DumpInstruments(const bank_t & bank) noexcept
+{
+    if (bank.Instruments.size() == 0)
+        return;
+
+    ::printf("%*sInstruments (%zu)\n", __TRACE_LEVEL * 4, "", bank.Instruments.size() - 1);
+
+    __TRACE_LEVEL++;
+
+    size_t i = 0;
+
+    for (auto Instrument = bank.Instruments.begin(); Instrument < bank.Instruments.end() - 1; ++Instrument)
+    {
+        ::printf("%*s%5zu. \"%s\", Instrument Zone %d\n", __TRACE_LEVEL * 4, "", i++, Instrument->Name.c_str(), Instrument->ZoneIndex);
+
+        DumpInstrumentZoneList(bank, Instrument->ZoneIndex, (Instrument + 1)->ZoneIndex);
+    }
+
+    __TRACE_LEVEL--;
+}
+
+/// <summary>
+/// Dumps an instrument zone list.
+/// </summary>
+static void DumpInstrumentZoneList(const bank_t & bank, size_t fromIndex, size_t toIndex) noexcept
+{
+    __TRACE_LEVEL++;
+
+    for (size_t Index = fromIndex; Index < toIndex; ++Index)
+    {
+        const auto & z1 = bank.InstrumentZones[Index];
+        const auto & z2 = bank.InstrumentZones[Index + 1];
+
+        // 7.7 A global zone is determined by the fact that the last generator in the list is not a sampleID generator.
+        bool IsGlobalZone = (fromIndex != toIndex) &&
+            ((z1.GeneratorIndex == z2.GeneratorIndex) ||
+             (z1.GeneratorIndex < z2.GeneratorIndex) && (bank.InstrumentGenerators[z2.GeneratorIndex - 1].Operator != Generator::sampleID));
+
+        ::printf("%*s%5zu. Generator: %d, Modulator: %d%s\n", __TRACE_LEVEL * 4, "", Index,
+            z1.GeneratorIndex, z1.ModulatorIndex,
+            (IsGlobalZone ? " (Global zone)" : ""));
+
+        DumpInstrumentZoneGenerators(bank, z1.GeneratorIndex, z2.GeneratorIndex);
+        DumpInstrumentZoneModulators(bank, z1.ModulatorIndex, z2.ModulatorIndex);
+    }
+
+    __TRACE_LEVEL--;
+}
+
+/// <summary>
+/// Dumps an instrument zone generator list.
+/// </summary>
+static void DumpInstrumentZoneGenerators(const bank_t & bank, size_t fromIndex, size_t toIndex) noexcept
+{
+    __TRACE_LEVEL++;
+
+    uint16_t OldOperator = Generator::Invalid;
+
+    auto Generator = bank.InstrumentGenerators.begin() + fromIndex;
+
+    for (size_t Index = fromIndex; Index < toIndex; ++Generator, ++Index)
+    {
+        ::printf("%*s%5zu. Operator: 0x%04X, Amount: 0x%04X, \"%s\"", __TRACE_LEVEL * 4, "", Index,
+            Generator->Operator, Generator->Amount, bank.DescribeGenerator(Generator->Operator, Generator->Amount).c_str());
+
+        if (Generator->Operator == Generator::keyRange)
+        {
+            if (Index != fromIndex)
+                ::printf(" Warning: keyRange must be the first generator in the zone generator list.\n"); // 8.1.2
+            else
+                ::putchar('\n');
+        }
+        else
+        if (Generator->Operator == Generator::velRange)
+        {
+            if ((Index != fromIndex) && (OldOperator != Generator::keyRange))
+                ::printf(" Warning: velRange must be only preceded by keyRange.\n"); // 8.1.2
+            else
+                ::putchar('\n');
+        }
+        else
+        if (Generator->Operator == Generator::sampleID)
+        {
+            if (Index != toIndex - 1)
+                ::printf(" Warning: sampleID must be the last generator.\n"); // 8.1.2 Should appear only in the IGEN sub-chunk and must appear as the last generator enumerator in all but the global zone.
+            else
+                ::putchar('\n');
+        }
+        else
+            ::putchar('\n'); // 8.1.2 
+
+        OldOperator = Generator->Operator;
+    }
+
+    __TRACE_LEVEL--;
+}
+
+/// <summary>
+/// Dumps an instrument zone modulator list.
+/// </summary>
+static void DumpInstrumentZoneModulators(const bank_t & bank, size_t fromIndex, size_t toIndex) noexcept
+{
+    __TRACE_LEVEL++;
+
+    auto Modulator = bank.InstrumentModulators.begin() + fromIndex;
 
     for (size_t Index = fromIndex; Index < toIndex; ++Modulator, ++Index)
     {
@@ -1162,6 +1392,54 @@ static void DumpPresetZones(const bank_t & bank) noexcept
 
     __TRACE_LEVEL--;
 }
+
+/// <summary>
+/// Dumps the samples.
+/// </summary>
+static void DumpSamples(const bank_t & bank) noexcept
+{
+    if (bank.Samples.size() == 0)
+        return;
+
+    ::printf("%*sSamples (%zu)\n", __TRACE_LEVEL * 4, "", bank.Samples.size() - 1);
+
+    __TRACE_LEVEL++;
+
+    size_t i = 0;
+
+    for (const auto & Sample : bank.Samples)
+    {
+        ::printf("%*s%5zu. \"%-20s\", %9d-%9d, Loop: %9d-%9d, %6d Hz, Pitch (MIDI Key): %3d, Pitch Correction: %3d, Linked Sample: %5d, Type: 0x%04X \"%s\"", __TRACE_LEVEL * 4, "", i++,
+            Sample.Name.c_str(), Sample.Start, Sample.End, Sample.LoopStart, Sample.LoopEnd,
+            Sample.SampleRate, Sample.Pitch, Sample.PitchCorrection,
+            Sample.SampleLink, Sample.SampleType, bank.DescribeSampleType(Sample.SampleType).c_str());
+
+        if ((Sample.End - Sample.Start) < 48)
+            ::printf(" Warning: Sample should have at least 48 data points.\n");
+        else
+        if (Sample.LoopStart != Sample.LoopEnd)
+        {
+            if (Sample.Start >= (Sample.LoopStart - 7))
+                ::printf(" Warning: Sample start should be at least 8 data points before sample loop start.\n");
+            else
+            if (Sample.End <= (Sample.LoopEnd - 7))
+                ::printf(" Warning: Sample end should be at least 8 data points after sample loop end.\n");
+            else
+            if ((Sample.LoopEnd - Sample.LoopStart) < 32)
+                ::printf(" Warning: Sample loop should have at least 32 data points.\n");
+            else
+                ::putchar('\n');
+        }
+        else
+            ::putchar('\n');
+
+        if (i == bank.Samples.size() - 1)
+            break;
+    }
+
+    __TRACE_LEVEL--;
+}
+
 
 /// <summary>
 /// Describes a SoundFont Generator (8.1).

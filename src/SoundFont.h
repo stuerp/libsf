@@ -1,5 +1,5 @@
 
-/** $VER: Soundfont.h (2025.08.19) P. Stuer - Soundfont data types **/
+/** $VER: Soundfont.h (2025.08.21) P. Stuer - Soundfont data types **/
 
 #pragma once
 
@@ -17,6 +17,7 @@ class preset_t
 {
 public:
     std::string Name;
+
     uint16_t MIDIProgram;
     uint16_t MIDIBank;
     uint16_t ZoneIndex;         // Index in the preset’s zone list.
@@ -41,12 +42,17 @@ class instrument_t
 {
 public:
     std::string Name;
+
     uint16_t ZoneIndex;         // Index in the instrument's zone list.
 };
 
 // A subset of an instrument containing a sample reference and associated articulation data defined to play over certain key numbers and velocities. (Old SF1 name: Split)
 class instrument_zone_t
 {
+public:
+    instrument_zone_t() noexcept : GeneratorIndex(), ModulatorIndex() { }
+    instrument_zone_t(uint16_t generatorIndex, uint16_t modulatorIndex) noexcept : GeneratorIndex(generatorIndex), ModulatorIndex(modulatorIndex) { }
+
 public:
     uint16_t GeneratorIndex;    // Index in the instrument zone's list of generators.
     uint16_t ModulatorIndex;    // Index in the instrument zone's list of modulators.
@@ -55,12 +61,27 @@ public:
 class generator_t
 {
 public:
+    generator_t() noexcept : Operator(), Amount() { }
+    generator_t(uint16_t oper, uint16_t amount) noexcept : Operator(oper), Amount(amount) { }
+
+public:
     uint16_t Operator;          // The operator
     uint16_t Amount;            // The value to be assigned to the generator
 };
 
 class modulator_t
 {
+public:
+    modulator_t() noexcept { modulator_t(0, 0, 0, 0, 0); }
+    modulator_t(uint16_t srcOper, uint16_t dstOper, int16_t amount, uint16_t amtSrcOper, uint16_t transOper) noexcept
+    {
+        sfModSrcOper    = srcOper;
+        sfModDestOper   = dstOper;
+        modAmount       = amount;
+        sfModAmtSrcOper = amtSrcOper;
+        sfModTransOper  = transOper;
+    }
+
 public:
     uint16_t sfModSrcOper;      // Indicates the source of data for the modulator.
     uint16_t sfModDestOper;     // Indicates the destination of the modulator.
@@ -122,8 +143,8 @@ public:
 
     std::vector<preset_t> Presets;
     std::vector<preset_zone_t> PresetZones;
-    std::vector<modulator_t> PresetModulators;
     std::vector<generator_t> PresetGenerators;
+    std::vector<modulator_t> PresetModulators;
 
     std::vector<instrument_t> Instruments;
     std::vector<instrument_zone_t> InstrumentZones;

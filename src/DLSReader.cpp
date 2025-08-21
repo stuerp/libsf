@@ -1,5 +1,5 @@
 
-/** $VER: DLSReader.cpp (2025.04.28) P. Stuer - Implements a reader for a DLS-compliant sound font. **/
+/** $VER: DLSReader.cpp (2025.08.20) P. Stuer - Implements a reader for a DLS-compliant sound font. **/
 
 #include "pch.h"
 
@@ -49,40 +49,6 @@ void reader_t::Process(const reader_options_t & options, collection_t & dls)
     {
         switch (ch.Id)
         {
-            // A LIST chunk contains an ordered sequence of subchunks.
-            case FOURCC_LIST:
-            {
-                uint32_t ListType;
-
-                Read(ListType);
-
-                TRACE_LIST(ListType, ch.Size);
-                TRACE_INDENT();
-
-                switch (ListType)
-                {
-                    // Instrument List
-                    case FOURCC_LINS:
-                    {
-                        ReadInstruments(ch, dls.Instruments);
-                        break;
-                    }
-
-                    // Wave Pool
-                    case FOURCC_WVPL:
-                    {
-                        ReadWaves(ch, dls.Waves);
-                        break;
-                    }
-
-                    default:
-                        ReadChunks(ch.Size - sizeof(ListType), ChunkHandler);
-                }
-
-                TRACE_UNINDENT();
-                break;
-            }
-
             // The Collection Header chunk defines an instrument collection.
             case FOURCC_COLH:
             {
@@ -115,10 +81,10 @@ void reader_t::Process(const reader_options_t & options, collection_t & dls)
                 Read(dwVersionMS);
                 Read(dwVersionLS);
 
-                dls.Major = HIWORD(dwVersionMS);
-                dls.Minor = LOWORD(dwVersionMS);
+                dls.Major    = HIWORD(dwVersionMS);
+                dls.Minor    = LOWORD(dwVersionMS);
                 dls.Revision = HIWORD(dwVersionLS);
-                dls.Build = LOWORD(dwVersionMS);
+                dls.Build    = LOWORD(dwVersionMS);
 
                 #ifdef __DEEP_TRACE
                 ::printf("%*sVersion: %d.%d.%d.%d\n", __TRACE_LEVEL * 2, "", Major, Minor, Revision, Build);
@@ -159,11 +125,11 @@ void reader_t::Process(const reader_options_t & options, collection_t & dls)
                 TRACE_CHUNK(ch.Id, ch.Size);
                 TRACE_INDENT();
 
-                uint32_t Size;
+                uint32_t Size;      // Specifies the size of the structure in bytes.
 
                 Read(Size);
 
-                uint32_t CueCount;
+                uint32_t CueCount;  // Specifies the number (count) of <poolcue> records that are contained in the <ptbl-ck> chunk.
 
                 Read(CueCount);
 
@@ -181,7 +147,7 @@ void reader_t::Process(const reader_options_t & options, collection_t & dls)
 
                     while (CueCount != 0)
                     {
-                        uint32_t Offset;
+                        uint32_t Offset; // Specifies the absolute offset in bytes from the beginning of the wave pool data to the correct entry in the wave pool.
 
                         Read(Offset);
 
@@ -195,6 +161,40 @@ void reader_t::Process(const reader_options_t & options, collection_t & dls)
                     }
 
                     TRACE_UNINDENT();
+                }
+
+                TRACE_UNINDENT();
+                break;
+            }
+
+            // A LIST chunk contains an ordered sequence of subchunks.
+            case FOURCC_LIST:
+            {
+                uint32_t ListType;
+
+                Read(ListType);
+
+                TRACE_LIST(ListType, ch.Size);
+                TRACE_INDENT();
+
+                switch (ListType)
+                {
+                    // Instrument List
+                    case FOURCC_LINS:
+                    {
+                        ReadInstruments(ch, dls.Instruments);
+                        break;
+                    }
+
+                    // Wave Pool
+                    case FOURCC_WVPL:
+                    {
+                        ReadWaves(ch, dls.Waves);
+                        break;
+                    }
+
+                    default:
+                        ReadChunks(ch.Size - sizeof(ListType), ChunkHandler);
                 }
 
                 TRACE_UNINDENT();
@@ -295,6 +295,35 @@ void reader_t::ReadInstrument(const riff::chunk_header_t & ch, instrument_t & in
     {
         switch (ch.Id)
         {
+            // The Instrument Header chunk defines an instrument within a collection.
+            case FOURCC_INSH:
+            {
+                // The instrument header determines the number of regions in an instrument, as well as its bank and program numbers.
+                TRACE_CHUNK(ch.Id, ch.Size);
+                TRACE_INDENT();
+
+                uint32_t RegionCount;   // Specifies the count of regions for this instrument. (cRegions)
+                uint32_t Bank;          // Specifies the MIDI bank location. Bits 0-6 are defined as MIDI CC32 and bits 8-14 are defined as MIDI CC0. (ulBank)
+                uint32_t Program;       // Specifies the MIDI Program Change (PC) value. Bits 0-6. (ulInstrument)
+
+                Read(RegionCount);
+                Read(Bank);
+                Read(Program);
+
+                instrument.Regions.reserve(RegionCount);
+
+                const bool IsPercussion = ((Bank & F_INSTRUMENT_DRUMS) != 0);
+
+                instrument = instrument_t(RegionCount, (Bank >> 8) & 0x7F, Bank & 0x7F, Program & 0x7F, IsPercussion);
+
+                #ifdef __DEEP_TRACE
+                ::printf("%*sRegions: %d, Bank: CC0 0x%02X CC32 0x%02X (MMA %d), Is Percussion: %s, Program: %d\n", __TRACE_LEVEL * 2, "", RegionCount, (Bank >> 8) & 0x7F, Bank & 0x7F, (((Bank >> 8) & 0x7F) * 128 + (Bank & 0x7F)), IsPercussion ? "true" : "false", Program & 0x7F);
+                #endif
+
+                TRACE_UNINDENT();
+                break;
+            }
+
             // A LIST chunk contains an ordered sequence of subchunks.
             case FOURCC_LIST:
             {
@@ -323,35 +352,6 @@ void reader_t::ReadInstrument(const riff::chunk_header_t & ch, instrument_t & in
                     default:
                         ReadChunks(ch.Size - sizeof(ListType), ChunkHandler);
                 }
-
-                TRACE_UNINDENT();
-                break;
-            }
-
-            // The Instrument Header chunk defines an instrument within a collection.
-            case FOURCC_INSH:
-            {
-                // The instrument header determines the number of regions in an instrument, as well as its bank and program numbers.
-                TRACE_CHUNK(ch.Id, ch.Size);
-                TRACE_INDENT();
-
-                uint32_t RegionCount;   // cRegions, Specifies the count of regions for this instrument.
-                uint32_t Bank;          // ulBank, Specifies the MIDI bank location. Bits 0-6 are defined as MIDI CC32 and bits 8-14 are defined as MIDI CC0.
-                uint32_t Program;       // ulInstrument, Specifies the MIDI Program Change (PC) value. Bits 0-6.
-
-                Read(RegionCount);
-                Read(Bank);
-                Read(Program);
-
-                instrument.Regions.reserve(RegionCount);
-
-                const bool IsPercussion = ((Bank & F_INSTRUMENT_DRUMS) != 0);
-
-                instrument = instrument_t(RegionCount, (Bank >> 8) & 0x7F, Bank & 0x7F, Program & 0x7F, IsPercussion);
-
-                #ifdef __DEEP_TRACE
-                ::printf("%*sRegions: %d, Bank: CC0 0x%02X CC32 0x%02X (MMA %d), Is Percussion: %s, Program: %d\n", __TRACE_LEVEL * 2, "", RegionCount, (Bank >> 8) & 0x7F, Bank & 0x7F, (((Bank >> 8) & 0x7F) * 128 + (Bank & 0x7F)), IsPercussion ? "true" : "false", Program & 0x7F);
-                #endif
 
                 TRACE_UNINDENT();
                 break;
@@ -518,7 +518,7 @@ void reader_t::ReadRegion(const riff::chunk_header_t & ch, region_t & region)
                 Read(region.WaveLink.Options);
                 Read(region.WaveLink.PhaseGroup);
                 Read(region.WaveLink.Channel);
-                Read(region.WaveLink.TableIndex);
+                Read(region.WaveLink.CueIndex);
 
                 #ifdef __DEEP_TRACE
                 ::printf("%*sOptions: 0x%08X, PhaseGroup: %d, Channel: %d, TableIndex: %d\n", __TRACE_LEVEL * 2, "", Options, PhaseGroup, Channel, TableIndex);
@@ -770,22 +770,6 @@ void reader_t::ReadWave(const riff::chunk_header_t & ch, wave_t & wave)
     {
         switch (ch.Id)
         {
-            // A LIST chunk contains an ordered sequence of subchunks.
-            case FOURCC_LIST:
-            {
-                uint32_t ListType;
-
-                Read(ListType);
-
-                TRACE_LIST(ListType, ch.Size);
-                TRACE_INDENT();
-
-                ReadChunks(ch.Size - sizeof(ListType), ChunkHandler);
-
-                TRACE_UNINDENT();
-                break;
-            }
-
             // The Wave Format chunk specifies the format of the wave data.
             case FOURCC_FMT:
             {
@@ -838,8 +822,30 @@ void reader_t::ReadWave(const riff::chunk_header_t & ch, wave_t & wave)
             {
                 TRACE_CHUNK(ch.Id, ch.Size);
                 TRACE_INDENT();
+                {
+                    if (_Options.ReadSampleData)
+                    {
+                        wave.Data.resize(ch.Size);
+                        Read(wave.Data.data(), (uint32_t) wave.Data.size());
+                    }
+                    else
+                        SkipChunk(ch);
+                }
+                TRACE_UNINDENT();
+                break;
+            }
 
-                SkipChunk(ch);
+            // A LIST chunk contains an ordered sequence of subchunks.
+            case FOURCC_LIST:
+            {
+                uint32_t ListType;
+
+                Read(ListType);
+
+                TRACE_LIST(ListType, ch.Size);
+                TRACE_INDENT();
+
+                ReadChunks(ch.Size - sizeof(ListType), ChunkHandler);
 
                 TRACE_UNINDENT();
                 break;
@@ -869,7 +875,7 @@ void reader_t::ReadWave(const riff::chunk_header_t & ch, wave_t & wave)
 }
 
 /// <summary>
-/// Reads a wave sample.
+/// Reads a wave sample. (1.14.10 Wave Sample)
 /// </summary>
 void reader_t::ReadWaveSample(const riff::chunk_header_t & ch, wave_sample_t & ws)
 {
@@ -887,7 +893,7 @@ void reader_t::ReadWaveSample(const riff::chunk_header_t & ch, wave_sample_t & w
 
     uint32_t LoopCount;
 
-    Read(LoopCount);
+    Read(LoopCount);    // Specifies the number (count) of loop records that are contained in the wave sample chunk. One-shot sounds will have the LoopCount field set to 0.
 
     ws.Loops.reserve(LoopCount);
 
@@ -908,9 +914,9 @@ void reader_t::ReadWaveSample(const riff::chunk_header_t & ch, wave_sample_t & w
 
         Read(Size);
 
-        Read(LoopType);
-        Read(LoopStart);
-        Read(LoopLength);
+        Read(LoopType);     // Specifies the loop type.
+        Read(LoopStart);    // Specifies the start point of the loop in samples as an absolute offset from the beginning of the data in the 'data' chunk of the sample.
+        Read(LoopLength);   // Specifies the length of the loop in samples.
 
         if (Size != 16)
             Skip(Size - 16);
