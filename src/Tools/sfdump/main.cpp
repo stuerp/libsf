@@ -1,5 +1,5 @@
 
-/** $VER: main.cpp (2025.08.20) P. Stuer **/
+/** $VER: main.cpp (2025.08.22) P. Stuer **/
 
 #include "pch.h"
 
@@ -546,12 +546,12 @@ static void ProcessDLS(const fs::path & filePath)
 /// <summary>
 /// Converts a DLS collection to a SoundFont bank.
 /// </summary>
-static void ConvertDLS(const sf::dls::collection_t & dls, sf::bank_t & bank)
+static void ConvertDLS(const sf::dls::collection_t & collection, sf::bank_t & bank)
 {
     bank.Major       = 2;
     bank.Minor       = 4;
     bank.SoundEngine = "E-mu 10K1";
-    bank.Name        = GetPropertyValue(dls.Properties, FOURCC_INAM);
+    bank.Name        = GetPropertyValue(collection.Properties, FOURCC_INAM);
 
     {
          SYSTEMTIME st = {};
@@ -567,7 +567,7 @@ static void ConvertDLS(const sf::dls::collection_t & dls, sf::bank_t & bank)
         bank.Properties.push_back(sf::property_t(FOURCC_ICRD, std::string(Date) + " " + std::string(Time)));
     }
 
-    for (const auto & Property : dls.Properties)
+    for (const auto & Property : collection.Properties)
     {
         if (Property.Id == FOURCC_INAM)
             continue;
@@ -577,82 +577,84 @@ static void ConvertDLS(const sf::dls::collection_t & dls, sf::bank_t & bank)
 
     // Write the Hydra.
     {
-        // Add the presets.
-        {
-/*
-            constexpr const uint16_t Banks[] = { 0, 127 };
-
-            for (const uint16_t & Bank : Banks)
-            {
-                const uint16_t Index = ws.BankMaps[0].MIDIPatchMaps[Bank];
-
-                const auto & mpm = ws.MIDIPatchMaps[Index];
-
-                for (const auto & Instrument : mpm.Instruments)
-                {
-                    bank.Presets.push_back(sf::preset_t(bank.Instruments[Instrument].Name, Instrument, Bank, (uint16_t) bank.PresetZones.size(), 0, 0, 0));
-
-                    bank.PresetZones.push_back(sf::preset_zone_t((uint16_t) bank.PresetZoneGenerators.size(), (uint16_t) bank.PresetZoneModulators.size()));
-
-                    bank.PresetZoneGenerators.push_back(sf::preset_zone_generator_t(41, Instrument)); // Generator "instrument"
-                }
-            }
-*/
-            bank.Presets.push_back(sf::preset_t("EOP"));
-/*
-            // Add the preset zone modulators.
-            bank.PresetZoneModulators.push_back(sf::preset_zone_modulator_t(0, 0, 0, 0, 0));
-*/
-        }
-
         // Add the instruments.
         {
-            for (const auto & Instrument : dls.Instruments)
+            for (const auto & Instrument : collection.Instruments)
             {
+                // Add a preset.
+                {
+                    const uint16_t Bank = (Instrument.BankMSB > 0) ? Instrument.BankMSB : Instrument.BankLSB;
+
+                    bank.Presets.push_back(sf::preset_t(Instrument.Name, Instrument.Program, Bank, (uint16_t) bank.PresetZones.size()));
+
+                    {
+                        bank.PresetZones.push_back(sf::preset_zone_t((uint16_t) bank.PresetGenerators.size(), (uint16_t) bank.PresetModulators.size()));
+
+                        bank.PresetGenerators.push_back(sf::generator_t(Generator::instrument, (uint16_t) bank.Instruments.size()));
+                    }
+                }
+
                 bank.Instruments.push_back(sf::instrument_t(Instrument.Name, (uint16_t) bank.InstrumentZones.size()));
 
                 for (const auto & Region : Instrument.Regions)
                 {
-                    const auto & Zone = instrument_zone_t((uint16_t) bank.InstrumentGenerators.size(), (uint16_t) bank.InstrumentModulators.size());
+                    bank.InstrumentZones.push_back(instrument_zone_t((uint16_t) bank.InstrumentGenerators.size(), (uint16_t) bank.InstrumentModulators.size()));
 
-                    const uint16_t SampleID = (uint16_t) Region.WaveLink.CueIndex; // dls.Cues[CueIndex] is actually an offset but we use the cue index as an index into the sample list.
+                    // dls.Cues[CueIndex] is actually an offset in the wave pool but we can use the cue index as an index into the sample list.
+                    const uint16_t SampleID = (uint16_t) Region.WaveLink.CueIndex;
 
                     bank.InstrumentGenerators.push_back(sf::generator_t(Generator::keyRange, MAKEWORD(Region.LowKey,      Region.HighKey)));
                     bank.InstrumentGenerators.push_back(sf::generator_t(Generator::velRange, MAKEWORD(Region.LowVelocity, Region.HighVelocity)));
                     bank.InstrumentGenerators.push_back(sf::generator_t(Generator::sampleID, SampleID));
-
-                    bank.InstrumentZones.push_back(Zone);
                 }
             }
 
-            bank.Instruments.push_back(sf::instrument_t("EOI"));
+            // Add the instrument list terminator.
+            bank.Instruments.push_back(sf::instrument_t("EOI", (uint16_t) bank.InstrumentZones.size()));
+            bank.InstrumentZones.push_back(instrument_zone_t((uint16_t) bank.InstrumentGenerators.size(), (uint16_t) bank.InstrumentModulators.size()));
 
-            // Add the instrument zone modulators.
-            bank.InstrumentModulators.push_back(sf::modulator_t(0, 0, 0, 0, 0));
+            // Add the instrument zone modulator.
+            bank.InstrumentModulators.push_back(sf::modulator_t());
+
+            // Add the preset list terminator.
+            bank.Presets.push_back(sf::preset_t("EOP", 0, 0,  (uint16_t) bank.PresetZones.size()));
+            bank.PresetZones.push_back(sf::preset_zone_t((uint16_t) bank.PresetGenerators.size(), (uint16_t) bank.PresetModulators.size()));
+
+            // Add the preset zone modulator.
+            bank.PresetModulators.push_back(sf::modulator_t());
         }
 
         // Add the samples.
         {
-            for (const auto & wave : dls.Waves)
+            size_t Size = 0;
+
+            for (const auto & wave : collection.Waves)
             {
                 // FIXME: Support stereo samples
                 if (wave.Channels != 1)
                     continue;
 
-                size_t OldSize = bank.SampleData.size();
+                Size += wave.Data.size();
+            }
 
-                // FIXME: Calculate the size of the sample data and resize once.
-                bank.SampleData.resize(OldSize + wave.Data.size());
-                std::memcpy(bank.SampleData.data() + OldSize, wave.Data.data(), wave.Data.size());
+            bank.SampleData.resize(Size);
+
+            size_t Offset = 0;
+
+            for (const auto & wave : collection.Waves)
+            {
+                // FIXME: Support stereo samples
+                if (wave.Channels != 1)
+                    continue;
 
                 const auto BytesPerSample = wave.BitsPerSample >> 3;
 
                 sf::sample_t Sample =
                 {
-                    .Name = wave.Name,
+                    .Name            = wave.Name,
 
-                    .Start = (uint32_t) ( OldSize                     / BytesPerSample),
-                    .End   = (uint32_t) ((OldSize + wave.Data.size()) / BytesPerSample),
+                    .Start           = (uint32_t) ( Offset                     / BytesPerSample),
+                    .End             = (uint32_t) ((Offset + wave.Data.size()) / BytesPerSample),
 
                     .SampleRate      = wave.SamplesPerSec,
                     .Pitch           = (uint8_t) wave.WaveSample.UnityNote,
@@ -660,6 +662,9 @@ static void ConvertDLS(const sf::dls::collection_t & dls, sf::bank_t & bank)
 
                     .SampleType      = sf::SampleTypes::MonoSample
                 };
+
+                std::memcpy(bank.SampleData.data() + Offset, wave.Data.data(), wave.Data.size());
+                Offset += wave.Data.size();
 
                 if (wave.WaveSample.Loops.size() != 0)
                 {

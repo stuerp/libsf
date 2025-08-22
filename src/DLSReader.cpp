@@ -1,5 +1,5 @@
 
-/** $VER: DLSReader.cpp (2025.08.20) P. Stuer - Implements a reader for a DLS-compliant sound font. **/
+/** $VER: DLSReader.cpp (2025.08.22) P. Stuer - Implements a reader for a DLS-compliant sound font. **/
 
 #include "pch.h"
 
@@ -14,16 +14,36 @@
 
 using namespace sf::dls;
 
-#pragma region Internal
-
-// "insh" chunk
-struct _MIDILOCALE
+/// <summary>
+/// Removes leading whitespace.
+/// </summary>
+std::string ltrim(const std::string & s)
 {
-    ULONG ulBank;
-    ULONG ulInstrument;
-};
+    auto it = std::find_if(s.begin(), s.end(), [](unsigned char ch) { return !std::isspace(ch); });
 
-#pragma endregion
+    return std::string(it, s.end());
+}
+
+/// <summary>
+/// Removes trailing whitespace.
+/// </summary>
+std::string rtrim(const std::string & s)
+{
+    auto it = std::find_if(s.rbegin(), s.rend(), [](unsigned char ch)
+    {
+        return !std::isspace(ch);
+    });
+
+    return std::string(s.begin(), it.base());
+}
+
+/// <summary>
+/// Removes leading and trailing whitespace.
+/// </summary>
+std::string trim(const std::string & s)
+{
+    return ltrim(rtrim(s));
+}
 
 /// <summary>
 /// Processes the complete sound font.
@@ -377,7 +397,7 @@ void reader_t::ReadInstrument(const riff::chunk_header_t & ch, instrument_t & in
 
     ReadChunks(ch.Size - sizeof(ch.Id), ChunkHandler);
 
-    instrument.Name = GetPropertyValue(instrument.Properties, FOURCC_INAM);
+    instrument.Name = rtrim(GetPropertyValue(instrument.Properties, FOURCC_INAM));
 }
 
 /// <summary>

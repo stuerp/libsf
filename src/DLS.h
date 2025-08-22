@@ -1,5 +1,5 @@
 
-/** $VER: DLS.h (2025.08.20) P. Stuer - DLS data types **/
+/** $VER: DLS.h (2025.08.22) P. Stuer - DLS data types (Based on "Downloadable Sounds Level 2.2 Version 1.0", April 2006) **/
 
 #pragma once
 
@@ -20,17 +20,18 @@ class connection_block_t
 {
 public:
     connection_block_t() noexcept : Source(), Control(), Destination(), Transform(), Scale() { }
+    connection_block_t(uint16_t src, uint16_t ctrl, uint16_t dst, uint16_t transform, int32_t scale) noexcept : Source(src), Control(ctrl), Destination(dst), Transform(transform), Scale(scale) { }
 
 public:
-    uint16_t Source;
-    uint16_t Control;
-    uint16_t Destination;
-    uint16_t Transform;
-    int32_t Scale;
+    uint16_t Source;        // Specifies the source for the connection. (usControl)
+    uint16_t Control;       // Specifies the control for the connection. (usDestination)
+    uint16_t Destination;   // Specifies the destination for the connection. (usTransform)
+    uint16_t Transform;     // Specifies the input and output transforms used for the connection. (usTransform)
+    int32_t Scale;          // Specifies the scaling value used for the connection. (lScale)
 };
 
 /// <summary>
-/// Represents an articulator.
+/// Represents an articulator. (2.9 <art1-ck>, Level 1 Articulator Chunk)
 /// </summary>
 class articulator_t
 {
@@ -73,7 +74,7 @@ public:
     uint32_t Length;    // Length of the loop in samples.
 
     static const uint32_t WLOOP_TYPE_FORWARD = 0; // Forward loop
-    static const uint32_t WLOOP_TYPE_RELEASE = 1; // Loop and release (DLS 2.2)
+    static const uint32_t WLOOP_TYPE_RELEASE = 1; // Loop and release (Level 2)
 };
 
 /// <summary>
@@ -215,3 +216,10 @@ public:
 #pragma warning(default: 4820) // x bytes padding
 
 }
+
+// "insh" chunk
+struct midi_locale_t
+{
+    uint32_t Bank;
+    uint32_t Instrument;
+};

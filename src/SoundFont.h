@@ -1,5 +1,5 @@
 
-/** $VER: Soundfont.h (2025.08.21) P. Stuer - Soundfont data types **/
+/** $VER: Soundfont.h (2025.08.22) P. Stuer - Soundfont data types **/
 
 #pragma once
 
@@ -15,6 +15,11 @@ namespace sf
 // A keyboard full of sound. Typically the collection of samples and articulation data associated with a particular MIDI preset number.
 class preset_t
 {
+public:
+    preset_t() noexcept { preset_t(""); }
+    preset_t(const std::string & name, uint16_t program = 0, uint16_t bank = 0, uint16_t zoneIndex = 0, uint32_t library = 0, uint32_t genre = 0, uint32_t morphology = 0) noexcept :
+        Name(name), MIDIProgram(program), MIDIBank(bank), ZoneIndex(zoneIndex), Library(library), Genre(genre), Morphology(morphology) { }
+
 public:
     std::string Name;
 

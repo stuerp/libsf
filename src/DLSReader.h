@@ -1,5 +1,5 @@
 
-/** $VER: DLSReader.h (2025.03.23) P. Stuer - Implements a reader for a DLS-compliant sound font. **/
+/** $VER: DLSReader.h (2025.08.22) P. Stuer - Implements a reader for a DLS (Level 1 or 2)-compliant collection. **/
 
 #pragma once
 
@@ -13,7 +13,9 @@
 
 #define FOURCC_LINS mmioFOURCC('l','i','n','s')                     // List of instruments
     #define FOURCC_INS mmioFOURCC('i','n','s',' ')                  // Instrument
+//      #define FOURCC_DLID mmioFOURCC('d','l','i','d')             // (Optional) (DLS Level 2.2)
         #define FOURCC_LART mmioFOURCC('l','a','r','t')             // List of articulators (Level 1)
+//          #define FOURCC_CDL  mmioFOURCC('c','d','l',' ')         // Conditional (Optional) (DLS Level 2.2)
             #define FOURCC_ART1 mmioFOURCC('a','r','t','1')         // Level 1 articulator
         #define FOURCC_INSH mmioFOURCC('i','n','s','h')             // Instrument Header
         #define FOURCC_LRGN mmioFOURCC('l','r','g','n')             // List of regions
@@ -23,6 +25,7 @@
                 #define FOURCC_WSMP mmioFOURCC('w','s','m','p')     // Wave Sample
             #define FOURCC_RGN2 mmioFOURCC('r','g','n','2')         // Region 2 (DLS Level 2.2)
         #define FOURCC_LAR2 mmioFOURCC('l','a','r','2')             // List of articulators (Level 2) (Optional) (DLS Level 2.2)
+//          #define FOURCC_CDL  mmioFOURCC('c','d','l',' ')         // Conditional (Optional) (DLS Level 2.2)
             #define FOURCC_ART2 mmioFOURCC('a','r','t','2')         // Level 2 articulator (DLS Level 2.2)
 #define FOURCC_DLID mmioFOURCC('d','l','i','d')                     // (Optional) (DLS Level 2.2)
 #define FOURCC_CDL  mmioFOURCC('c','d','l',' ')                     // Conditional (Optional) (DLS Level 2.2)
@@ -30,6 +33,7 @@
 #define FOURCC_VERS mmioFOURCC('v','e','r','s')                     // Version (Optional)
 #define FOURCC_WVPL mmioFOURCC('w','v','p','l')                     // Wave Pool
     #define FOURCC_wave mmioFOURCC('w','a','v','e')                 // Wave
+//      #define FOURCC_DLID mmioFOURCC('d','l','i','d')             // (Optional) (DLS Level 2.2)
 //      #define FOURCC_WAVE mmioFOURCC('w','s','m','p')             // Wave Sample
         #define FOURCC_FMT  mmioFOURCC('f','m','t',' ')             // Format of the wave data
         #define FOURCC_DATA mmioFOURCC('d','a','t','a')             // Wave data
