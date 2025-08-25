@@ -1,10 +1,9 @@
 
-/** $VER: BaseTypes.h (2025.08.17) P. Stuer - Base types for sound font handling **/
+/** $VER: BaseTypes.h (2025.08.24) P. Stuer - Base types for sound font handling **/
 
 #pragma once
 
-#include "pch.h"
-
+#include <map>
 #include <string>
 #include <vector>
 #include <unordered_map>
@@ -15,20 +14,24 @@ namespace sf
 {
 #pragma warning(disable: 4820) // x bytes padding
 
-enum Generator : uint16_t
+// SoundFont 2.04 Technical Specification, 1996, Section 8.1.2 Generator Enumerators defined
+enum GeneratorOperator : uint16_t
 {
     Invalid = 0xFFFF,                   // Invalid generator
 
-    startAddrsOffset = 0,               // sample control - moves sample start point
-    endAddrsOffset = 1,                 // sample control - moves sample end point
-    startloopAddrsOffset = 2,           // loop control - moves loop start point
-    endloopAddrsOffset = 3,             // loop control - moves loop end point
-    startAddrsCoarseOffset = 4,         // sample control - moves sample start point in 32,768 increments
-    modLfoToPitch = 5,                  // pitch modulation - modulation lfo pitch modulation in cents
-    vibLfoToPitch = 6,                  // pitch modulation - vibrato lfo pitch modulation in cents
-    modEnvToPitch = 7,                  // pitch modulation - modulation envelope pitch modulation in cents
-    initialFilterFc = 8,                // filter - lowpass filter cutoff in cents
-    initialFilterQ = 9,                 // filter - lowpass filter resonance
+    startAddrsOffset = 0,               // Offset, in sample data points, beyond the Start sample header parameter to the first sample data point to be played for this instrument.
+    endAddrsOffset = 1,                 // Offset, in sample data points, beyond the End sample header parameter to the last sample data point to be played for this instrument. 
+    startloopAddrsOffset = 2,           // Offset, in sample data points, beyond the Startloop sample header parameter to the first sample data point to be repeated in the loop for this instrument.
+    endloopAddrsOffset = 3,             // Offset, in sample data points, beyond the Endloop sample header parameter to the sample data point considered equivalent to the Startloop sample data point for the loop for this instrument.
+    startAddrsCoarseOffset = 4,         // Offset, in 32768 sample data point increments beyond the Start sample header parameter and the first sample data point to be played in this instrument.
+
+    modLfoToPitch = 5,                  // Degree, in cents, to which a full scale excursion of the Modulation LFO will influence pitch. A positive value indicates a positive LFO excursion increases pitch; a negative value indicates a positive excursion decreases pitch.
+    vibLfoToPitch = 6,                  // Degree, in cents, to which a full scale excursion of the Vibrato LFO will influence pitch. A positive value indicates a positive LFO excursion increases pitch; a negative value indicates a positive excursion decreases pitch.degree, in cents, to which a full scale excursion of the Vibrato LFO will influence pitch. A positive value indicates a positive LFO excursion increases pitch; a negative value indicates a positive excursion decreases pitch.
+    modEnvToPitch = 7,                  // Degree, in cents, to which a full scale excursion of the Modulation Envelope will influence pitch. A positive value indicates an increase in pitch; a negative value indicates a decrease in pitch.
+
+    initialFilterFc = 8,                // Cutoff and resonant frequency of the lowpass filter in absolute cent units.
+    initialFilterQ = 9,                 // Height above DC gain in centibels which the filter resonance exhibits at the cutoff frequency.
+
     modLfoToFilterFc = 10,              // filter modulation - modulation lfo lowpass filter cutoff in cents
     modEnvToFilterFc = 11,              // filter modulation - modulation envelope lowpass filter cutoff in cents
     endAddrsCoarseOffset = 12,          // ample control - move sample end point in 32,768 increments
@@ -55,6 +58,7 @@ enum Generator : uint16_t
     decayModEnv = 28,                   // mod env - decay of mod env
     sustainModEnv = 29,                 // mod env - sustain of mod env
     releaseModEnv = 30,                 // mod env - release of mod env
+
     keynumToModEnvHold = 31,            // mod env - also modulating mod envelope hold with key number
     keynumToModEnvDecay = 32,           // mod env - also modulating mod envelope decay with key number
 
@@ -64,6 +68,7 @@ enum Generator : uint16_t
     decayVolEnv = 36,                   // vol env - decay of envelope
     sustainVolEnv = 37,                 // vol env - sustain of envelope
     releaseVolEnv = 38,                 // vol env - release of envelope
+
     keynumToVolEnvHold = 39,            // vol env - key number to volume envelope hold
     keynumToVolEnvDecay = 40,           // vol env - key number to volume envelope decay
 
@@ -96,6 +101,15 @@ enum Generator : uint16_t
 
     endOper = 60                        // Unused
 };
+
+struct generator_limit_t
+{
+    int Min;
+    int Max;
+    int Default;
+};
+
+extern const std::map<GeneratorOperator, generator_limit_t> GeneratorLimits;
 
 struct property_t
 {

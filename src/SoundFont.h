@@ -1,5 +1,5 @@
 
-/** $VER: Soundfont.h (2025.08.22) P. Stuer - Soundfont data types **/
+/** $VER: Soundfont.h (2025.08.25) P. Stuer - Soundfont data types **/
 
 #pragma once
 
@@ -38,6 +38,10 @@ public:
 class preset_zone_t
 {
 public:
+    preset_zone_t() noexcept : GeneratorIndex(), ModulatorIndex() { }
+    preset_zone_t(uint16_t generatorIndex, uint16_t modulatorIndex) noexcept : GeneratorIndex(generatorIndex), ModulatorIndex(modulatorIndex) { }
+
+public:
     uint16_t GeneratorIndex;    // Index in the preset zone's list of generators.
     uint16_t ModulatorIndex;    // Index in the preset zone's list of modulators.
 };
@@ -71,28 +75,31 @@ public:
 
 public:
     uint16_t Operator;          // The operator
-    uint16_t Amount;            // The value to be assigned to the generator
+    int16_t Amount;             // The value to be assigned to the generator
 };
+
+typedef uint16_t ModulatorOperator;
+typedef uint16_t TransformOperator;
 
 class modulator_t
 {
 public:
-    modulator_t() noexcept { modulator_t(0, 0, 0, 0, 0); }
-    modulator_t(uint16_t srcOper, uint16_t dstOper, int16_t amount, uint16_t amtSrcOper, uint16_t transOper) noexcept
+    modulator_t() noexcept { modulator_t(0, GeneratorOperator::Invalid, 0, 0, 0); }
+    modulator_t(ModulatorOperator srcOper, GeneratorOperator dstOper, int16_t amount, ModulatorOperator srcOperAmt, TransformOperator transformOper) noexcept
     {
-        sfModSrcOper    = srcOper;
-        sfModDestOper   = dstOper;
-        modAmount       = amount;
-        sfModAmtSrcOper = amtSrcOper;
-        sfModTransOper  = transOper;
+        SrcOper       = srcOper;
+        DstOper       = dstOper;
+        Amount        = amount;
+        SrcOperAmt    = srcOperAmt;
+        TransformOper = transformOper;
     }
 
 public:
-    uint16_t sfModSrcOper;      // Indicates the source of data for the modulator.
-    uint16_t sfModDestOper;     // Indicates the destination of the modulator.
-     int16_t modAmount;         // Indicates the degree to which the source modulates the destination.
-    uint16_t sfModAmtSrcOper;   // Indicates the degree to which the source modulates the destination is to be controlled by the specified modulation source.
-    uint16_t sfModTransOper;    // Indicates that a transform of the specified type will be applied to the modulation source before application to the modulator. 
+    ModulatorOperator SrcOper;     // Indicates the source of data for the modulator.
+    GeneratorOperator DstOper;     // Indicates the destination of the modulator.
+    int16_t Amount;                  // Indicates the degree to which the source modulates the destination.
+    ModulatorOperator SrcOperAmt;  // Indicates the degree to which the source modulates the destination is to be controlled by the specified modulation source.
+    TransformOperator TransformOper;   // Indicates that a transform of the specified type will be applied to the modulation source before application to the modulator. 
 };
 
 enum SampleTypes : uint16_t
@@ -132,6 +139,17 @@ class bank_t
 public:
     bank_t() noexcept : Major(), Minor(), ROMMajor(), ROMMinor() { }
 
+    void ConvertFrom(const dls::collection_t & collection);
+
+private:
+    static void ConvertArticulators(const std::vector<dls::articulator_t> & articulators, std::vector<generator_t> & generators, std::vector<modulator_t> & modulators);
+    static void ConvertConnectionBlockToModulator(const dls::connection_block_t & connectionBlock, std::vector<modulator_t> & modulators);
+    static GeneratorOperator GetSpecialGeneratorOperator(const dls::connection_block_t & connectionBlock) noexcept;
+
+    static void ConvertDLSSourceToModulatorOperator(uint16_t oper, ModulatorOperator & modulatorOperator) noexcept;
+    static void ConvertDLSDestinationToGeneratorOperator(const dls::connection_block_t & connectionBlock, GeneratorOperator & dstOperator, int16_t dstAmount) noexcept;
+
+public:
     uint16_t Major;                         // SoundFont specification major version level to which the file complies.
     uint16_t Minor;                         // SoundFont specification minor version level to which the file complies.
     std::string SoundEngine;                // Wavetable sound engine for which the file was optimized (Default “EMU8000”).

@@ -8,6 +8,7 @@
     <ClCompile Include="src\SoundFontReader.cpp" />
     <ClCompile Include="src\SoundFontWriter.cpp" />
     <ClCompile Include="src\Encoding.cpp" />
+    <ClCompile Include="src\SoundFont.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\BaseTypes.h" />

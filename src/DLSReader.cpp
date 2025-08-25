@@ -3,6 +3,10 @@
 
 #include "pch.h"
 
+#include <CppCoreCheck/Warnings.h>
+
+#pragma warning(disable: 4100 4505 4625 4626 4710 4711 4738 5045 ALL_CPPCORECHECK_WARNINGS)
+
 //#define __TRACE
 //#define __DEEP_TRACE
 
@@ -17,7 +21,7 @@ using namespace sf::dls;
 /// <summary>
 /// Removes leading whitespace.
 /// </summary>
-std::string ltrim(const std::string & s)
+static std::string ltrim(const std::string & s)
 {
     auto it = std::find_if(s.begin(), s.end(), [](unsigned char ch) { return !std::isspace(ch); });
 
@@ -27,7 +31,7 @@ std::string ltrim(const std::string & s)
 /// <summary>
 /// Removes trailing whitespace.
 /// </summary>
-std::string rtrim(const std::string & s)
+static std::string rtrim(const std::string & s)
 {
     auto it = std::find_if(s.rbegin(), s.rend(), [](unsigned char ch)
     {
@@ -40,7 +44,7 @@ std::string rtrim(const std::string & s)
 /// <summary>
 /// Removes leading and trailing whitespace.
 /// </summary>
-std::string trim(const std::string & s)
+static std::string trim(const std::string & s)
 {
     return ltrim(rtrim(s));
 }
@@ -107,7 +111,7 @@ void reader_t::Process(const reader_options_t & options, collection_t & dls)
                 dls.Build    = LOWORD(dwVersionMS);
 
                 #ifdef __DEEP_TRACE
-                ::printf("%*sVersion: %d.%d.%d.%d\n", __TRACE_LEVEL * 2, "", Major, Minor, Revision, Build);
+                ::printf("%*sVersion: %d.%d.%d.%d\n", __TRACE_LEVEL * 2, "", dls.Major, dls.Minor, dls.Revision, dls.Build);
                 #endif
 
                 TRACE_UNINDENT();
@@ -515,7 +519,7 @@ void reader_t::ReadRegion(const riff::chunk_header_t & ch, region_t & region)
                     Read(region.Layer);
 
                 #ifdef __DEEP_TRACE
-                ::printf("%*sKey: %3d - %3d, Velocity: %3d - %3d, Non exclusive: %d, Key Group: %d, Editing Layer: %d\n", __TRACE_LEVEL * 2, "", LowKey, HighKey, LowVelocity, HighVelocity, Options, KeyGroup, Layer);
+                ::printf("%*sKey: %3d - %3d, Velocity: %3d - %3d, Non exclusive: %d, Key Group: %d, Editing Layer: %d\n", __TRACE_LEVEL * 2, "", region.LowKey, region.HighKey, region.LowVelocity, region.HighVelocity, region.Options, region.KeyGroup, region.Layer);
                 #endif
 
                 TRACE_UNINDENT();
@@ -541,7 +545,7 @@ void reader_t::ReadRegion(const riff::chunk_header_t & ch, region_t & region)
                 Read(region.WaveLink.CueIndex);
 
                 #ifdef __DEEP_TRACE
-                ::printf("%*sOptions: 0x%08X, PhaseGroup: %d, Channel: %d, TableIndex: %d\n", __TRACE_LEVEL * 2, "", Options, PhaseGroup, Channel, TableIndex);
+                ::printf("%*sOptions: 0x%08X, PhaseGroup: %d, Channel: %d, TableIndex: %d\n", __TRACE_LEVEL * 2, "", region.WaveLink.Options, region.WaveLink.PhaseGroup, region.WaveLink.Channel, region.WaveLink.CueIndex);
                 #endif
 
                 TRACE_UNINDENT();
@@ -634,7 +638,7 @@ void reader_t::ReadArticulators(const riff::chunk_header_t & ch, std::vector<art
                         Read(ConnectionBlock.Scale);
 
                         #ifdef __DEEP_TRACE
-                        ::printf("%*sSource: %d, Control: %3d, Destination: %3d, Transform: %d, Scale: %10d\n", __TRACE_LEVEL * 2, "", Source, Control, Destination, Transform, Scale);
+                        ::printf("%*sSource: %d, Control: %3d, Destination: %3d, Transform: %d, Scale: %10d\n", __TRACE_LEVEL * 2, "", ConnectionBlock.Source, ConnectionBlock.Control, ConnectionBlock.Destination, ConnectionBlock.Transform, ConnectionBlock.Scale);
                         #endif
 
                         --ConnectionBlockCount;
@@ -685,7 +689,7 @@ void reader_t::ReadArticulators(const riff::chunk_header_t & ch, std::vector<art
                         Read(ConnectionBlock.Scale);
 
                         #ifdef __DEEP_TRACE
-                        ::printf("%*sSource: %d, Control: %3d, Destination: %3d, Transform: %d, Scale: %+11d\n", __TRACE_LEVEL * 2, "", Source, Control, Destination, Transform, Scale);
+                        ::printf("%*sSource: %d, Control: %3d, Destination: %3d, Transform: %d, Scale: %+11d\n", __TRACE_LEVEL * 2, "", ConnectionBlock.Source, ConnectionBlock.Control, ConnectionBlock.Destination, ConnectionBlock.Transform, ConnectionBlock.Scale);
                         #endif
 
                         --ConnectionBlockCount;
@@ -808,7 +812,7 @@ void reader_t::ReadWave(const riff::chunk_header_t & ch, wave_t & wave)
 
                 #ifdef __DEEP_TRACE
                 ::printf("%*sFormat: 0x%04X, Channels: %d, SamplesPerSec: %d, AvgBytesPerSec: %d, BlockAlign: %d\n", __TRACE_LEVEL * 2, "",
-                    Common.FormatTag, Common.Channels, Common.SamplesPerSec, Common.AvgBytesPerSec, Common.BlockAlign);
+                    wave.FormatTag, wave.Channels, wave.SamplesPerSec, wave.AvgBytesPerSec, wave.BlockAlign);
                 #endif
 
                 if (wave.FormatTag == WAVE_FORMAT_PCM) // mmeapi.h
@@ -818,7 +822,7 @@ void reader_t::ReadWave(const riff::chunk_header_t & ch, wave_t & wave)
                     Size -= sizeof(wave.BitsPerSample);
 
                     #ifdef __DEEP_TRACE
-                    ::printf("%*sBitsPerSample: %d\n", __TRACE_LEVEL * 2, "", BitsPerSample);
+                    ::printf("%*sBitsPerSample: %d\n", __TRACE_LEVEL * 2, "", wave.BitsPerSample);
                     #endif
                 }
                 else
@@ -921,7 +925,7 @@ void reader_t::ReadWaveSample(const riff::chunk_header_t & ch, wave_sample_t & w
         Skip(Size - 20);
 
     #ifdef __DEEP_TRACE
-    ::printf("%*sUnityNote: %d, FineTune: %d, Gain: %d, Options: 0x%08X, Loops: %d\n", __TRACE_LEVEL * 2, "", UnityNote, FineTune, Gain, Options, LoopCount);
+    ::printf("%*sUnityNote: %d, FineTune: %d, Gain: %d, Options: 0x%08X, Loops: %d\n", __TRACE_LEVEL * 2, "", ws.UnityNote, ws.FineTune, ws.Gain, ws.Options, LoopCount);
     #endif
 
     TRACE_INDENT();

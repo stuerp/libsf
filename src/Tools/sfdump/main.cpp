@@ -1,7 +1,11 @@
 
-/** $VER: main.cpp (2025.08.22) P. Stuer **/
+/** $VER: main.cpp (2025.08.25) P. Stuer **/
 
 #include "pch.h"
+
+#include <CppCoreCheck/Warnings.h>
+
+#pragma warning(disable: 4100 4625 4626 4710 4711 4738 5045 ALL_CPPCORECHECK_WARNINGS)
 
 #include <libsf.h>
 
@@ -17,7 +21,6 @@ static void ProcessDLS(const fs::path & filePath);
 static void ProcessSF(const fs::path & filePath);
 static void ProcessECW(const fs::path & filePath);
 
-static void ConvertDLS(const sf::dls::collection_t & dls, sf::bank_t & bank);
 static void ConvertECW(const ecw::waveset_t & ws, sf::bank_t & bank);
 
 static void DumpPresets(const bank_t & bank) noexcept;
@@ -260,7 +263,7 @@ static void ProcessSF(const fs::path & filePath)
     // Dump the preset zone modulators.
     if (Arguments.IsSet("presetzonemodulators"))
     {
-        ::printf("%*sPreset Zone Modulators (%zu)\n", __TRACE_LEVEL * 2, "", Bank.PresetModulators.size());
+        ::printf("%*sPreset Zone Modulators (%zu)\n", __TRACE_LEVEL * 4, "", Bank.PresetModulators.size());
 
         __TRACE_LEVEL++;
 
@@ -268,11 +271,12 @@ static void ProcessSF(const fs::path & filePath)
 
         for (const auto & Modulator : Bank.PresetModulators)
         {
-        ::printf("%*s%5zu. Src Op: 0x%04X (%s), Dst Op: 0x%04X (%s), Mod Amount: %6d, Mod Amount Source: 0x%04X (%s), Mod Transform Op: 0x%04X (%s)\n", __TRACE_LEVEL * 4, "", i++,
-            Modulator.sfModSrcOper,                          Bank.DescribeModulatorSource(Modulator.sfModSrcOper).c_str(),
-            Modulator.sfModDestOper,                         Bank.DescribeModulatorSource(Modulator.sfModDestOper).c_str(),
-            Modulator.modAmount, Modulator.sfModAmtSrcOper, Bank.DescribeModulatorSource(Modulator.sfModAmtSrcOper).c_str(),
-            Modulator.sfModTransOper,                        Bank.DescribeModulatorTransform(Modulator.sfModTransOper).c_str());
+            ::printf("%*s%5zu. Src Op: 0x%04X (%s), Dst Op: 0x%04X (%s), Amount: %6d, Amount Src Op: 0x%04X (%s), Transform Op: 0x%04X (%s)\n", __TRACE_LEVEL * 4, "", i++,
+                Modulator.SrcOper,         Bank.DescribeModulatorSource(Modulator.SrcOper).c_str(),
+                Modulator.DstOper,         Bank.DescribeGenerator(Modulator.DstOper, Modulator.Amount).c_str(),
+                Modulator.Amount,
+                Modulator.SrcOperAmt,      Bank.DescribeModulatorSource(Modulator.SrcOperAmt).c_str(),
+                Modulator.TransformOper,   Bank.DescribeModulatorTransform(Modulator.TransformOper).c_str());
         }
 
         __TRACE_LEVEL--;
@@ -281,7 +285,7 @@ static void ProcessSF(const fs::path & filePath)
     // Dump the preset zone generators.
     if (Arguments.IsSet("presetzonegenerators"))
     {
-        ::printf("%*sPreset Zone Generators (%zu)\n", __TRACE_LEVEL * 2, "", Bank.PresetGenerators.size());
+        ::printf("%*sPreset Zone Generators (%zu)\n", __TRACE_LEVEL * 4, "", Bank.PresetGenerators.size());
 
         __TRACE_LEVEL++;
 
@@ -295,7 +299,7 @@ static void ProcessSF(const fs::path & filePath)
                 Generator.Operator, Generator.Amount, Bank.DescribeGenerator(Generator.Operator, Generator.Amount).c_str());
 
             // 8.1.2 Should only appear in the PGEN sub-chunk, and it must appear as the last generator enumerator in all but the global preset zone.
-            if (Generator.Operator == Generator::instrument) // 8.1.2 Should only appear in the PGEN sub-chunk, and it must appear as the last generator enumerator in all but the global preset zone.
+            if (Generator.Operator == GeneratorOperator::instrument) // 8.1.2 Should only appear in the PGEN sub-chunk, and it must appear as the last generator enumerator in all but the global preset zone.
             {
                 ::putchar('\n');
 
@@ -313,7 +317,7 @@ static void ProcessSF(const fs::path & filePath)
     // Dump the instrument zones.
     if (Arguments.IsSet("instrumentzones"))
     {
-        ::printf("%*sInstrument Zones (%zu)\n", __TRACE_LEVEL * 2, "", Bank.InstrumentZones.size());
+        ::printf("%*sInstrument Zones (%zu)\n", __TRACE_LEVEL * 4, "", Bank.InstrumentZones.size());
 
         __TRACE_LEVEL++;
 
@@ -321,7 +325,7 @@ static void ProcessSF(const fs::path & filePath)
 
         for (const auto & iz : Bank.InstrumentZones)
         {
-            ::printf("%*s%5zu. Generator %5d, Modulator %5d\n", __TRACE_LEVEL * 2, "", i++, iz.GeneratorIndex, iz.ModulatorIndex);
+            ::printf("%*s%5zu. Generator %5d, Modulator %5d\n", __TRACE_LEVEL * 4, "", i++, iz.GeneratorIndex, iz.ModulatorIndex);
         }
 
         __TRACE_LEVEL--;
@@ -330,7 +334,7 @@ static void ProcessSF(const fs::path & filePath)
     // Dump the instrument zone modulators.
     if (Arguments.IsSet("instrumentzonemodulators"))
     {
-        ::printf("%*sInstrument Zone Modulators (%zu)\n", __TRACE_LEVEL * 2, "", Bank.InstrumentModulators.size());
+        ::printf("%*sInstrument Zone Modulators (%zu)\n", __TRACE_LEVEL * 4, "", Bank.InstrumentModulators.size());
 
         __TRACE_LEVEL++;
 
@@ -338,9 +342,12 @@ static void ProcessSF(const fs::path & filePath)
 
         for (const auto & Modulator : Bank.InstrumentModulators)
         {
-            ::printf("%*s%5zu. Src Op: 0x%04X, Dst Op: 0x%04X, Amount: %6d, Amount Source: 0x%04X, Source Transform: 0x%04X, Src Op: \"%s\", Dst Op: \"%s\"\n", __TRACE_LEVEL * 2, "", i++,
-                Modulator.sfModSrcOper, Modulator.sfModDestOper, Modulator.modAmount, Modulator.sfModAmtSrcOper, Modulator.sfModTransOper,
-                Bank.DescribeModulatorSource(Modulator.sfModSrcOper).c_str(), Bank.DescribeModulatorSource(Modulator.sfModDestOper).c_str());
+            ::printf("%*s%5zu. Src Op: 0x%04X, Dst Op: 0x%04X, Amount: %6d, Amount Src Op: 0x%04X, Transform Op: 0x%04X\n", __TRACE_LEVEL * 4, "", i++,
+                Modulator.SrcOper,
+                Modulator.DstOper,
+                Modulator.Amount,
+                Modulator.SrcOperAmt,
+                Modulator.TransformOper);
         }
 
         __TRACE_LEVEL--;
@@ -349,7 +356,7 @@ static void ProcessSF(const fs::path & filePath)
     // Dump the instrument zone generators.
     if (Arguments.IsSet("instrumentzonegenerators"))
     {
-        ::printf("%*sInstrument Zone Generators (%zu)\n", __TRACE_LEVEL * 2, "", Bank.InstrumentGenerators.size());
+        ::printf("%*sInstrument Zone Generators (%zu)\n", __TRACE_LEVEL * 4, "", Bank.InstrumentGenerators.size());
 
         __TRACE_LEVEL++;
 
@@ -357,7 +364,7 @@ static void ProcessSF(const fs::path & filePath)
 
         for (const auto & Generator : Bank.InstrumentGenerators)
         {
-            ::printf("%*s%5zu. Operator: 0x%04X, Amount: 0x%04X, \"%s\"\n", __TRACE_LEVEL * 2, "", i++,
+            ::printf("%*s%5zu. Operator: 0x%04X, Amount: 0x%04X, \"%s\"\n", __TRACE_LEVEL * 4, "", i++,
                 Generator.Operator, Generator.Amount, Bank.DescribeGenerator(Generator.Operator, Generator.Amount).c_str());
         }
 
@@ -465,6 +472,33 @@ static void ProcessDLS(const fs::path & filePath)
         {
             ::printf("%*sMIDI Key: %3d - %3d, Velocity: %3d - %3d, Options: 0x%04X, Key Group: %d, Zone: %d\n", __TRACE_LEVEL * 2, "",
                 Region.LowKey, Region.HighKey, Region.LowVelocity, Region.HighVelocity, Region.Options, Region.KeyGroup, Region.Layer);
+
+            if (!Region.Articulators.empty())
+            {
+                __TRACE_LEVEL += 2;
+
+                ::printf("%*sArticulators:\n", __TRACE_LEVEL * 2, "");
+
+                __TRACE_LEVEL++;
+
+                for (const auto & Articulator : Region.Articulators)
+                {
+                    ::printf("%*s%3zu connection blocks\n", __TRACE_LEVEL * 2, "", Articulator.ConnectionBlocks.size());
+
+                    __TRACE_LEVEL++;
+
+                    for (const auto & ConnectionBlock: Articulator.ConnectionBlocks)
+                    {
+                        ::printf("%*sSource: 0x%04X, Control: 0x%04X, Destination: 0x%04X, Transform: 0x%04X, Scale: 0x%08X\n", __TRACE_LEVEL * 2, "",
+                            ConnectionBlock.Source, ConnectionBlock.Control, ConnectionBlock.Destination, ConnectionBlock.Transform, ConnectionBlock.Scale);
+                    }
+
+                    __TRACE_LEVEL--;
+                }
+
+                __TRACE_LEVEL--;
+                __TRACE_LEVEL -= 2;
+            }
         }
 
         __TRACE_LEVEL--;
@@ -484,7 +518,7 @@ static void ProcessDLS(const fs::path & filePath)
 
             for (const auto & ConnectionBlock: Articulator.ConnectionBlocks)
             {
-                ::printf("%*sSource: %d, Control: %3d, Destination: %3d, Transform: %d, Scale: %11d\n", __TRACE_LEVEL * 2, "",
+                ::printf("%*sSource: 0x%04X, Control: 0x%04X, Destination: 0x%04X, Transform: 0x%04X, Scale: 0x%08X\n", __TRACE_LEVEL * 2, "",
                     ConnectionBlock.Source, ConnectionBlock.Control, ConnectionBlock.Destination, ConnectionBlock.Transform, ConnectionBlock.Scale);
             }
 
@@ -521,170 +555,32 @@ static void ProcessDLS(const fs::path & filePath)
 
     sf::bank_t Bank;
 
-    ConvertDLS(dls, Bank);
-
-    fs::path FilePath(filePath);
-
-    FilePath.replace_extension(L".sf2");
-
-    ::printf("\n\"%s\"\n", (const char *) FilePath.u8string().c_str());
-
-    // Tests the Sound Font writer.
-    if (fs.Open(FilePath, true))
+    try
     {
-        sf::writer_t sw;
+        Bank.ConvertFrom(dls);
 
-        if (sw.Open(&fs, riff::writer_t::Options::PolyphoneCompatible))
-            sw.Process({  }, Bank);
+        fs::path FilePath(filePath);
 
-        fs.Close();
-    }
+        FilePath.replace_extension(L".sf2");
 
-    ProcessSF(FilePath);
-}
+        ::printf("\n\"%s\"\n", (const char *) FilePath.u8string().c_str());
 
-/// <summary>
-/// Converts a DLS collection to a SoundFont bank.
-/// </summary>
-static void ConvertDLS(const sf::dls::collection_t & collection, sf::bank_t & bank)
-{
-    bank.Major       = 2;
-    bank.Minor       = 4;
-    bank.SoundEngine = "E-mu 10K1";
-    bank.Name        = GetPropertyValue(collection.Properties, FOURCC_INAM);
-
-    {
-         SYSTEMTIME st = {};
-
-        ::GetLocalTime(&st);
-
-        char Date[32] = { };
-        char Time[32] = { };
-
-        ::GetDateFormatA(LOCALE_USER_DEFAULT, 0, &st, "yyyy-MM-dd", Date, sizeof(Date));
-        ::GetTimeFormatA(LOCALE_USER_DEFAULT, 0, &st, "HH:mm:ss", Time, sizeof(Time));
-
-        bank.Properties.push_back(sf::property_t(FOURCC_ICRD, std::string(Date) + " " + std::string(Time)));
-    }
-
-    for (const auto & Property : collection.Properties)
-    {
-        if (Property.Id == FOURCC_INAM)
-            continue;
-
-        bank.Properties.push_back(sf::property_t(Property.Id, Property.Value));
-    }
-
-    // Write the Hydra.
-    {
-        // Add the instruments.
+        // Tests the Sound Font writer.
+        if (fs.Open(FilePath, true))
         {
-            for (const auto & Instrument : collection.Instruments)
-            {
-                // Add a preset.
-                {
-                    const uint16_t Bank = (Instrument.BankMSB > 0) ? Instrument.BankMSB : Instrument.BankLSB;
+            sf::writer_t sw;
 
-                    bank.Presets.push_back(sf::preset_t(Instrument.Name, Instrument.Program, Bank, (uint16_t) bank.PresetZones.size()));
+            if (sw.Open(&fs, riff::writer_t::Options::PolyphoneCompatible))
+                sw.Process({  }, Bank);
 
-                    {
-                        bank.PresetZones.push_back(sf::preset_zone_t((uint16_t) bank.PresetGenerators.size(), (uint16_t) bank.PresetModulators.size()));
-
-                        bank.PresetGenerators.push_back(sf::generator_t(Generator::instrument, (uint16_t) bank.Instruments.size()));
-                    }
-                }
-
-                bank.Instruments.push_back(sf::instrument_t(Instrument.Name, (uint16_t) bank.InstrumentZones.size()));
-
-                for (const auto & Region : Instrument.Regions)
-                {
-                    bank.InstrumentZones.push_back(instrument_zone_t((uint16_t) bank.InstrumentGenerators.size(), (uint16_t) bank.InstrumentModulators.size()));
-
-                    // dls.Cues[CueIndex] is actually an offset in the wave pool but we can use the cue index as an index into the sample list.
-                    const uint16_t SampleID = (uint16_t) Region.WaveLink.CueIndex;
-
-                    bank.InstrumentGenerators.push_back(sf::generator_t(Generator::keyRange, MAKEWORD(Region.LowKey,      Region.HighKey)));
-                    bank.InstrumentGenerators.push_back(sf::generator_t(Generator::velRange, MAKEWORD(Region.LowVelocity, Region.HighVelocity)));
-                    bank.InstrumentGenerators.push_back(sf::generator_t(Generator::sampleID, SampleID));
-                }
-            }
-
-            // Add the instrument list terminator.
-            bank.Instruments.push_back(sf::instrument_t("EOI", (uint16_t) bank.InstrumentZones.size()));
-            bank.InstrumentZones.push_back(instrument_zone_t((uint16_t) bank.InstrumentGenerators.size(), (uint16_t) bank.InstrumentModulators.size()));
-
-            // Add the instrument zone modulator.
-            bank.InstrumentModulators.push_back(sf::modulator_t());
-
-            // Add the preset list terminator.
-            bank.Presets.push_back(sf::preset_t("EOP", 0, 0,  (uint16_t) bank.PresetZones.size()));
-            bank.PresetZones.push_back(sf::preset_zone_t((uint16_t) bank.PresetGenerators.size(), (uint16_t) bank.PresetModulators.size()));
-
-            // Add the preset zone modulator.
-            bank.PresetModulators.push_back(sf::modulator_t());
+            fs.Close();
         }
 
-        // Add the samples.
-        {
-            size_t Size = 0;
-
-            for (const auto & wave : collection.Waves)
-            {
-                // FIXME: Support stereo samples
-                if (wave.Channels != 1)
-                    continue;
-
-                Size += wave.Data.size();
-            }
-
-            bank.SampleData.resize(Size);
-
-            size_t Offset = 0;
-
-            for (const auto & wave : collection.Waves)
-            {
-                // FIXME: Support stereo samples
-                if (wave.Channels != 1)
-                    continue;
-
-                const auto BytesPerSample = wave.BitsPerSample >> 3;
-
-                sf::sample_t Sample =
-                {
-                    .Name            = wave.Name,
-
-                    .Start           = (uint32_t) ( Offset                     / BytesPerSample),
-                    .End             = (uint32_t) ((Offset + wave.Data.size()) / BytesPerSample),
-
-                    .SampleRate      = wave.SamplesPerSec,
-                    .Pitch           = (uint8_t) wave.WaveSample.UnityNote,
-                    .PitchCorrection =  (int8_t) wave.WaveSample.FineTune,
-
-                    .SampleType      = sf::SampleTypes::MonoSample
-                };
-
-                std::memcpy(bank.SampleData.data() + Offset, wave.Data.data(), wave.Data.size());
-                Offset += wave.Data.size();
-
-                if (wave.WaveSample.Loops.size() != 0)
-                {
-                    const auto & Loop = wave.WaveSample.Loops[0];
-
-                    Sample.LoopStart = Sample.Start     + Loop.Start;
-                    Sample.LoopEnd   = Sample.LoopStart + Loop.Length;
-                }
-                else
-                {
-                    Sample.LoopStart = 0;
-                    Sample.LoopEnd   = Sample.End - 1;
-                }
-
-                bank.Samples.push_back(Sample);
-            }
-
-            bank.Samples.push_back(sf::sample_t("EOS"));
-        }
+        ProcessSF(FilePath);
     }
+    catch (sf::exception e)
+    {
+    } 
 }
 
 /// <summary>
@@ -1093,8 +989,8 @@ static void ConvertECW(const ecw::waveset_t & ws, sf::bank_t & bank)
 
                     bank.InstrumentZones.push_back(sf::instrument_zone_t((uint16_t) bank.InstrumentGenerators.size(), (uint16_t) bank.InstrumentModulators.size()));
 
-                    bank.InstrumentGenerators.push_back(sf::generator_t(Generator::keyRange, MAKEWORD(it->LowKey, it->HighKey)));
-                    bank.InstrumentGenerators.push_back(sf::generator_t(Generator::sampleID, i));
+                    bank.InstrumentGenerators.push_back(sf::generator_t(GeneratorOperator::keyRange, MAKEWORD(it->LowKey, it->HighKey)));
+                    bank.InstrumentGenerators.push_back(sf::generator_t(GeneratorOperator::sampleID, i));
 
                     ++i;
                 }
@@ -1103,7 +999,7 @@ static void ConvertECW(const ecw::waveset_t & ws, sf::bank_t & bank)
             bank.Instruments.push_back(sf::instrument_t("EOI"));
 
             // Add the instrument zone modulators.
-            bank.InstrumentModulators.push_back(sf::modulator_t(0, 0, 0, 0, 0));
+            bank.InstrumentModulators.push_back(sf::modulator_t());
         }
 /*
         // Add the presets.
@@ -1174,7 +1070,7 @@ static void DumpPresetZoneList(const bank_t & bank, size_t fromIndex, size_t toI
         // 7.3 A global zone is determined by the fact that the last generator in the list is not an instrument generator.
         bool IsGlobalZone = (fromIndex != toIndex) &&
             ((z1.GeneratorIndex == z2.GeneratorIndex) ||
-             (z1.GeneratorIndex < z2.GeneratorIndex) && (bank.PresetGenerators[z2.GeneratorIndex - 1].Operator != Generator::instrument));
+             (z1.GeneratorIndex < z2.GeneratorIndex) && (bank.PresetGenerators[z2.GeneratorIndex - 1].Operator != GeneratorOperator::instrument));
 
         ::printf("%*s%5zu. Generator: %d, Modulator: %d%s\n", __TRACE_LEVEL * 4, "", Index,
             z1.GeneratorIndex, z1.ModulatorIndex,
@@ -1194,16 +1090,16 @@ static void DumpPresetZoneGenerators(const bank_t & bank, size_t fromIndex, size
 {
     __TRACE_LEVEL++;
 
-    uint16_t OldOperator = Generator::Invalid;
+    uint16_t OldOperator = GeneratorOperator::Invalid;
 
     auto Generator = bank.PresetGenerators.begin() + fromIndex;
 
     for (size_t Index = fromIndex; Index < toIndex; ++Generator, ++Index)
     {
         ::printf("%*s%5zu. Operator: 0x%04X, Amount: 0x%04X, \"%s\"", __TRACE_LEVEL * 4, "", Index,
-            Generator->Operator, Generator->Amount, bank.DescribeGenerator(Generator->Operator, Generator->Amount).c_str());
+            Generator->Operator, (uint16_t) Generator->Amount, bank.DescribeGenerator(Generator->Operator, Generator->Amount).c_str());
 
-        if (Generator->Operator == Generator::keyRange)
+        if (Generator->Operator == GeneratorOperator::keyRange)
         {
             if (Index != fromIndex)
                 ::printf(" Warning: keyRange must be the first generator in the zone generator list.\n"); // 8.1.2
@@ -1211,15 +1107,15 @@ static void DumpPresetZoneGenerators(const bank_t & bank, size_t fromIndex, size
                 ::putchar('\n');
         }
         else
-        if (Generator->Operator == Generator::velRange)
+        if (Generator->Operator == GeneratorOperator::velRange)
         {
-            if ((Index != fromIndex) && (OldOperator != Generator::keyRange))
+            if ((Index != fromIndex) && (OldOperator != GeneratorOperator::keyRange))
                 ::printf(" Warning: velRange must be only preceded by keyRange.\n"); // 8.1.2
             else
                 ::putchar('\n');
         }
         else
-        if (Generator->Operator == Generator::instrument)
+        if (Generator->Operator == GeneratorOperator::instrument)
         {
             if (Index != toIndex - 1)
                 ::printf(" Warning: instrument must be the last generator.\n"); // 8.1.2 Should only appear in the PGEN sub-chunk, and it must appear as the last generator enumerator in all but the global preset zone.
@@ -1246,11 +1142,12 @@ static void DumpPresetZoneModulators(const bank_t & bank, size_t fromIndex, size
 
     for (size_t Index = fromIndex; Index < toIndex; ++Modulator, ++Index)
     {
-        ::printf("%*s%5zu. Src Op: 0x%04X (%s), Dst Op: 0x%04X (%s), Mod Amount: %6d, Mod Amount Source: 0x%04X (%s), Mod Transform Op: 0x%04X (%s)\n", __TRACE_LEVEL * 4, "", Index,
-            Modulator->sfModSrcOper,                          bank.DescribeModulatorSource(Modulator->sfModSrcOper).c_str(),
-            Modulator->sfModDestOper,                         bank.DescribeModulatorSource(Modulator->sfModDestOper).c_str(),
-            Modulator->modAmount, Modulator->sfModAmtSrcOper, bank.DescribeModulatorSource(Modulator->sfModAmtSrcOper).c_str(),
-            Modulator->sfModTransOper,                        bank.DescribeModulatorTransform(Modulator->sfModTransOper).c_str()
+        ::printf("%*s%5zu. Src Op: 0x%04X (%s), Dst Op: 0x%04X (%s), Amount: %6d, Src Op Amount: 0x%04X (%s), Transform Op: 0x%04X (%s)\n", __TRACE_LEVEL * 4, "", Index,
+            Modulator->SrcOper,        bank.DescribeModulatorSource(Modulator->SrcOper).c_str(),
+            Modulator->DstOper,        bank.DescribeGenerator(Modulator->DstOper, Modulator->Amount).c_str(),
+            Modulator->Amount,
+            Modulator->SrcOperAmt,     bank.DescribeModulatorSource(Modulator->SrcOperAmt).c_str(),
+            Modulator->TransformOper,  bank.DescribeModulatorTransform(Modulator->TransformOper).c_str()
         );
     }
 
@@ -1296,7 +1193,7 @@ static void DumpInstrumentZoneList(const bank_t & bank, size_t fromIndex, size_t
         // 7.7 A global zone is determined by the fact that the last generator in the list is not a sampleID generator.
         bool IsGlobalZone = (fromIndex != toIndex) &&
             ((z1.GeneratorIndex == z2.GeneratorIndex) ||
-             (z1.GeneratorIndex < z2.GeneratorIndex) && (bank.InstrumentGenerators[z2.GeneratorIndex - 1].Operator != Generator::sampleID));
+             (z1.GeneratorIndex < z2.GeneratorIndex) && (bank.InstrumentGenerators[z2.GeneratorIndex - 1].Operator != GeneratorOperator::sampleID));
 
         ::printf("%*s%5zu. Generator: %d, Modulator: %d%s\n", __TRACE_LEVEL * 4, "", Index,
             z1.GeneratorIndex, z1.ModulatorIndex,
@@ -1316,16 +1213,16 @@ static void DumpInstrumentZoneGenerators(const bank_t & bank, size_t fromIndex, 
 {
     __TRACE_LEVEL++;
 
-    uint16_t OldOperator = Generator::Invalid;
+    uint16_t OldOperator = GeneratorOperator::Invalid;
 
     auto Generator = bank.InstrumentGenerators.begin() + fromIndex;
 
     for (size_t Index = fromIndex; Index < toIndex; ++Generator, ++Index)
     {
         ::printf("%*s%5zu. Operator: 0x%04X, Amount: 0x%04X, \"%s\"", __TRACE_LEVEL * 4, "", Index,
-            Generator->Operator, Generator->Amount, bank.DescribeGenerator(Generator->Operator, Generator->Amount).c_str());
+            Generator->Operator, (uint16_t) Generator->Amount, bank.DescribeGenerator(Generator->Operator, Generator->Amount).c_str());
 
-        if (Generator->Operator == Generator::keyRange)
+        if (Generator->Operator == GeneratorOperator::keyRange)
         {
             if (Index != fromIndex)
                 ::printf(" Warning: keyRange must be the first generator in the zone generator list.\n"); // 8.1.2
@@ -1333,15 +1230,15 @@ static void DumpInstrumentZoneGenerators(const bank_t & bank, size_t fromIndex, 
                 ::putchar('\n');
         }
         else
-        if (Generator->Operator == Generator::velRange)
+        if (Generator->Operator == GeneratorOperator::velRange)
         {
-            if ((Index != fromIndex) && (OldOperator != Generator::keyRange))
+            if ((Index != fromIndex) && (OldOperator != GeneratorOperator::keyRange))
                 ::printf(" Warning: velRange must be only preceded by keyRange.\n"); // 8.1.2
             else
                 ::putchar('\n');
         }
         else
-        if (Generator->Operator == Generator::sampleID)
+        if (Generator->Operator == GeneratorOperator::sampleID)
         {
             if (Index != toIndex - 1)
                 ::printf(" Warning: sampleID must be the last generator.\n"); // 8.1.2 Should appear only in the IGEN sub-chunk and must appear as the last generator enumerator in all but the global zone.
@@ -1368,11 +1265,12 @@ static void DumpInstrumentZoneModulators(const bank_t & bank, size_t fromIndex, 
 
     for (size_t Index = fromIndex; Index < toIndex; ++Modulator, ++Index)
     {
-        ::printf("%*s%5zu. Src Op: 0x%04X (%s), Dst Op: 0x%04X (%s), Mod Amount: %6d, Mod Amount Source: 0x%04X (%s), Mod Transform Op: 0x%04X (%s)\n", __TRACE_LEVEL * 4, "", Index,
-            Modulator->sfModSrcOper,                          bank.DescribeModulatorSource(Modulator->sfModSrcOper).c_str(),
-            Modulator->sfModDestOper,                         bank.DescribeModulatorSource(Modulator->sfModDestOper).c_str(),
-            Modulator->modAmount, Modulator->sfModAmtSrcOper, bank.DescribeModulatorSource(Modulator->sfModAmtSrcOper).c_str(),
-            Modulator->sfModTransOper,                        bank.DescribeModulatorTransform(Modulator->sfModTransOper).c_str()
+        ::printf("%*s%5zu. Src Op: 0x%04X (%s), Dst Op: 0x%04X (%s), Amount: %6d, Src Op Amount: 0x%04X (%s), Transform Op: 0x%04X (%s)\n", __TRACE_LEVEL * 4, "", Index,
+            Modulator->SrcOper,        bank.DescribeModulatorSource(Modulator->SrcOper).c_str(),
+            Modulator->DstOper,        bank.DescribeGenerator(Modulator->DstOper, Modulator->Amount).c_str(),
+            Modulator->Amount,
+            Modulator->SrcOperAmt,     bank.DescribeModulatorSource(Modulator->SrcOperAmt).c_str(),
+            Modulator->TransformOper,  bank.DescribeModulatorTransform(Modulator->TransformOper).c_str()
         );
     }
 
@@ -1456,84 +1354,84 @@ std::string bank_t::DescribeGenerator(uint16_t generator, uint16_t amount) const
     switch (generator & 0x007F)
     {
         // Index generators
-        case Generator::instrument:                 Text = riff::FormatText("Instrument Index %d, \"%s\" (instrument)", amount, Instruments[amount].Name.c_str()); break;
-        case Generator::sampleID:                   Text = riff::FormatText("Sample Index %d, \"%s\" (sampleID)", amount, Samples[amount].Name.c_str()); break;
+        case GeneratorOperator::instrument:                 Text = riff::FormatText("Instrument Index %d, \"%s\" (instrument)", amount, Instruments[amount].Name.c_str()); break;
+        case GeneratorOperator::sampleID:                   Text = riff::FormatText("Sample Index %d, \"%s\" (sampleID)", amount, Samples[amount].Name.c_str()); break;
 
         // Range generators
-        case Generator::keyRange:                   Text = riff::FormatText("Key Range %d - %d (keyRange)", amount & 0x00FF, (amount >> 8) & 0x00FF); break;
-        case Generator::velRange:                   Text = riff::FormatText("Velocity Range %d - %d (velRange)", amount & 0x00FF, (amount >> 8) & 0x00FF); break;
+        case GeneratorOperator::keyRange:                   Text = riff::FormatText("Key Range %d - %d (keyRange)", amount & 0x00FF, (amount >> 8) & 0x00FF); break;
+        case GeneratorOperator::velRange:                   Text = riff::FormatText("Velocity Range %d - %d (velRange)", amount & 0x00FF, (amount >> 8) & 0x00FF); break;
 
         // Substitution generators
 
         // Sample generators directly affect a sample's properties.
-        case Generator::startAddrsOffset:           Text = riff::FormatText("Start Address Offset: %d data points (startAddrsOffset)", (int16_t) amount); break;
-        case Generator::endAddrsOffset:             Text = riff::FormatText("End Address Offset: %d data points (endAddrsOffset)", (int16_t) amount); break;
+        case GeneratorOperator::startAddrsOffset:           Text = riff::FormatText("Start Address Offset: %d data points (startAddrsOffset)", (int16_t) amount); break;
+        case GeneratorOperator::endAddrsOffset:             Text = riff::FormatText("End Address Offset: %d data points (endAddrsOffset)", (int16_t) amount); break;
 
-        case Generator::startAddrsCoarseOffset:     Text = riff::FormatText("Start Address Coarse Offset: %d data points (startAddrsCoarseOffset)", (int32_t) amount * 32768); break;
-        case Generator::endAddrsCoarseOffset:       Text = riff::FormatText("End Address Coarse Offset: %d data points (endAddrsCoarseOffset)", (int32_t) amount * 32768); break;
+        case GeneratorOperator::startAddrsCoarseOffset:     Text = riff::FormatText("Start Address Coarse Offset: %d data points (startAddrsCoarseOffset)", (int32_t) amount * 32768); break;
+        case GeneratorOperator::endAddrsCoarseOffset:       Text = riff::FormatText("End Address Coarse Offset: %d data points (endAddrsCoarseOffset)", (int32_t) amount * 32768); break;
 
-        case Generator::startloopAddrsOffset:       Text = riff::FormatText("Start Loop Address Offset: %d data points (startloopAddrsOffset)", (int16_t) amount); break;
-        case Generator::endloopAddrsOffset:         Text = riff::FormatText("End Loop Address Offset: %d data points (endloopAddrsOffset)", (int16_t) amount); break;
+        case GeneratorOperator::startloopAddrsOffset:       Text = riff::FormatText("Start Loop Address Offset: %d data points (startloopAddrsOffset)", (int16_t) amount); break;
+        case GeneratorOperator::endloopAddrsOffset:         Text = riff::FormatText("End Loop Address Offset: %d data points (endloopAddrsOffset)", (int16_t) amount); break;
 
-        case Generator::startloopAddrsCoarseOffset: Text = riff::FormatText("Start Loop Address Coarse Offset: %d data points (startloopAddrsCoarseOffset)", (int32_t) amount * 32768); break;
-        case Generator::endloopAddrsCoarseOffset:   Text = riff::FormatText("End Loop Address Coarse Offset: %d data points (endloopAddrsCoarseOffset)", (int32_t) amount * 32768); break;
+        case GeneratorOperator::startloopAddrsCoarseOffset: Text = riff::FormatText("Start Loop Address Coarse Offset: %d data points (startloopAddrsCoarseOffset)", (int32_t) amount * 32768); break;
+        case GeneratorOperator::endloopAddrsCoarseOffset:   Text = riff::FormatText("End Loop Address Coarse Offset: %d data points (endloopAddrsCoarseOffset)", (int32_t) amount * 32768); break;
 
-        case Generator::sampleModes:                Text = riff::FormatText("Sample Mode: %d (sampleModes)", amount); break;   // 0 = no loop, 1 = loop, 2 = reserved, 3 = loop and play till the end in release phase
+        case GeneratorOperator::sampleModes:                Text = riff::FormatText("Sample Mode: %d (sampleModes)", amount); break;   // 0 = no loop, 1 = loop, 2 = reserved, 3 = loop and play till the end in release phase
 
-        case Generator::overridingRootKey:          Text = riff::FormatText("Overriding Root Key: %d (overridingRootKey)", amount); break;
+        case GeneratorOperator::overridingRootKey:          Text = riff::FormatText("Overriding Root Key: %d (overridingRootKey)", amount); break;
 
-        case Generator::exclusiveClass:             Text = riff::FormatText("Exclusive Class: %s (exclusiveClass)", (amount != 0) ? "Yes" : "No"); break;
+        case GeneratorOperator::exclusiveClass:             Text = riff::FormatText("Exclusive Class: %s (exclusiveClass)", (amount != 0) ? "Yes" : "No"); break;
 
         // Value generators directly affects a signal processing parameter.
-        case Generator::initialFilterFc:            Text = riff::FormatText("Initial Lowpass Filter Cutoff Frequency: %d cents (initialFilterFc)", (int16_t) amount); break;
-        case Generator::initialFilterQ:             Text = riff::FormatText("Initial Lowpass Filter Resonance: %d centibels (initialFilterQ)", (int16_t) amount); break;
-        case Generator::initialAttenuation:         Text = riff::FormatText("Initial Attenuation: %.0f dB (initialAttenuation)", (int16_t) amount / 10.); break;
+        case GeneratorOperator::initialFilterFc:            Text = riff::FormatText("Initial Lowpass Filter Cutoff Frequency: %d cents (initialFilterFc)", (int16_t) amount); break;
+        case GeneratorOperator::initialFilterQ:             Text = riff::FormatText("Initial Lowpass Filter Resonance: %d centibels (initialFilterQ)", (int16_t) amount); break;
+        case GeneratorOperator::initialAttenuation:         Text = riff::FormatText("Initial Attenuation: %.0f dB (initialAttenuation)", (int16_t) amount / 10.); break;
 
-        case Generator::modLfoToPitch:              Text = riff::FormatText("Modulation LFO influence on Pitch: %d cents (modLfoToPitch)", (int16_t) amount); break;
-        case Generator::modLfoToFilterFc:           Text = riff::FormatText("Modulation LFO influence on Filter Cutoff Frequency: %d cents (modLfoToFilterFc)", (int16_t) amount); break;
-        case Generator::modLfoToVolume:             Text = riff::FormatText("Modulation LFO influence on Volume: %d centibels (modLfoToVolume)", (int16_t) amount); break;
+        case GeneratorOperator::modLfoToPitch:              Text = riff::FormatText("Modulation LFO influence on Pitch: %d cents (modLfoToPitch)", (int16_t) amount); break;
+        case GeneratorOperator::modLfoToFilterFc:           Text = riff::FormatText("Modulation LFO influence on Filter Cutoff Frequency: %d cents (modLfoToFilterFc)", (int16_t) amount); break;
+        case GeneratorOperator::modLfoToVolume:             Text = riff::FormatText("Modulation LFO influence on Volume: %d centibels (modLfoToVolume)", (int16_t) amount); break;
 
-        case Generator::modEnvToPitch:              Text = riff::FormatText("Modulation Envelope influence on Pitch: %d cents (modEnvToPitch)", (int16_t) amount); break;
-        case Generator::modEnvToFilterFc:           Text = riff::FormatText("Modulation Envelope influence on Filter Cutoff Frequency: %d cents (modEnvToFilterFc)", (int16_t) amount); break;
+        case GeneratorOperator::modEnvToPitch:              Text = riff::FormatText("Modulation Envelope influence on Pitch: %d cents (modEnvToPitch)", (int16_t) amount); break;
+        case GeneratorOperator::modEnvToFilterFc:           Text = riff::FormatText("Modulation Envelope influence on Filter Cutoff Frequency: %d cents (modEnvToFilterFc)", (int16_t) amount); break;
 
-        case Generator::vibLfoToPitch:              Text = riff::FormatText("Vibrato LFO influence on Pitch: %d cents (vibLfoToPitch)", (int16_t) amount); break;
+        case GeneratorOperator::vibLfoToPitch:              Text = riff::FormatText("Vibrato LFO influence on Pitch: %d cents (vibLfoToPitch)", (int16_t) amount); break;
 
-        case Generator::chorusEffectsSend:          Text = riff::FormatText("Chorus: %.1f%% (chorusEffectsSend)", (int16_t) amount / 10.); break;
-        case Generator::reverbEffectsSend:          Text = riff::FormatText("Reverb: %.1f%% (reverbEffectsSend)", (int16_t) amount / 10.); break;
+        case GeneratorOperator::chorusEffectsSend:          Text = riff::FormatText("Chorus: %.1f%% (chorusEffectsSend)", (int16_t) amount / 10.); break;
+        case GeneratorOperator::reverbEffectsSend:          Text = riff::FormatText("Reverb: %.1f%% (reverbEffectsSend)", (int16_t) amount / 10.); break;
 
-        case Generator::pan:                        Text = riff::FormatText("Pan: %.1f%% (pan)", (int16_t) amount / 10.f); break;
+        case GeneratorOperator::pan:                        Text = riff::FormatText("Pan: %.1f%% (pan)", (int16_t) amount / 10.f); break;
 
-        case Generator::delayModLFO:                Text = riff::FormatText("Modulation LFO Delay: %.0f ms (delayModLFO)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
-        case Generator::freqModLFO:                 Text = riff::FormatText("Modulation LFO Frequency: %.0f mHz (freqModLFO)", std::exp2((int16_t) amount / 1200.) * 8176.); break;
+        case GeneratorOperator::delayModLFO:                Text = riff::FormatText("Modulation LFO Delay: %.0f ms (delayModLFO)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
+        case GeneratorOperator::freqModLFO:                 Text = riff::FormatText("Modulation LFO Frequency: %.0f mHz (freqModLFO)", std::exp2((int16_t) amount / 1200.) * 8176.); break;
 
-        case Generator::delayVibLFO:                Text = riff::FormatText("Vibrato LFO Delay: %.0f ms (delayVibLFO)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
-        case Generator::freqVibLFO:                 Text = riff::FormatText("Vibrato LFO Frequency: %.0f mHz (freqVibLFO)", std::exp2((int16_t) amount / 1200.) * 8176.); break;
+        case GeneratorOperator::delayVibLFO:                Text = riff::FormatText("Vibrato LFO Delay: %.0f ms (delayVibLFO)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
+        case GeneratorOperator::freqVibLFO:                 Text = riff::FormatText("Vibrato LFO Frequency: %.0f mHz (freqVibLFO)", std::exp2((int16_t) amount / 1200.) * 8176.); break;
 
-        case Generator::delayModEnv:                Text = riff::FormatText("Modulation Envelope Delay: %.0f ms (delayModEnv)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
-        case Generator::attackModEnv:               Text = riff::FormatText("Modulation Envelope Attack: %.0f ms (attackModEnv)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
-        case Generator::holdModEnv:                 Text = riff::FormatText("Modulation Envelope Hold: %.0f ms (holdModEnv)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
-        case Generator::decayModEnv:                Text = riff::FormatText("Modulation Envelope Decay: %.0f ms (decayModEnv)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
-        case Generator::sustainModEnv:              Text = riff::FormatText("Modulation Envelope Sustain: %.0f dB (sustainModEnv)", (int16_t) amount / 10.); break;
-        case Generator::releaseModEnv:              Text = riff::FormatText("Modulation Envelope Release: %.0f ms (releaseModEnv)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
-        case Generator::keynumToModEnvHold:         Text = riff::FormatText("Modulation Envelope Hold Decrease: %.0f ms (keynumToModEnvHold)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
-        case Generator::keynumToModEnvDecay:        Text = riff::FormatText("Modulation Envelope Decay Decrease: %.0f ms (keynumToModEnvDecay)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
+        case GeneratorOperator::delayModEnv:                Text = riff::FormatText("Modulation Envelope Delay: %.0f ms (delayModEnv)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
+        case GeneratorOperator::attackModEnv:               Text = riff::FormatText("Modulation Envelope Attack: %.0f ms (attackModEnv)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
+        case GeneratorOperator::holdModEnv:                 Text = riff::FormatText("Modulation Envelope Hold: %.0f ms (holdModEnv)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
+        case GeneratorOperator::decayModEnv:                Text = riff::FormatText("Modulation Envelope Decay: %.0f ms (decayModEnv)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
+        case GeneratorOperator::sustainModEnv:              Text = riff::FormatText("Modulation Envelope Sustain: %.0f dB (sustainModEnv)", (int16_t) amount / 10.); break;
+        case GeneratorOperator::releaseModEnv:              Text = riff::FormatText("Modulation Envelope Release: %.0f ms (releaseModEnv)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
+        case GeneratorOperator::keynumToModEnvHold:         Text = riff::FormatText("Modulation Envelope Hold Decrease: %.0f ms (keynumToModEnvHold)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
+        case GeneratorOperator::keynumToModEnvDecay:        Text = riff::FormatText("Modulation Envelope Decay Decrease: %.0f ms (keynumToModEnvDecay)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
 
-        case Generator::delayVolEnv:                Text = riff::FormatText("Volume Envelope Delay: %.0f ms (delayVolEnv)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
-        case Generator::attackVolEnv:               Text = riff::FormatText("Volume Envelope Attack: %.0f ms (attackVolEnv)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
-        case Generator::holdVolEnv:                 Text = riff::FormatText("Volume Envelope Hold: %.0f ms (holdVolEnv)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
-        case Generator::decayVolEnv:                Text = riff::FormatText("Volume Envelope Decay: %.0f ms (decayVolEnv)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
-        case Generator::sustainVolEnv:              Text = riff::FormatText("Volume Envelope Sustain: %.0f dB (sustainVolEnv)", (int16_t) amount / 10.); break;
-        case Generator::releaseVolEnv:              Text = riff::FormatText("Volume Envelope Release: %.0f ms (releaseVolEnv)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
-        case Generator::keynumToVolEnvHold:         Text = riff::FormatText("Volume Envelope Hold Decrease: %.0f ms (keynumToVolEnvHold)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
-        case Generator::keynumToVolEnvDecay:        Text = riff::FormatText("Volume Envelope Decay Decrease: %.0f ms (keynumToVolEnvDecay)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
+        case GeneratorOperator::delayVolEnv:                Text = riff::FormatText("Volume Envelope Delay: %.0f ms (delayVolEnv)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
+        case GeneratorOperator::attackVolEnv:               Text = riff::FormatText("Volume Envelope Attack: %.0f ms (attackVolEnv)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
+        case GeneratorOperator::holdVolEnv:                 Text = riff::FormatText("Volume Envelope Hold: %.0f ms (holdVolEnv)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
+        case GeneratorOperator::decayVolEnv:                Text = riff::FormatText("Volume Envelope Decay: %.0f ms (decayVolEnv)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
+        case GeneratorOperator::sustainVolEnv:              Text = riff::FormatText("Volume Envelope Sustain: %.0f dB (sustainVolEnv)", (int16_t) amount / 10.); break;
+        case GeneratorOperator::releaseVolEnv:              Text = riff::FormatText("Volume Envelope Release: %.0f ms (releaseVolEnv)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
+        case GeneratorOperator::keynumToVolEnvHold:         Text = riff::FormatText("Volume Envelope Hold Decrease: %.0f ms (keynumToVolEnvHold)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
+        case GeneratorOperator::keynumToVolEnvDecay:        Text = riff::FormatText("Volume Envelope Decay Decrease: %.0f ms (keynumToVolEnvDecay)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
 
-        case Generator::keyNum:                     Text = riff::FormatText("MIDI Key: %d (keynum)", amount); break;
-        case Generator::velocity:                   Text = riff::FormatText("MIDI Velocity: %d (velocity)", amount); break;
+        case GeneratorOperator::keyNum:                     Text = riff::FormatText("MIDI Key: %d (keynum)", amount); break;
+        case GeneratorOperator::velocity:                   Text = riff::FormatText("MIDI Velocity: %d (velocity)", amount); break;
 
-        case Generator::coarseTune:                 Text = riff::FormatText("Coarse Tune: %d semitones (coarseTune)", (int16_t) amount); break;
-        case Generator::fineTune:                   Text = riff::FormatText("Fine Tune: %d cents (fineTune)", (int16_t) amount); break;
+        case GeneratorOperator::coarseTune:                 Text = riff::FormatText("Coarse Tune: %d semitones (coarseTune)", (int16_t) amount); break;
+        case GeneratorOperator::fineTune:                   Text = riff::FormatText("Fine Tune: %d cents (fineTune)", (int16_t) amount); break;
 
-        case Generator::scaleTuning:                Text = riff::FormatText("Scale Tuning: %d (scaleTuning)", (int16_t) amount); break;
+        case GeneratorOperator::scaleTuning:                Text = riff::FormatText("Scale Tuning: %d (scaleTuning)", (int16_t) amount); break;
 
         case 14: Text = "Unused"; break;
         case 18: Text = "Unused"; break;

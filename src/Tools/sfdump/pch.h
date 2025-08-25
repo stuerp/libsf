@@ -1,5 +1,5 @@
 
-/** $VER: pch.h (2025.08.20) P. Stuer **/
+/** $VER: pch.h (2025.08.24) P. Stuer **/
 
 #pragma once
 
@@ -33,6 +33,7 @@
 #include <functional>
 #include <iterator>
 #include <map>
+#include <ranges>
 #include <stdexcept>
 #include <string>
 #include <vector>

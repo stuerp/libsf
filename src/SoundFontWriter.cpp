@@ -1,5 +1,5 @@
 
-/** $VER: SoundFontWriter.cpp (2025.08.20) P. Stuer - Writes a SoundFont bank. **/
+/** $VER: SoundFontWriter.cpp (2025.08.24) P. Stuer - Writes a SoundFont bank. **/
 
 #include "pch.h"
 
@@ -189,7 +189,7 @@ void writer_t::Process(const soundfont_writer_options_t & options, bank_t & bank
                         {
                             for (const auto & pzm : bank.PresetModulators)
                             {
-                                const sfModList ml = { pzm.sfModSrcOper, pzm.sfModDestOper, pzm.modAmount, pzm.sfModAmtSrcOper, pzm.sfModTransOper };
+                                const sfModList ml = { pzm.SrcOper, pzm.DstOper, pzm.Amount, pzm.SrcOperAmt, pzm.TransformOper };
 
                                 Size += Write(&ml, sizeof(ml));
                             }
@@ -204,7 +204,7 @@ void writer_t::Process(const soundfont_writer_options_t & options, bank_t & bank
 
                         for (const auto & pzg : bank.PresetGenerators)
                         {
-                            const sfGenList gl = { pzg.Operator, pzg.Amount };
+                            const sfGenList gl = { pzg.Operator, (uint16_t) pzg.Amount };
 
                             Size += Write(&gl, sizeof(gl));
                         }
@@ -256,7 +256,7 @@ void writer_t::Process(const soundfont_writer_options_t & options, bank_t & bank
                         {
                             for (const auto & izm : bank.InstrumentModulators)
                             {
-                                const sfInstModList iml = { izm.sfModSrcOper, izm.sfModDestOper, izm.modAmount, izm.sfModAmtSrcOper, izm.sfModTransOper };
+                                const sfInstModList iml = { izm.SrcOper, izm.DstOper, izm.Amount, izm.SrcOperAmt, izm.TransformOper };
 
                                 Size += Write(&iml, sizeof(iml));
                             }
@@ -271,7 +271,7 @@ void writer_t::Process(const soundfont_writer_options_t & options, bank_t & bank
 
                         for (const auto & izg : bank.InstrumentGenerators)
                         {
-                            const sfInstGenList igl = { izg.Operator, izg.Amount };
+                            const sfInstGenList igl = { izg.Operator, (uint16_t) izg.Amount };
 
                             Size += Write(&igl, sizeof(igl));
                         }

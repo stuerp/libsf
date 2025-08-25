@@ -274,7 +274,7 @@ void reader_t::Process(const soundfont_reader_options_t & options, bank_t & bank
                     {
                         Read(&Modulator, sizeof(Modulator));
 
-                        bank.PresetModulators[i] = modulator_t(Modulator.SrcOperator, Modulator.DstOperator, Modulator.Amount, Modulator.AmountSource, Modulator.SourceTransform);
+                        bank.PresetModulators[i] = modulator_t((ModulatorOperator) Modulator.SrcOperator, (GeneratorOperator) Modulator.DstOperator, Modulator.Amount, (ModulatorOperator) Modulator.AmountSource, (TransformOperator) Modulator.SourceTransform);
 
                         #ifdef __TRACE
                         ::printf("%*s%5zu. Src Op: 0x%04X, Dst Op: 0x%04X, Amount: %6d, Amount Source: 0x%04X, Source Transform: 0x%04X\n", __TRACE_LEVEL * 2, "", i,
@@ -384,7 +384,7 @@ void reader_t::Process(const soundfont_reader_options_t & options, bank_t & bank
                     {
                         Read(&Modulator, sizeof(Modulator));
 
-                        bank.InstrumentModulators[i] = modulator_t(Modulator.SrcOperator, Modulator.DstOperator, Modulator.Amount, Modulator.AmountSource, Modulator.SourceTransform);
+                        bank.InstrumentModulators[i] = modulator_t((ModulatorOperator) Modulator.SrcOperator, (GeneratorOperator) Modulator.DstOperator, Modulator.Amount, (ModulatorOperator) Modulator.AmountSource, (TransformOperator) Modulator.SourceTransform);
 
                         #ifdef __TRACE
                         ::printf("%*s%5zu. Src Op: 0x%04X, Dst Op: %2d, Amount: %6d, Amount Source: 0x%04X, Source Transform: 0x%04X\n", __TRACE_LEVEL * 2, "", i,
