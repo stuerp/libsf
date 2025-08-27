@@ -1,11 +1,12 @@
 
-/** $VER: Soundfont.h (2025.08.25) P. Stuer - Soundfont data types **/
+/** $VER: Soundfont.h (2025.08.26) P. Stuer - Soundfont data types **/
 
 #pragma once
 
 #include "pch.h"
 
 #include "BaseTypes.h"
+#include "DLS.h"
 
 namespace sf
 {
@@ -71,7 +72,7 @@ class generator_t
 {
 public:
     generator_t() noexcept : Operator(), Amount() { }
-    generator_t(uint16_t oper, uint16_t amount) noexcept : Operator(oper), Amount(amount) { }
+    generator_t(uint16_t oper, uint16_t amount) noexcept : Operator(oper), Amount((int16_t) amount) { }
 
 public:
     uint16_t Operator;          // The operator

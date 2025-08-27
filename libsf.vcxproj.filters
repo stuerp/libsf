@@ -26,6 +26,7 @@
     <ClInclude Include="src\SoundFontWriter.h" />
     <ClInclude Include="src\Waveset.h" />
     <ClInclude Include="src\Encoding.h" />
+    <ClInclude Include="src\Support.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="src\cpp.hint" />

@@ -1,5 +1,5 @@
 
-/** $VER: SoundFont.cpp (2025.08.24) P. Stuer **/
+/** $VER: SoundFont.cpp (2025.08.27) P. Stuer **/
 
 #include "pch.h"
 
@@ -130,11 +130,10 @@ void bank_t::ConvertFrom(const dls::collection_t & collection)
 
                     // Add an Initial Attenuation generator.
                     {
-                        // Convert gain from 1/655360 dB units to dB.
+                        // Convert DLS gain from 1/655360 dB units to SF2 centibels with EMU correction (0.4).
                         const double Attenuation = ((Wave.WaveSample.Gain / -655360.) * 10.) / 0.4;
 
                         InstrumentGenerators.push_back(sf::generator_t(GeneratorOperator::initialAttenuation, (uint16_t) Attenuation));
-
                     }
 
                     InstrumentGenerators.push_back(sf::generator_t(GeneratorOperator::sampleID, SampleID));                                             // Must be the last generator.
@@ -244,9 +243,10 @@ void bank_t::ConvertArticulators(const std::vector<dls::articulator_t> & articul
                         // Generic Destinations (Level 1)
                         case CONN_DST_ATTENUATION: // CONN_DST_GAIN
                         {
-                            Amount = -Value * 25; // Convert to centibels and apply EMU correction.
+                            // Convert DLS gain from 1/655360 dB units to SF2 centibels with EMU correction (0.4).
+                            const double Attenuation = ((ConnectionBlock.Scale / -655360.) * 10.) / 0.4;
 
-                            generators.push_back(sf::generator_t(GeneratorOperator::initialAttenuation, (uint16_t) Amount));
+                            generators.push_back(sf::generator_t(GeneratorOperator::initialAttenuation, (uint16_t) Attenuation));
                             break;
                         }
 
@@ -467,8 +467,7 @@ void bank_t::ConvertArticulators(const std::vector<dls::articulator_t> & articul
 /// </summary>
 static void ApplyKeyNumToCorrection(std::vector<sf::generator_t> & generators, int16_t amount, GeneratorOperator keynumToOperator, GeneratorOperator realOperator)
 {
-    // According to Vienna and another strange (with modulators) conversion of GM.dls to SF2,
-    // it shall be divided by -128 and a strange correction needs to be applied to the real value: real + (60 / 128) * scale
+    // According to Viena and another strange (with modulators) conversion of GM.dls to SF2, amount must be divided by -128 and a strange correction needs to be applied to the real value: real + (60 / 128) * scale
     const int16_t keynumToAmount = amount / -128;
 
     generators.push_back(generator_t(keynumToOperator, keynumToAmount));
@@ -567,9 +566,7 @@ void bank_t::ConvertConnectionBlockToModulator(const dls::connection_block_t & c
     }
 
     if (dstOper == GeneratorOperator::initialAttenuation)
-    {
-        Amount = std::max((int16_t) 960, std::min((int16_t) 0, Amount));
-    }
+        Amount = Clamp(Amount, (int16_t) 0, (int16_t) 1440);
 
     uint16_t srcOperAmtTransform  = connectionBlock.Transform & 0x00F0;
     uint16_t srcOperAmtIsBipolar  = connectionBlock.Transform & 0x0100;

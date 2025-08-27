@@ -81,7 +81,7 @@ enum GeneratorOperator : uint16_t
     startloopAddrsCoarseOffset = 45,    // sample control - moves sample loop start point in 32,768 increments
     keyNum = 46,                        // zone - instrument only = always use this midi number (ignore what's pressed)
     velocity = 47,                      // zone - instrument only = always use this velocity (ignore what's pressed)
-    initialAttenuation = 48,            // zone - allows turning down the volume, 10 = -1dB
+    initialAttenuation = 48,            // Attenuation in centibels. A value of 60 indicates the note will be played at 6 dB below full scale for the note.
 
     reserved2 = 49,                     // Reserved
 

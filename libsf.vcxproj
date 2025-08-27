@@ -200,6 +200,7 @@
     <ClInclude Include="src\SoundFont.h" />
     <ClInclude Include="src\SoundFontReader.h" />
     <ClInclude Include="src\SoundFontWriter.h" />
+    <ClInclude Include="src\Support.h" />
     <ClInclude Include="src\Waveset.h" />
   </ItemGroup>
   <ItemGroup>

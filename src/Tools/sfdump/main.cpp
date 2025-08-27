@@ -295,7 +295,7 @@ static void ProcessSF(const fs::path & filePath)
 
         for (const auto & Generator : Bank.PresetGenerators)
         {
-            ::printf("%*s%5zu. Operator: 0x%04X, Amount: 0x%04X, \"%s\"\n", __TRACE_LEVEL * 4, "", i++,
+            ::printf("%*sZone %5zu. Operator: 0x%04X, Amount: 0x%04X, \"%s\"\n", __TRACE_LEVEL * 4, "", i++,
                 Generator.Operator, Generator.Amount, Bank.DescribeGenerator(Generator.Operator, Generator.Amount).c_str());
 
             // 8.1.2 Should only appear in the PGEN sub-chunk, and it must appear as the last generator enumerator in all but the global preset zone.
@@ -325,7 +325,7 @@ static void ProcessSF(const fs::path & filePath)
 
         for (const auto & iz : Bank.InstrumentZones)
         {
-            ::printf("%*s%5zu. Generator %5d, Modulator %5d\n", __TRACE_LEVEL * 4, "", i++, iz.GeneratorIndex, iz.ModulatorIndex);
+            ::printf("%*sZone %5zu. Generator %5d, Modulator %5d\n", __TRACE_LEVEL * 4, "", i++, iz.GeneratorIndex, iz.ModulatorIndex);
         }
 
         __TRACE_LEVEL--;
@@ -1072,7 +1072,7 @@ static void DumpPresetZoneList(const bank_t & bank, size_t fromIndex, size_t toI
             ((z1.GeneratorIndex == z2.GeneratorIndex) ||
              (z1.GeneratorIndex < z2.GeneratorIndex) && (bank.PresetGenerators[z2.GeneratorIndex - 1].Operator != GeneratorOperator::instrument));
 
-        ::printf("%*s%5zu. Generator: %d, Modulator: %d%s\n", __TRACE_LEVEL * 4, "", Index,
+        ::printf("%*sZone %5zu. Generator: %d, Modulator: %d%s\n", __TRACE_LEVEL * 4, "", Index,
             z1.GeneratorIndex, z1.ModulatorIndex,
             (IsGlobalZone ? " (Global zone)" : ""));
 
