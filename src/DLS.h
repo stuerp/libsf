@@ -1,5 +1,5 @@
 
-/** $VER: DLS.h (2025.08.27) P. Stuer - DLS data types (Based on "Downloadable Sounds Level 2.2 Version 1.0", April 2006) **/
+/** $VER: DLS.h (2025.08.29) P. Stuer - DLS data types (Based on "Downloadable Sounds Level 2.2 Version 1.0", April 2006) **/
 
 #pragma once
 
@@ -27,7 +27,7 @@ public:
     uint16_t Control;       // Specifies the control for the connection. (usDestination)
     uint16_t Destination;   // Specifies the destination for the connection. (usTransform)
     uint16_t Transform;     // Specifies the input and output transforms used for the connection. (usTransform)
-    int32_t Scale;          // Specifies the scaling value used for the connection. (lScale)
+     int32_t Scale;         // Specifies the scaling value used for the connection. (lScale)
 };
 
 /// <summary>
@@ -83,14 +83,14 @@ public:
 class wave_sample_t
 {
 public:
-    wave_sample_t() noexcept : UnityNote(~0), FineTune(), Gain(), Options() { }
+    wave_sample_t() noexcept : UnityNote(0xFFFF), FineTune(), Gain(), Options() { }
 
-    bool IsInitialized() const noexcept { return (UnityNote != ~0); }
+    bool IsInitialized() const noexcept { return (UnityNote != 0xFFFF); }
 
 public:
     uint16_t UnityNote; // Specifies the MIDI note which will replay the sample at original pitch. This value ranges from 0 to 127 (a value of 60 represents Middle C, as defined by the MIDI specification).
-    int16_t FineTune;   // Specifies the tuning offset from the UnityNote in 16 bit relative pitch.
-    int32_t Gain;       // Specifies the gain to be applied to this sample in 32 bit relative gain units. This is used primarily to balance multi-sample splits.
+     int16_t FineTune;  // Specifies the tuning offset from the UnityNote in 16 bit relative pitch.
+     int32_t Gain;      // Specifies the gain to be applied to this sample in 32 bit relative gain units. This is used primarily to balance multi-sample splits.
     uint32_t Options;   // Specifies flag options for the digital audio sample. Flags are defined for disabling 16 bit to 8-bit truncation of samples and compression of samples by the driver.
 
     std::vector<wave_sample_loop_t> Loops;

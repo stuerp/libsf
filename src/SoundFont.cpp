@@ -18,7 +18,7 @@ void bank_t::ConvertFrom(const dls::collection_t & collection)
 {
     Major       = 2;
     Minor       = 4;
-    SoundEngine = "E-mu 10K1";
+    SoundEngine = "E-mu 10K2"; // https://en.wikipedia.org/wiki/E-mu_20K
     Name        = GetPropertyValue(collection.Properties, FOURCC_INAM);
 
     {
@@ -72,16 +72,32 @@ void bank_t::ConvertFrom(const dls::collection_t & collection)
 
                 Instruments.push_back(sf::instrument_t(InstrumentName, (uint16_t) InstrumentZones.size()));
 
-                // Convert the instrument articulators, if any.
-                if (!Instrument.Articulators.empty())
+                // Add a global instrument zone.
+                InstrumentZones.push_back(instrument_zone_t((uint16_t) InstrumentGenerators.size(), (uint16_t) InstrumentModulators.size()));
+
                 {
                     std::vector<generator_t> Generators;
                     std::vector<modulator_t> Modulators;
 
-                    ConvertArticulators(Instrument.Articulators, Generators, Modulators);
+                    // Convert the instrument articulators, if any.
+                    if (!Instrument.Articulators.empty())
+                        ConvertArticulators(Instrument.Articulators, Generators, Modulators);
 
-                    // Add a global instrument zone.
-                    InstrumentZones.push_back(instrument_zone_t((uint16_t) InstrumentGenerators.size(), (uint16_t) InstrumentModulators.size()));
+                    // Add a default reverb modulator if none was added yet.
+                    {
+                        auto it = std::find_if(Modulators.begin(), Modulators.end(), [](modulator_t m) { return (m.DstOper == GeneratorOperator::reverbEffectsSend); });
+
+                        if (it == Modulators.end())
+                            Modulators.push_back(modulator_t(0x00DB, GeneratorOperator::reverbEffectsSend, 1000, 0, 0));
+                    }
+
+                    // Add a default chorus modulator if none was added yet.
+                    {
+                        auto it = std::find_if(Modulators.begin(), Modulators.end(), [](modulator_t m) { return (m.DstOper == GeneratorOperator::chorusEffectsSend); });
+
+                        if (it == Modulators.end())
+                            Modulators.push_back(modulator_t(0x00DB, GeneratorOperator::chorusEffectsSend, 1000, 0, 0));
+                    }
 
                     InstrumentGenerators.insert(InstrumentGenerators.end(), Generators.begin(), Generators.end());
                     InstrumentModulators.insert(InstrumentModulators.end(), Modulators.begin(), Modulators.end());
@@ -112,6 +128,25 @@ void bank_t::ConvertFrom(const dls::collection_t & collection)
 
                     const auto & Wave = collection.Waves[SampleID];
 
+                    // Add an Initial Attenuation generator.
+                    {
+                        // Decide which gain value to use (3.1 Coding Requirements and Recommendations)
+                        int32_t Gain = 0;
+
+                        if (Region.WaveSample.IsInitialized())
+                            Gain = Region.WaveSample.Gain;
+                        else
+                        if (Wave.WaveSample.IsInitialized())
+                            Gain = Wave.WaveSample.Gain;
+
+                        const double EmuCorrection = 0.4;
+
+                        // Convert DLS gain from 1/655360 dB units to SF2 centibels. (See 1.14.4 Gain)
+                        const double Attenuation = ((double) Gain / -65536.) / EmuCorrection;
+
+                        InstrumentGenerators.push_back(sf::generator_t(GeneratorOperator::initialAttenuation, (uint16_t) Attenuation));
+                    }
+
                     // Add a Sample Mode generator.
                     {
                         uint16_t SampleMode = 0; // No loop
@@ -124,26 +159,30 @@ void bank_t::ConvertFrom(const dls::collection_t & collection)
                             if (Wave.WaveSample.Loops[0].Type == dls::wave_sample_loop_t::WLOOP_TYPE_RELEASE)
                                 SampleMode = 3; // Loop and play till the end in release phase
                         }
-            
-                        InstrumentGenerators.push_back(sf::generator_t(GeneratorOperator::sampleModes, SampleMode));
+
+                        if (SampleMode != 0)            
+                            InstrumentGenerators.push_back(sf::generator_t(GeneratorOperator::sampleModes, SampleMode));
                     }
 
-                    // Add an Initial Attenuation generator.
+                    // Add tuning generators if necessary.
                     {
-                        // Decide which gain value to use (3.1Coding Requirements and Recommendations)
-                        int32_t Gain = 0;
+                        // correct tuning if needed
+                        int16_t FineTune = Region.WaveSample.FineTune - Wave.WaveSample.FineTune;
 
-                        if (Region.WaveSample.IsInitialized())
-                            Gain = Region.WaveSample.Gain;
-                        else
-                        if (Wave.WaveSample.IsInitialized())
-                            Gain = Wave.WaveSample.Gain;
+                        int16_t CoarseTune = FineTune / 100;
 
-                        // Convert DLS gain from 1/655360 dB units to SF2 centibels with EMU correction (0.4).
-                        const double Attenuation = ((double) Gain / -65536.) / 0.4;
+                        if (CoarseTune != 0)
+                            InstrumentGenerators.push_back(sf::generator_t(GeneratorOperator::coarseTune, (uint16_t) CoarseTune));
 
-                        InstrumentGenerators.push_back(sf::generator_t(GeneratorOperator::initialAttenuation, (uint16_t) Attenuation));
+                        FineTune = Region.WaveSample.FineTune - (CoarseTune * 100);
+
+                        if (FineTune != 0)
+                            InstrumentGenerators.push_back(sf::generator_t(GeneratorOperator::fineTune, FineTune));
                     }
+
+                    // Override the root key if necessary.
+                    if (Region.WaveSample.UnityNote != Wave.WaveSample.UnityNote)
+                        InstrumentGenerators.push_back(sf::generator_t(GeneratorOperator::overridingRootKey, Region.WaveSample.UnityNote));
 
                     InstrumentGenerators.push_back(sf::generator_t(GeneratorOperator::sampleID, SampleID));                                             // Must be the last generator.
                 }
@@ -192,6 +231,12 @@ void bank_t::ConvertFrom(const dls::collection_t & collection)
 
                 const auto BytesPerSample = wave.BitsPerSample >> 3;
 
+                // Pitch correction: convert 1/100 to the root key.
+                const  int16_t Semitones = wave.WaveSample.FineTune / 100;                  // FineTune in Relative Pitch units (1/65536 cents) (See 1.14.2 Relative Pitch)
+
+                const uint16_t UnityNote = wave.WaveSample.UnityNote + Semitones;
+                const  int16_t FineTune  = wave.WaveSample.FineTune  - (Semitones * 100);   // FineTune in cents
+
                 sf::sample_t Sample =
                 {
                     .Name            = wave.Name,
@@ -200,8 +245,8 @@ void bank_t::ConvertFrom(const dls::collection_t & collection)
                     .End             = (uint32_t) ((Offset + wave.Data.size()) / BytesPerSample),
 
                     .SampleRate      = wave.SamplesPerSec,
-                    .Pitch           = (uint8_t) wave.WaveSample.UnityNote,
-                    .PitchCorrection =  (int8_t) wave.WaveSample.FineTune,
+                    .Pitch           = (uint8_t) UnityNote,
+                    .PitchCorrection =  (int8_t) FineTune,
 
                     .SampleType      = sf::SampleTypes::MonoSample
                 };
@@ -467,6 +512,7 @@ void bank_t::ConvertArticulators(const std::vector<dls::articulator_t> & articul
     {
         return g.Amount != sf::GeneratorLimits.at((GeneratorOperator) g.Operator).Default;
     });
+
 
     generators = FilteredGenerators;
 }
