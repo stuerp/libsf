@@ -834,7 +834,7 @@ void reader_t::ReadWave(const riff::chunk_header_t & ch, wave_t & wave)
                 break;
             }
 
-            // The Wave Sample chunk describes the minimum necessary information needed to allow a synthesis engine to use a WAVE chunk.
+            // The Wave Sample chunk describes the minimum necessary information needed to allow a synthesis engine to use a WAVE chunk. (Optional)
             case FOURCC_WSMP:
             {
                 ReadWaveSample(ch, wave.WaveSample);

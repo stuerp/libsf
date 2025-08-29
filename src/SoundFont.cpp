@@ -130,8 +130,17 @@ void bank_t::ConvertFrom(const dls::collection_t & collection)
 
                     // Add an Initial Attenuation generator.
                     {
+                        // Decide which gain value to use (3.1Coding Requirements and Recommendations)
+                        int32_t Gain = 0;
+
+                        if (Region.WaveSample.IsInitialized())
+                            Gain = Region.WaveSample.Gain;
+                        else
+                        if (Wave.WaveSample.IsInitialized())
+                            Gain = Wave.WaveSample.Gain;
+
                         // Convert DLS gain from 1/655360 dB units to SF2 centibels with EMU correction (0.4).
-                        const double Attenuation = ((Wave.WaveSample.Gain / -655360.) * 10.) / 0.4;
+                        const double Attenuation = ((double) Gain / -65536.) / 0.4;
 
                         InstrumentGenerators.push_back(sf::generator_t(GeneratorOperator::initialAttenuation, (uint16_t) Attenuation));
                     }

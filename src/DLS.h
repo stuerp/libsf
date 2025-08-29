@@ -1,5 +1,5 @@
 
-/** $VER: DLS.h (2025.08.22) P. Stuer - DLS data types (Based on "Downloadable Sounds Level 2.2 Version 1.0", April 2006) **/
+/** $VER: DLS.h (2025.08.27) P. Stuer - DLS data types (Based on "Downloadable Sounds Level 2.2 Version 1.0", April 2006) **/
 
 #pragma once
 
@@ -83,7 +83,9 @@ public:
 class wave_sample_t
 {
 public:
-    wave_sample_t() noexcept : UnityNote(60), FineTune(), Gain(), Options() { }
+    wave_sample_t() noexcept : UnityNote(~0), FineTune(), Gain(), Options() { }
+
+    bool IsInitialized() const noexcept { return (UnityNote != ~0); }
 
 public:
     uint16_t UnityNote; // Specifies the MIDI note which will replay the sample at original pitch. This value ranges from 0 to 127 (a value of 60 represents Middle C, as defined by the MIDI specification).
