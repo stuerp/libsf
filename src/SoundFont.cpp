@@ -83,7 +83,7 @@ void bank_t::ConvertFrom(const dls::collection_t & collection)
                     if (!Instrument.Articulators.empty())
                         ConvertArticulators(Instrument.Articulators, Generators, Modulators);
 
-                    // Add a default reverb modulator if none was added yet.
+                    // Add a default reverb modulator unless one already exists.
                     {
                         auto it = std::find_if(Modulators.begin(), Modulators.end(), [](modulator_t m) { return (m.DstOper == GeneratorOperator::reverbEffectsSend); });
 
@@ -91,7 +91,7 @@ void bank_t::ConvertFrom(const dls::collection_t & collection)
                             Modulators.push_back(modulator_t(0x00DB, GeneratorOperator::reverbEffectsSend, 1000, 0, 0));
                     }
 
-                    // Add a default chorus modulator if none was added yet.
+                    // Add a default chorus modulator unless one already exists.
                     {
                         auto it = std::find_if(Modulators.begin(), Modulators.end(), [](modulator_t m) { return (m.DstOper == GeneratorOperator::chorusEffectsSend); });
 
@@ -103,9 +103,10 @@ void bank_t::ConvertFrom(const dls::collection_t & collection)
                     InstrumentModulators.insert(InstrumentModulators.end(), Modulators.begin(), Modulators.end());
                 }
 
-                // Conver the regions to zones.
+                // Convert the regions to zones.
                 for (const auto & Region : Instrument.Regions)
                 {
+                    // Add a local instrument zone.
                     InstrumentZones.push_back(instrument_zone_t((uint16_t) InstrumentGenerators.size(), (uint16_t) InstrumentModulators.size()));
 
                     InstrumentGenerators.push_back(sf::generator_t(GeneratorOperator::keyRange, MAKEWORD(Region.LowKey,      Region.HighKey)));         // Must be the first generator.
@@ -123,14 +124,14 @@ void bank_t::ConvertFrom(const dls::collection_t & collection)
                         InstrumentModulators.insert(InstrumentModulators.end(), Modulators.begin(), Modulators.end());
                     }
 
-                    // dls.Cues[CueIndex] is actually an offset in the wave pool but we can use the cue index as an index into the sample list.
+                    // dls.Cues[CueIndex] is actually an offset in the wave pool but we can use the cue index as an index into the wave list.
                     const uint16_t SampleID = (uint16_t) Region.WaveLink.CueIndex;
 
                     const auto & Wave = collection.Waves[SampleID];
 
                     // Add an Initial Attenuation generator.
                     {
-                        // Decide which gain value to use (3.1 Coding Requirements and Recommendations)
+                        // Decide which gain value to use. (See DLS Spec 3.1 Coding Requirements and Recommendations)
                         int32_t Gain = 0;
 
                         if (Region.WaveSample.IsInitialized())
@@ -141,7 +142,7 @@ void bank_t::ConvertFrom(const dls::collection_t & collection)
 
                         const double EmuCorrection = 0.4;
 
-                        // Convert DLS gain from 1/655360 dB units to SF2 centibels. (See 1.14.4 Gain)
+                        // Convert DLS gain from 1/655360 dB units to SF2 attenuation in centibels. (See DLS Spec 1.14.4 Gain)
                         const double Attenuation = ((double) Gain / -65536.) / EmuCorrection;
 
                         InstrumentGenerators.push_back(sf::generator_t(GeneratorOperator::initialAttenuation, (uint16_t) Attenuation));
@@ -160,11 +161,46 @@ void bank_t::ConvertFrom(const dls::collection_t & collection)
                                 SampleMode = 3; // Loop and play till the end in release phase
                         }
 
-                        if (SampleMode != 0)            
+                        if (SampleMode != 0)
+                        {
                             InstrumentGenerators.push_back(sf::generator_t(GeneratorOperator::sampleModes, SampleMode));
+
+                            // Adjust the loop if necessary.
+                            {
+                                const auto & SrcLoop = Wave  .WaveSample.Loops[0];
+                                const auto & DstLoop = Region.WaveSample.Loops[0];
+
+                                const int32_t StartDiff = DstLoop.Start - SrcLoop.Start;
+                                const int32_t EndDiff   = (DstLoop.Start + DstLoop.Length) - (SrcLoop.Start + SrcLoop.Length);
+
+                                if (StartDiff != 0)
+                                {
+                                    const int32_t CoarseOffset = StartDiff / 32768;
+
+                                    if (CoarseOffset != 0)
+                                        InstrumentGenerators.push_back(sf::generator_t(GeneratorOperator::startloopAddrsCoarseOffset, (uint16_t) CoarseOffset));
+
+                                    const int32_t FineOffset = StartDiff % 32768;
+
+                                    InstrumentGenerators.push_back(sf::generator_t(GeneratorOperator::startloopAddrsOffset, (uint16_t) FineOffset));
+                                }
+
+                                if (EndDiff != 0)
+                                {
+                                    const int32_t CoarseOffset = EndDiff / 32768;
+
+                                    if (CoarseOffset != 0)
+                                        InstrumentGenerators.push_back(sf::generator_t(GeneratorOperator::endloopAddrsCoarseOffset, (uint16_t) CoarseOffset));
+
+                                    const int32_t FineOffset = EndDiff % 32768;
+
+                                    InstrumentGenerators.push_back(sf::generator_t(GeneratorOperator::endloopAddrsOffset, (uint16_t) FineOffset));
+                                }
+                            }
+                        }
                     }
 
-                    // Add tuning generators if necessary.
+                    // Adjust the tuning if necessary.
                     {
                         // correct tuning if needed
                         int16_t FineTune = Region.WaveSample.FineTune - Wave.WaveSample.FineTune;
@@ -174,13 +210,13 @@ void bank_t::ConvertFrom(const dls::collection_t & collection)
                         if (CoarseTune != 0)
                             InstrumentGenerators.push_back(sf::generator_t(GeneratorOperator::coarseTune, (uint16_t) CoarseTune));
 
-                        FineTune = Region.WaveSample.FineTune - (CoarseTune * 100);
+                        FineTune = FineTune % 100;
 
                         if (FineTune != 0)
                             InstrumentGenerators.push_back(sf::generator_t(GeneratorOperator::fineTune, FineTune));
                     }
 
-                    // Override the root key if necessary.
+                    // Adjust the root key if necessary.
                     if (Region.WaveSample.UnityNote != Wave.WaveSample.UnityNote)
                         InstrumentGenerators.push_back(sf::generator_t(GeneratorOperator::overridingRootKey, Region.WaveSample.UnityNote));
 
@@ -232,10 +268,10 @@ void bank_t::ConvertFrom(const dls::collection_t & collection)
                 const auto BytesPerSample = wave.BitsPerSample >> 3;
 
                 // Pitch correction: convert 1/100 to the root key.
-                const  int16_t Semitones = wave.WaveSample.FineTune / 100;                  // FineTune in Relative Pitch units (1/65536 cents) (See 1.14.2 Relative Pitch)
+                const  int16_t Semitones = wave.WaveSample.FineTune / 100;          // FineTune in Relative Pitch units (1/65536 cents) (See 1.14.2 Relative Pitch)
 
                 const uint16_t UnityNote = wave.WaveSample.UnityNote + Semitones;
-                const  int16_t FineTune  = wave.WaveSample.FineTune  - (Semitones * 100);   // FineTune in cents
+                const  int16_t FineTune  = wave.WaveSample.FineTune % 100;          // FineTune in cents
 
                 sf::sample_t Sample =
                 {
