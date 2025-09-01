@@ -1,5 +1,5 @@
 
-/** $VER: Support.h (2024.05.03) P. Stuer **/
+/** $VER: Support.h (2025.09.01) P. Stuer **/
 
 #pragma once
 
@@ -24,4 +24,13 @@ template <class T>
 inline static T InRange(T value, T minValue, T maxValue)
 {
     return (minValue <= value) && (value <= maxValue);
+}
+
+/// <summary>
+/// Maps a value from one range (srcMin, srcMax) to another (dstMin, dstMax).
+/// </summary>
+template<class T, class U>
+inline static U Map(T value, T srcMin, T srcMax, U dstMin, U dstMax)
+{
+    return dstMin + (U) (((double) (value - srcMin) * (double) (dstMax - dstMin)) / (double) (srcMax - srcMin));
 }

@@ -1,5 +1,5 @@
 
-/** $VER: DLSReader.cpp (2025.08.22) P. Stuer - Implements a reader for a DLS-compliant sound font. **/
+/** $VER: DLSReader.cpp (2025.09.01) P. Stuer - Implements a reader for a DLS-compliant sound font. **/
 
 #include "pch.h"
 
@@ -824,6 +824,9 @@ void reader_t::ReadWave(const riff::chunk_header_t & ch, wave_t & wave)
                     #ifdef __DEEP_TRACE
                     ::printf("%*sBitsPerSample: %d\n", __TRACE_LEVEL * 2, "", wave.BitsPerSample);
                     #endif
+
+                    if ((wave.BitsPerSample != 8) && (wave.BitsPerSample != 16))
+                        throw sf::exception(FormatText("%d-bit samples are not supported.", wave.BitsPerSample));
                 }
                 else
                     throw sf::exception("Unknown wave data format");

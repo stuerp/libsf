@@ -1,5 +1,5 @@
 
-/** $VER: SoundFont.cpp (2025.08.27) P. Stuer **/
+/** $VER: SoundFont.cpp (2025.08.31) P. Stuer **/
 
 #include "pch.h"
 
@@ -166,6 +166,7 @@ void bank_t::ConvertFrom(const dls::collection_t & collection)
                             InstrumentGenerators.push_back(sf::generator_t(GeneratorOperator::sampleModes, SampleMode));
 
                             // Adjust the loop if necessary.
+                            if (!Wave.WaveSample.Loops.empty() && !Region.WaveSample.Loops.empty())
                             {
                                 const auto & SrcLoop = Wave  .WaveSample.Loops[0];
                                 const auto & DstLoop = Region.WaveSample.Loops[0];
@@ -202,7 +203,6 @@ void bank_t::ConvertFrom(const dls::collection_t & collection)
 
                     // Adjust the tuning if necessary.
                     {
-                        // correct tuning if needed
                         int16_t FineTune = Region.WaveSample.FineTune - Wave.WaveSample.FineTune;
 
                         int16_t CoarseTune = FineTune / 100;
@@ -248,10 +248,13 @@ void bank_t::ConvertFrom(const dls::collection_t & collection)
                 for (const auto & wave : collection.Waves)
                 {
                     // FIXME: Support stereo samples
-                    if (wave.Channels != 1)
+                    if ((wave.Channels != 1) || ((wave.BitsPerSample != 8) && (wave.BitsPerSample != 16)))
                         continue;
 
-                    Size += wave.Data.size();
+                    if (wave.BitsPerSample == 16)
+                        Size += wave.Data.size();
+                    else
+                        Size += wave.Data.size() * 2; // Reserve space for conversion to 16-bit. 
                 }
 
                 SampleData.resize(Size);
@@ -262,12 +265,14 @@ void bank_t::ConvertFrom(const dls::collection_t & collection)
             for (const auto & wave : collection.Waves)
             {
                 // FIXME: Support stereo samples
-                if (wave.Channels != 1)
+                if ((wave.Channels != 1) || ((wave.BitsPerSample != 8) && (wave.BitsPerSample != 16)))
                     continue;
 
-                const auto BytesPerSample = wave.BitsPerSample >> 3;
+                const size_t DataSize = (wave.BitsPerSample == 16) ? wave.Data.size() : wave.Data.size() * 2;
 
-                // Pitch correction: convert 1/100 to the root key.
+                const auto BytesPerSample = 2;                                      // SF2 samples are always 16-bit (SoundFont 2.01 Technical Specification, 6 The sdta-list Chunk)
+
+                // Pitch correction: convert 1/100 to note units.
                 const  int16_t Semitones = wave.WaveSample.FineTune / 100;          // FineTune in Relative Pitch units (1/65536 cents) (See 1.14.2 Relative Pitch)
 
                 const uint16_t UnityNote = wave.WaveSample.UnityNote + Semitones;
@@ -277,8 +282,8 @@ void bank_t::ConvertFrom(const dls::collection_t & collection)
                 {
                     .Name            = wave.Name,
 
-                    .Start           = (uint32_t) ( Offset                     / BytesPerSample),
-                    .End             = (uint32_t) ((Offset + wave.Data.size()) / BytesPerSample),
+                    .Start           = (uint32_t) ( Offset             / BytesPerSample),
+                    .End             = (uint32_t) ((Offset + DataSize) / BytesPerSample),
 
                     .SampleRate      = wave.SamplesPerSec,
                     .Pitch           = (uint8_t) UnityNote,
@@ -287,10 +292,22 @@ void bank_t::ConvertFrom(const dls::collection_t & collection)
                     .SampleType      = sf::SampleTypes::MonoSample
                 };
 
-                std::memcpy(SampleData.data() + Offset, wave.Data.data(), wave.Data.size());
-                Offset += wave.Data.size();
+                if (wave.BitsPerSample == 16)
+                {
+                    std::memcpy(SampleData.data() + Offset, wave.Data.data(), wave.Data.size());
+                }
+                else
+                {
+                    // Convert 8-bit samples to 16-bit (Downloadable Sounds Level 2.2, 2.16.8 Data Format of the WAVE_FORMAT_PCM Samples).
+                    auto Ptr = (int16_t *) (SampleData.data() + Offset);
 
-                if (wave.WaveSample.Loops.size() != 0)
+                    for (const auto Byte : wave.Data)
+                        *Ptr++ = Map(Byte, (uint8_t) 0, (uint8_t) 255, (int16_t) -32768, (int16_t) 32767);
+                }
+
+                Offset += DataSize;
+
+                if (!wave.WaveSample.Loops.empty())
                 {
                     const auto & Loop = wave.WaveSample.Loops[0];
 
