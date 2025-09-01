@@ -52,7 +52,7 @@ static std::string trim(const std::string & s)
 /// <summary>
 /// Processes the complete sound font.
 /// </summary>
-void reader_t::Process(const reader_options_t & options, collection_t & dls)
+void reader_t::Process(collection_t & dls, const reader_options_t & options)
 {
     _Options = options;
 

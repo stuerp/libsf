@@ -1,5 +1,5 @@
 
-/** $VER: SoundFontWriter.h (2025.07.27) P. Stuer **/
+/** $VER: SoundFontWriter.h (2025.09.01) P. Stuer **/
 
 #pragma once
 
@@ -47,7 +47,7 @@ class writer_t : public soundfont_writer_base_t
 public:
     writer_t() noexcept : soundfont_writer_base_t() { }
 
-    void Process(const soundfont_writer_options_t & options, bank_t & sf);
+    void Process(const bank_t & sf, const soundfont_writer_options_t & options = { });
 };
 
 }

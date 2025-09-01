@@ -1,5 +1,5 @@
 
-/** $VER: DLSReader.h (2025.08.22) P. Stuer - Implements a reader for a DLS (Level 1 or 2)-compliant collection. **/
+/** $VER: DLSReader.h (2025.09.01) P. Stuer - Implements a reader for a DLS (Level 1 or 2)-compliant collection. **/
 
 #pragma once
 
@@ -46,7 +46,11 @@ namespace sf::dls
 
 struct reader_options_t
 {
-    bool ReadSampleData = true;
+    reader_options_t() { reader_options_t(true); }
+
+    reader_options_t(bool readSampleData) : ReadSampleData(readSampleData) { }
+
+    bool ReadSampleData;
 };
 
 constexpr uint32_t F_INSTRUMENT_DRUMS = 0x80000000;
@@ -56,7 +60,7 @@ class reader_t : public soundfont_reader_base_t
 public:
     reader_t() noexcept : soundfont_reader_base_t() { }
 
-    void Process(const reader_options_t & options, collection_t & dls);
+    void Process(collection_t & dls, const reader_options_t & options);
 
 private:
     void ReadInstruments(const riff::chunk_header_t & ch, std::vector<instrument_t> & instruments);

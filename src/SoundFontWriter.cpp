@@ -1,5 +1,5 @@
 
-/** $VER: SoundFontWriter.cpp (2025.08.24) P. Stuer - Writes a SoundFont bank. **/
+/** $VER: SoundFontWriter.cpp (2025.09.01) P. Stuer - Writes a SoundFont bank. **/
 
 #include "pch.h"
 
@@ -14,7 +14,7 @@ using namespace sf;
 /// <summary>
 /// Writes the complete SoundFont bank.
 /// </summary>
-void writer_t::Process(const soundfont_writer_options_t & options, bank_t & bank)
+void writer_t::Process(const bank_t & bank, const soundfont_writer_options_t & options)
 {
     TRACE_RESET();
     TRACE_INDENT();
