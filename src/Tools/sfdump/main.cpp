@@ -443,7 +443,16 @@ static void ProcessDLS(const fs::path & filePath)
         sf::dls::reader_t dr;
 
         if (dr.Open(&fs, riff::reader_t::option_t::None))
-            dr.Process({ true }, dls);
+        {
+            try
+            {
+                dr.Process(dls, { true });
+            }
+            catch (std::exception & e)
+            {
+                ::printf("Failed to process \"%s\": %s\n", filePath.string().c_str(), e.what());
+            }
+        }
 
         fs.Close();
     }
@@ -571,7 +580,7 @@ static void ProcessDLS(const fs::path & filePath)
             sf::writer_t sw;
 
             if (sw.Open(&fs, riff::writer_t::Options::PolyphoneCompatible))
-                sw.Process({  }, Bank);
+                sw.Process(Bank);
 
             fs.Close();
         }
@@ -892,7 +901,7 @@ static void ProcessECW(const fs::path & filePath)
                     sf::writer_t sw;
 
                     if (sw.Open(&fs, riff::writer_t::Options::PolyphoneCompatible))
-                        sw.Process({ }, Bank);
+                        sw.Process(Bank);
 
                     fs.Close();
                 }

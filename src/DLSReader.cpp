@@ -1,5 +1,5 @@
 
-/** $VER: DLSReader.cpp (2025.09.01) P. Stuer - Implements a reader for a DLS-compliant sound font. **/
+/** $VER: DLSReader.cpp (2025.09.02) P. Stuer - Implements a reader for a DLS-compliant sound font. **/
 
 #include "pch.h"
 
@@ -924,12 +924,12 @@ void reader_t::ReadWaveSample(const riff::chunk_header_t & ch, wave_sample_t & w
 
     ws.Loops.reserve(LoopCount);
 
-    if (Size != 20)
-        Skip(Size - 20);
-
     #ifdef __DEEP_TRACE
     ::printf("%*sUnityNote: %d, FineTune: %d, Gain: %d, Options: 0x%08X, Loops: %d\n", __TRACE_LEVEL * 2, "", ws.UnityNote, ws.FineTune, ws.Gain, ws.Options, LoopCount);
     #endif
+
+    if ((Size != 0) && (Size != 20)) // Size may be 0 in corrupt files.
+        Skip(Size - 20);
 
     TRACE_INDENT();
 
@@ -945,7 +945,7 @@ void reader_t::ReadWaveSample(const riff::chunk_header_t & ch, wave_sample_t & w
         Read(LoopStart);    // Specifies the start point of the loop in samples as an absolute offset from the beginning of the data in the 'data' chunk of the sample.
         Read(LoopLength);   // Specifies the length of the loop in samples.
 
-        if (Size != 16)
+        if ((Size != 0) && (Size != 16)) // Size may be 0 in corrupt files.
             Skip(Size - 16);
 
         ws.Loops.push_back(wave_sample_loop_t(LoopType, LoopStart, LoopLength));

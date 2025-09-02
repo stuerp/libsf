@@ -3,7 +3,7 @@
 
 [libsf](https://github.com/stuerp/libsf) is a library for reading and writing soundfonts.
 
-* Read and write SoundFont 1.0 and2.x banks.
+* Read and write SoundFont 1.0 and 2.x banks.
 * Read DLS collections.
 * Read ECW wavesets. (work in progress)
 * Convert DLS collections into SF2 banks.
