@@ -12,7 +12,7 @@ using namespace sf;
 /// <summary>
 /// Reads the complete SoundFont bank.
 /// </summary>
-void reader_t::Process(const soundfont_reader_options_t & options, bank_t & bank)
+void reader_t::Process(bank_t & bank, const soundfont_reader_options_t & options)
 {
     TRACE_RESET();
     TRACE_INDENT();

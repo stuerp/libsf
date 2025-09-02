@@ -39,7 +39,11 @@ namespace sf
 
 struct soundfont_reader_options_t
 {
-    bool ReadSampleData = true;
+    soundfont_reader_options_t() { soundfont_reader_options_t(true); }
+
+    soundfont_reader_options_t(bool readSampleData) : ReadSampleData(readSampleData) { }
+
+    bool ReadSampleData;
 };
 
 class reader_t : public soundfont_reader_base_t
@@ -47,7 +51,7 @@ class reader_t : public soundfont_reader_base_t
 public:
     reader_t() noexcept : soundfont_reader_base_t() { }
 
-    void Process(const soundfont_reader_options_t & options, bank_t & sf);
+    void Process(bank_t & sf, const soundfont_reader_options_t & options);
 };
 
 }

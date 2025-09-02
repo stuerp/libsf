@@ -815,7 +815,7 @@ void reader_t::ReadWave(const riff::chunk_header_t & ch, wave_t & wave)
                     wave.FormatTag, wave.Channels, wave.SamplesPerSec, wave.AvgBytesPerSec, wave.BlockAlign);
                 #endif
 
-                if (wave.FormatTag == WAVE_FORMAT_PCM) // mmeapi.h
+                if (wave.FormatTag == WAVE_FORMAT_PCM)
                 {
                     Read(wave.BitsPerSample);
 
@@ -828,8 +828,6 @@ void reader_t::ReadWave(const riff::chunk_header_t & ch, wave_t & wave)
                     if ((wave.BitsPerSample != 8) && (wave.BitsPerSample != 16))
                         throw sf::exception(FormatText("%d-bit samples are not supported.", wave.BitsPerSample));
                 }
-                else
-                    throw sf::exception("Unknown wave data format");
 
                 Skip(Size);
 
@@ -913,6 +911,11 @@ void reader_t::ReadWaveSample(const riff::chunk_header_t & ch, wave_sample_t & w
 
     Read(Size);
 
+    #ifdef __DEEP_TRACE
+    if (Size == 0)
+        ::printf("%*sInvalid Size field\n", __TRACE_LEVEL * 2, "");
+    #endif
+
     Read(ws.UnityNote);
     Read(ws.FineTune);
     Read(ws.Gain);
@@ -928,7 +931,7 @@ void reader_t::ReadWaveSample(const riff::chunk_header_t & ch, wave_sample_t & w
     ::printf("%*sUnityNote: %d, FineTune: %d, Gain: %d, Options: 0x%08X, Loops: %d\n", __TRACE_LEVEL * 2, "", ws.UnityNote, ws.FineTune, ws.Gain, ws.Options, LoopCount);
     #endif
 
-    if ((Size != 0) && (Size != 20)) // Size may be 0 in corrupt files.
+    if (Size > 20)      // Size may be 0 in corrupt files.
         Skip(Size - 20);
 
     TRACE_INDENT();
@@ -941,11 +944,16 @@ void reader_t::ReadWaveSample(const riff::chunk_header_t & ch, wave_sample_t & w
 
         Read(Size);
 
+        #ifdef __DEEP_TRACE
+        if (Size == 0)
+            ::printf("%*sInvalid Size field\n", __TRACE_LEVEL * 2, "");
+        #endif
+
         Read(LoopType);     // Specifies the loop type.
         Read(LoopStart);    // Specifies the start point of the loop in samples as an absolute offset from the beginning of the data in the 'data' chunk of the sample.
         Read(LoopLength);   // Specifies the length of the loop in samples.
 
-        if ((Size != 0) && (Size != 16)) // Size may be 0 in corrupt files.
+        if (Size > 16)      // Size may be 0 in corrupt files.
             Skip(Size - 16);
 
         ws.Loops.push_back(wave_sample_loop_t(LoopType, LoopStart, LoopLength));

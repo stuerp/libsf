@@ -1,5 +1,5 @@
 
-/** $VER: Soundfont.h (2025.08.26) P. Stuer - Soundfont data types **/
+/** $VER: Soundfont.h (2025.09.02) P. Stuer - Soundfont data types **/
 
 #pragma once
 
@@ -7,6 +7,8 @@
 
 #include "BaseTypes.h"
 #include "DLS.h"
+
+#include <array>
 
 namespace sf
 {
@@ -142,6 +144,11 @@ public:
 
     void ConvertFrom(const dls::collection_t & collection);
 
+    std::string DescribeGenerator(uint16_t generator, uint16_t amount) const noexcept;
+    std::string DescribeModulatorSource(uint16_t modulator) const noexcept;
+    std::string DescribeModulatorTransform(uint16_t modulator) const noexcept;
+    std::string DescribeSampleType(uint16_t sampleType) const noexcept;
+
 private:
     static void ConvertArticulators(const std::vector<dls::articulator_t> & articulators, std::vector<generator_t> & generators, std::vector<modulator_t> & modulators);
     static void ConvertConnectionBlockToModulator(const dls::connection_block_t & connectionBlock, std::vector<modulator_t> & modulators);
@@ -149,6 +156,24 @@ private:
 
     static void ConvertDLSSourceToModulatorOperator(uint16_t oper, ModulatorOperator & modulatorOperator) noexcept;
     static void ConvertDLSDestinationToGeneratorOperator(const dls::connection_block_t & connectionBlock, GeneratorOperator & dstOperator, int16_t dstAmount) noexcept;
+
+    void GenerateALawTable() noexcept
+    {
+        for (size_t i = 0; i < 256; ++i)
+            _ALawTable[i] = DecodeALawValue((uint8_t) i);
+    }
+
+    static constexpr int16_t DecodeALawValue(uint8_t value) noexcept
+    {
+        value ^= 0x55;
+
+        int16_t Sign     = (value & 0x80) ? -1 : 1;
+        int16_t Exponent = (value & 0x70) >> 4;
+        int16_t Mantissa = value & 0x0F;
+        int16_t Sample   = (Exponent > 0) ? ((Mantissa + 16) << (Exponent + 3)) : ((Mantissa << 4) + 8);
+
+        return Sign * Sample;
+    }
 
 public:
     uint16_t Major;                         // SoundFont specification major version level to which the file complies.
@@ -179,10 +204,8 @@ public:
 
     properties_t Properties;
 
-    std::string DescribeGenerator(uint16_t generator, uint16_t amount) const noexcept;
-    std::string DescribeModulatorSource(uint16_t modulator) const noexcept;
-    std::string DescribeModulatorTransform(uint16_t modulator) const noexcept;
-    std::string DescribeSampleType(uint16_t sampleType) const noexcept;
+private:
+    std::array<int16_t, 256> _ALawTable;
 };
 
 #pragma warning(default: 4820) // x bytes padding

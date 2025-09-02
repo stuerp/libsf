@@ -225,7 +225,7 @@ static void ProcessSF(const fs::path & filePath)
         sf::reader_t sr;
 
         if (sr.Open(&ms, riff::reader_t::option_t::None))
-            sr.Process({ true }, Bank);
+            sr.Process(Bank, { true });
 
         ms.Close();
     }
@@ -451,6 +451,8 @@ static void ProcessDLS(const fs::path & filePath)
             catch (std::exception & e)
             {
                 ::printf("Failed to process \"%s\": %s\n", filePath.string().c_str(), e.what());
+
+                return;
             }
         }
 

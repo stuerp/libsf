@@ -7,6 +7,8 @@
 
 #include "SF2.h"
 
+#include <mmreg.h>
+
 using namespace sf;
 
 static void ApplyKeyNumToCorrection(std::vector<sf::generator_t> & generators, int16_t value, GeneratorOperator keynumToOperator, GeneratorOperator realOperator);
@@ -251,14 +253,22 @@ void bank_t::ConvertFrom(const dls::collection_t & collection)
                     if ((wave.Channels != 1) || ((wave.BitsPerSample != 8) && (wave.BitsPerSample != 16)))
                         continue;
 
-                    if (wave.BitsPerSample == 16)
-                        Size += wave.Data.size();
+                    if (wave.FormatTag == WAVE_FORMAT_PCM)
+                    {
+                        if (wave.BitsPerSample == 16)
+                            Size += wave.Data.size();
+                        else
+                            Size += wave.Data.size() * 2; // Reserve space for conversion to 16-bit. 
+                    }
                     else
-                        Size += wave.Data.size() * 2; // Reserve space for conversion to 16-bit. 
+                    if (wave.FormatTag == WAVE_FORMAT_ALAW)
+                        Size += wave.Data.size() * 2; // A-Law uint8_t -> PCM int16_t
                 }
 
                 SampleData.resize(Size);
             }
+
+            GenerateALawTable();
 
             size_t Offset = 0;
 
@@ -292,17 +302,29 @@ void bank_t::ConvertFrom(const dls::collection_t & collection)
                     .SampleType      = sf::SampleTypes::MonoSample
                 };
 
-                if (wave.BitsPerSample == 16)
+                if (wave.FormatTag == WAVE_FORMAT_PCM)
                 {
-                    std::memcpy(SampleData.data() + Offset, wave.Data.data(), wave.Data.size());
+                    if (wave.BitsPerSample == 16)
+                    {
+                        std::memcpy(SampleData.data() + Offset, wave.Data.data(), wave.Data.size());
+                    }
+                    else
+                    {
+                        // Convert 8-bit samples to 16-bit (Downloadable Sounds Level 2.2, 2.16.8 Data Format of the WAVE_FORMAT_PCM Samples).
+                        auto Ptr = (int16_t *) (SampleData.data() + Offset);
+
+                        for (const auto Byte : wave.Data)
+                            *Ptr++ = Map(Byte, (uint8_t) 0, (uint8_t) 255, (int16_t) -32768, (int16_t) 32767);
+                    }
                 }
                 else
+                if (wave.FormatTag == WAVE_FORMAT_ALAW)
                 {
-                    // Convert 8-bit samples to 16-bit (Downloadable Sounds Level 2.2, 2.16.8 Data Format of the WAVE_FORMAT_PCM Samples).
+                    // Convert from A-Law to PCM.
                     auto Ptr = (int16_t *) (SampleData.data() + Offset);
 
-                    for (const auto Byte : wave.Data)
-                        *Ptr++ = Map(Byte, (uint8_t) 0, (uint8_t) 255, (int16_t) -32768, (int16_t) 32767);
+                    for (uint8_t byte : wave.Data)
+                        *Ptr++ = _ALawTable[byte];
                 }
 
                 Offset += DataSize;
