@@ -1,5 +1,5 @@
 
-/** $VER: Soundfont.h (2025.09.02) P. Stuer - Soundfont data types **/
+/** $VER: Soundfont.h (2025.09.03) P. Stuer - Soundfont data types **/
 
 #pragma once
 
@@ -197,8 +197,8 @@ private:
     static void ConvertConnectionBlockToModulator(const dls::connection_block_t & connectionBlock, std::vector<modulator_t> & modulators);
     static GeneratorOperator GetSpecialGeneratorOperator(const dls::connection_block_t & connectionBlock) noexcept;
 
-    static void ConvertDLSSourceToModulatorOperator(uint16_t oper, ModulatorOperator & modulatorOperator) noexcept;
-    static void ConvertDLSDestinationToGeneratorOperator(const dls::connection_block_t & connectionBlock, GeneratorOperator & dstOperator, int16_t dstAmount) noexcept;
+    static ModulatorOperator ConvertDLSInputToModulatorOperator(uint16_t input) noexcept;
+    static void ConvertDLSDestinationToGeneratorOperator(const dls::connection_block_t & connectionBlock, GeneratorOperator & dstOperator, int16_t & dstAmount) noexcept;
 
 public:
     uint16_t Major;                         // SoundFont specification major version level to which the file complies.

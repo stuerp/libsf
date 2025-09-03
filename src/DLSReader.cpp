@@ -1,5 +1,5 @@
 
-/** $VER: DLSReader.cpp (2025.09.02) P. Stuer - Implements a reader for a DLS-compliant sound font. **/
+/** $VER: DLSReader.cpp (2025.09.03) P. Stuer - Implements a reader for a DLS-compliant sound font. **/
 
 #include "pch.h"
 
@@ -336,12 +336,13 @@ void reader_t::ReadInstrument(const riff::chunk_header_t & ch, instrument_t & in
 
                 instrument.Regions.reserve(RegionCount);
 
-                const bool IsPercussion = ((Bank & F_INSTRUMENT_DRUMS) != 0);
-
-                instrument = instrument_t(RegionCount, (Bank >> 8) & 0x7F, Bank & 0x7F, Program & 0x7F, IsPercussion);
+                instrument.BankMSB      = (Bank >> 8) & 0x7F;
+                instrument.BankLSB      = Bank & 0x7F;
+                instrument.Program      = Program & 0x7F;
+                instrument.IsPercussion = ((Bank & F_INSTRUMENT_DRUMS) != 0);
 
                 #ifdef __DEEP_TRACE
-                ::printf("%*sRegions: %d, Bank: CC0 0x%02X CC32 0x%02X (MMA %d), Is Percussion: %s, Program: %d\n", __TRACE_LEVEL * 2, "", RegionCount, (Bank >> 8) & 0x7F, Bank & 0x7F, (((Bank >> 8) & 0x7F) * 128 + (Bank & 0x7F)), IsPercussion ? "true" : "false", Program & 0x7F);
+                ::printf("%*sRegions: %d, Bank: CC0 0x%02X CC32 0x%02X (MMA %d), Is Percussion: %s, Program: %d\n", __TRACE_LEVEL * 2, "", RegionCount, instrument.BankMSB, instrument.BankLSB, ((instrument.BankMSB * 128) + instrument.BankLSB), instrument.IsPercussion ? "true" : "false", instrument.Program);
                 #endif
 
                 TRACE_UNINDENT();

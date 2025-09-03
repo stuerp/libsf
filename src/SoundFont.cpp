@@ -105,7 +105,7 @@ void bank_t::ConvertFrom(const dls::collection_t & collection)
                     InstrumentModulators.insert(InstrumentModulators.end(), Modulators.begin(), Modulators.end());
                 }
 
-                // Convert the regions to zones.
+                // Convert the regions to instrument zones.
                 for (const auto & Region : Instrument.Regions)
                 {
                     // Add a local instrument zone.
@@ -113,6 +113,9 @@ void bank_t::ConvertFrom(const dls::collection_t & collection)
 
                     InstrumentGenerators.push_back(sf::generator_t(GeneratorOperator::keyRange, MAKEWORD(Region.LowKey,      Region.HighKey)));         // Must be the first generator.
                     InstrumentGenerators.push_back(sf::generator_t(GeneratorOperator::velRange, MAKEWORD(Region.LowVelocity, Region.HighVelocity)));    // Must only be preceded by keyRange.
+
+                    if (Region.KeyGroup != 0)
+                        InstrumentGenerators.push_back(sf::generator_t(GeneratorOperator::exclusiveClass, Region.KeyGroup));
 
                     // Convert the region articulators, if any.
                     if (!Region.Articulators.empty())
@@ -420,7 +423,9 @@ void bank_t::ConvertArticulators(const std::vector<dls::articulator_t> & articul
 
                         case CONN_DST_LFO_STARTDELAY:
                         {
-                            generators.push_back(sf::generator_t(GeneratorOperator::delayModLFO, (uint16_t) Amount));
+                            // Don't add a generator for amount -32768. It conventionally indicates no delay. (SoundFont 2.04 Technical Specification, 8.1.2 Generator Enumerators Defined)
+                            if (Amount != -32768)
+                                generators.push_back(sf::generator_t(GeneratorOperator::delayModLFO, (uint16_t) Amount));
                             break;
                         }
 
@@ -433,14 +438,18 @@ void bank_t::ConvertArticulators(const std::vector<dls::articulator_t> & articul
 
                         case CONN_DST_VIB_STARTDELAY:
                         {
-                            generators.push_back(sf::generator_t(GeneratorOperator::delayVibLFO, (uint16_t) Amount));
+                            // Don't add a generator for amount -32768. It conventionally indicates no delay. (SoundFont 2.04 Technical Specification, 8.1.2 Generator Enumerators Defined)
+                            if (Amount != -32768)
+                                generators.push_back(sf::generator_t(GeneratorOperator::delayVibLFO, (uint16_t) Amount));
                             break;
                         }
 
                         // Volume Envelope Generator Destinations
                         case CONN_DST_EG1_ATTACKTIME:
                         {
-                            generators.push_back(sf::generator_t(GeneratorOperator::attackVolEnv, (uint16_t) Amount));
+                            // Don't add a generator for amount -32768. It conventionally indicates instantaneous attack. (SoundFont 2.04 Technical Specification, 8.1.2 Generator Enumerators Defined)
+                            if (Amount != -32768)
+                                generators.push_back(sf::generator_t(GeneratorOperator::attackVolEnv, (uint16_t) Amount));
                             break;
                         }
 
@@ -466,20 +475,26 @@ void bank_t::ConvertArticulators(const std::vector<dls::articulator_t> & articul
 
                         case CONN_DST_EG1_DELAYTIME:
                         {
-                            generators.push_back(sf::generator_t(GeneratorOperator::delayVolEnv, (uint16_t) Amount));
+                            // Don't add a generator for amount -32768. It conventionally indicates no delay. (SoundFont 2.04 Technical Specification, 8.1.2 Generator Enumerators Defined)
+                            if (Amount != -32768)
+                                generators.push_back(sf::generator_t(GeneratorOperator::delayVolEnv, (uint16_t) Amount));
                             break;
                         }
 
                         case CONN_DST_EG1_HOLDTIME:
                         {
-                            generators.push_back(sf::generator_t(GeneratorOperator::holdVolEnv, (uint16_t) Amount));
+                            // Don't add a generator for amount -32768. It conventionally indicates no hold phase. (SoundFont 2.04 Technical Specification, 8.1.2 Generator Enumerators Defined)
+                            if (Amount != -32768)
+                                generators.push_back(sf::generator_t(GeneratorOperator::holdVolEnv, (uint16_t) Amount));
                             break;
                         }
 
                         // Modulation Envelope Generator Destinations
                         case CONN_DST_EG2_ATTACKTIME:
                         {
-                            generators.push_back(sf::generator_t(GeneratorOperator::attackModEnv, (uint16_t) Amount));
+                            // Don't add a generator for amount -32768. It conventionally indicates instantaneous attack. (SoundFont 2.04 Technical Specification, 8.1.2 Generator Enumerators Defined)
+                            if (Amount != -32768)
+                                generators.push_back(sf::generator_t(GeneratorOperator::attackModEnv, (uint16_t) Amount));
                             break;
                         }
 
@@ -505,13 +520,17 @@ void bank_t::ConvertArticulators(const std::vector<dls::articulator_t> & articul
 
                         case CONN_DST_EG2_DELAYTIME:
                         {
-                            generators.push_back(sf::generator_t(GeneratorOperator::delayModEnv, (uint16_t) Amount));
+                            // Don't add a generator for amount -32768. It conventionally indicates no delay. (SoundFont 2.04 Technical Specification, 8.1.2 Generator Enumerators Defined)
+                            if (Amount != -32768)
+                                generators.push_back(sf::generator_t(GeneratorOperator::delayModEnv, (uint16_t) Amount));
                             break;
                         }
 
                         case CONN_DST_EG2_HOLDTIME:
                         {
-                            generators.push_back(sf::generator_t(GeneratorOperator::holdModEnv, (uint16_t) Amount));
+                            // Don't add a generator for amount -32768. It conventionally indicates no hold phase. (SoundFont 2.04 Technical Specification, 8.1.2 Generator Enumerators Defined)
+                            if (Amount != -32768)
+                                generators.push_back(sf::generator_t(GeneratorOperator::holdModEnv, (uint16_t) Amount));
                             break;
                         }
 
@@ -621,59 +640,54 @@ static void ApplyKeyNumToCorrection(std::vector<sf::generator_t> & generators, i
 /// </summary>
 void bank_t::ConvertConnectionBlockToModulator(const dls::connection_block_t & connectionBlock, std::vector<modulator_t> & modulators)
 {
-    int16_t Value = (int16_t) (connectionBlock.Scale >> 16);
+    const int16_t Value = (int16_t) (connectionBlock.Scale >> 16);
+
     int16_t Amount = Value;
 
-    ModulatorOperator srcOper = 0xFFFF;
+    ModulatorOperator srcOper      = 0xFFFF;
+    ModulatorOperator sf2Source    = 0xFFFF;
+    ModulatorOperator sf2SourceAmt = 0xFFFF;
 
-    ModulatorOperator sf2Source = 0xFFFF;
-    ModulatorOperator sf2SourceAmt;
-
-    bool SwapSources          = false;
-    bool IsSourceNoController = false;
+    bool SwapSources = false;
 
     auto dstOper = GeneratorOperator::Invalid;
 
+    // Determine the modulator source and destination.
     {
-        const GeneratorOperator specialDestination = GetSpecialGeneratorOperator(connectionBlock);
+        const GeneratorOperator SpecialDestination = GetSpecialGeneratorOperator(connectionBlock);
 
-        if (specialDestination != GeneratorOperator::Invalid)
+        if (SpecialDestination != GeneratorOperator::Invalid)
         {
-            sf2Source = 0;
-            dstOper = specialDestination;
+            sf2Source = 0x0000;
+            dstOper   = SpecialDestination;
 
-            SwapSources          = true;
-            IsSourceNoController = true;
+            SwapSources = true;
         }
         else
         {
-            ConvertDLSSourceToModulatorOperator(connectionBlock.Source, sf2Source);
+            sf2Source = ConvertDLSInputToModulatorOperator(connectionBlock.Source);
 
             if (sf2Source == 0xFFFF)
                 return;
 
-            auto sf2GenDestination = GeneratorOperator::Invalid;
+            ConvertDLSDestinationToGeneratorOperator(connectionBlock, dstOper, Amount);
 
-            ConvertDLSDestinationToGeneratorOperator(connectionBlock, sf2GenDestination, Value);
-
-            if (sf2GenDestination == GeneratorOperator::Invalid)
+            if (dstOper == GeneratorOperator::Invalid)
                 return;
-
-            dstOper = sf2GenDestination;
-
-            if (Value != connectionBlock.Scale)
-                Amount = Value;
         }
     }
 
-    ConvertDLSSourceToModulatorOperator(connectionBlock.Control, sf2SourceAmt);
-
-    if (sf2SourceAmt == 0xFFFF)
-        return;
-
-    if (IsSourceNoController)
+    // Determine the modulator source amount.
     {
-        srcOper = 0;
+        sf2SourceAmt = ConvertDLSInputToModulatorOperator(connectionBlock.Control);
+
+        if (sf2SourceAmt == 0xFFFF)
+            return;
+    }
+
+    if (sf2Source == 0x0000)
+    {
+        srcOper = 0x0000;
     }
     else
     {
@@ -716,69 +730,72 @@ void bank_t::ConvertConnectionBlockToModulator(const dls::connection_block_t & c
 /// </summary>
 GeneratorOperator bank_t::GetSpecialGeneratorOperator(const dls::connection_block_t & connectionBlock) noexcept
 {
-    if (connectionBlock.Source == CONN_SRC_VIBRATO && connectionBlock.Destination == CONN_DST_PITCH)
-        return GeneratorOperator::vibLfoToPitch;
-
     if (connectionBlock.Source == CONN_SRC_LFO)
     {
+        if (connectionBlock.Destination == CONN_DST_GAIN)
+            return GeneratorOperator::modLfoToVolume;
+
         if (connectionBlock.Destination == CONN_DST_PITCH)
             return GeneratorOperator::modLfoToPitch;
 
         if (connectionBlock.Destination == CONN_DST_FILTER_CUTOFF)
             return GeneratorOperator::modLfoToFilterFc;
-
-        if (connectionBlock.Destination == CONN_DST_GAIN)
-            return GeneratorOperator::modLfoToVolume;
     }
 
     if (connectionBlock.Source == CONN_SRC_EG2)
     {
-        if (connectionBlock.Destination == CONN_DST_FILTER_CUTOFF)
-            return GeneratorOperator::modEnvToFilterFc;
-
         if (connectionBlock.Destination == CONN_DST_PITCH)
             return GeneratorOperator::modEnvToPitch;
+
+        if (connectionBlock.Destination == CONN_DST_FILTER_CUTOFF)
+            return GeneratorOperator::modEnvToFilterFc;
+    }
+
+    if (connectionBlock.Source == CONN_SRC_VIBRATO)
+    {
+        if (connectionBlock.Destination == CONN_DST_PITCH)
+            return GeneratorOperator::vibLfoToPitch;
     }
 
     return GeneratorOperator::Invalid;
 }
 
 /// <summary>
-/// Converts a DLS source to an SF2 Modulator Operator.
+/// Converts a DLS input to an SF2 Modulator Operator.
 /// </summary>
-void bank_t::ConvertDLSSourceToModulatorOperator(uint16_t source, ModulatorOperator & modulatorOperator) noexcept
+ModulatorOperator bank_t::ConvertDLSInputToModulatorOperator(uint16_t input) noexcept
 {
-    switch (source)
+    switch (input)
     {
         default:
         case CONN_SRC_LFO:
         case CONN_SRC_EG2:
         case CONN_SRC_VIBRATO:
-        case CONN_SRC_RPN1:                                                     // Fine Tune
-        case CONN_SRC_RPN2:                                                     // Coarse Tune
-            modulatorOperator = 0xFFFF; break;
+        case CONN_SRC_RPN1:                                        // Fine Tune
+        case CONN_SRC_RPN2:                                        // Coarse Tune
+            return 0xFFFF; break;
 
-        case CONN_SRC_NONE:             modulatorOperator =           0; break; // No Controller
-        case CONN_SRC_KEYONVELOCITY:    modulatorOperator =           2; break; // Note-On Velocity
-        case CONN_SRC_KEYNUMBER:        modulatorOperator =           3; break; // Note-On Key Number
-        case CONN_SRC_POLYPRESSURE:     modulatorOperator =          10; break; // Poly Pressure
-        case CONN_SRC_CHANNELPRESSURE:  modulatorOperator =          13; break; // Channel Pressure
-        case CONN_SRC_PITCHWHEEL:       modulatorOperator =          14; break; // Pitch Wheel
-        case CONN_SRC_RPN0:             modulatorOperator =          16; break; // Pitch Wheel Sensitivity
+        case CONN_SRC_NONE:             return           0; break; // No Controller
+        case CONN_SRC_KEYONVELOCITY:    return           2; break; // Note-On Velocity
+        case CONN_SRC_KEYNUMBER:        return           3; break; // Note-On Key Number
+        case CONN_SRC_POLYPRESSURE:     return          10; break; // Poly Pressure
+        case CONN_SRC_CHANNELPRESSURE:  return          13; break; // Channel Pressure
+        case CONN_SRC_PITCHWHEEL:       return          14; break; // Pitch Wheel
+        case CONN_SRC_RPN0:             return          16; break; // Pitch Wheel Sensitivity
 
-        case CONN_SRC_CC1:              modulatorOperator = 0x0080 |  1; break; // Modulation
-        case CONN_SRC_CC7:              modulatorOperator = 0x0080 |  7; break; // Channel Volume
-        case CONN_SRC_CC10:             modulatorOperator = 0x0080 | 10; break; // Pan
-        case CONN_SRC_CC11:             modulatorOperator = 0x0080 | 11; break; // Expression
-        case CONN_SRC_CC91:             modulatorOperator = 0x0080 | 91; break; // Chorus Send
-        case CONN_SRC_CC93:             modulatorOperator = 0x0080 | 93; break; // Reverb Send
+        case CONN_SRC_CC1:              return 0x0080 |  1; break; // Modulation
+        case CONN_SRC_CC7:              return 0x0080 |  7; break; // Channel Volume
+        case CONN_SRC_CC10:             return 0x0080 | 10; break; // Pan
+        case CONN_SRC_CC11:             return 0x0080 | 11; break; // Expression
+        case CONN_SRC_CC91:             return 0x0080 | 91; break; // Chorus Send
+        case CONN_SRC_CC93:             return 0x0080 | 93; break; // Reverb Send
     }
 }
 
 /// <summary>
 /// Converts a DLS destination to an SF2 Generator Operator.
 /// </summary>
-void bank_t::ConvertDLSDestinationToGeneratorOperator(const dls::connection_block_t & connectionBlock, GeneratorOperator & dstOperator, int16_t dstAmount) noexcept
+void bank_t::ConvertDLSDestinationToGeneratorOperator(const dls::connection_block_t & connectionBlock, GeneratorOperator & dstOperator, int16_t & dstAmount) noexcept
 {
     dstAmount = (int16_t) (connectionBlock.Scale >> 16);
 

@@ -1,5 +1,5 @@
 
-/** $VER: DLS.h (2025.08.29) P. Stuer - DLS data types (Based on "Downloadable Sounds Level 2.2 Version 1.0", April 2006) **/
+/** $VER: DLS.h (2025.09.03) P. Stuer - DLS data types (Based on "Downloadable Sounds Level 2.2 Version 1.0", April 2006) **/
 
 #pragma once
 
@@ -23,9 +23,9 @@ public:
     connection_block_t(uint16_t src, uint16_t ctrl, uint16_t dst, uint16_t transform, int32_t scale) noexcept : Source(src), Control(ctrl), Destination(dst), Transform(transform), Scale(scale) { }
 
 public:
-    uint16_t Source;        // Specifies the source for the connection. (usControl)
-    uint16_t Control;       // Specifies the control for the connection. (usDestination)
-    uint16_t Destination;   // Specifies the destination for the connection. (usTransform)
+    uint16_t Source;        // Specifies the source for the connection. (usSource)
+    uint16_t Control;       // Specifies the control for the connection. (usControl)
+    uint16_t Destination;   // Specifies the destination for the connection. (usDestination)
     uint16_t Transform;     // Specifies the input and output transforms used for the connection. (usTransform)
      int32_t Scale;         // Specifies the scaling value used for the connection. (lScale)
 };
@@ -142,16 +142,6 @@ class instrument_t
 {
 public:
     instrument_t() noexcept : BankMSB(), BankLSB(), Program(), IsPercussion(false) { }
-
-    instrument_t(uint32_t regionCount, uint8_t bankMSB, uint8_t bankLSB, uint8_t program, bool isPercussion)
-    {
-        Regions.reserve(regionCount);
-
-        BankMSB = bankMSB;
-        BankLSB = bankLSB;
-        Program = program;
-        IsPercussion = isPercussion;
-    }
 
 public:
     std::string Name;
