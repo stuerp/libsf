@@ -1,5 +1,5 @@
 
-/** $VER: framework.h (2025.08.17) P. Stuer **/
+/** $VER: framework.h (2025.09.03) P. Stuer **/
 
 #pragma once
 
@@ -31,6 +31,10 @@
 #include <functional>
 #include <stdexcept>
 #include <string>
+
+#include <array>
+#include <map>
+#include <span>
 #include <vector>
 
 namespace fs = std::filesystem;

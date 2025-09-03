@@ -8,8 +8,6 @@
 #include "BaseTypes.h"
 #include "DLS.h"
 
-#include <array>
-
 namespace sf
 {
 
@@ -84,6 +82,9 @@ public:
 typedef uint16_t ModulatorOperator;
 typedef uint16_t TransformOperator;
 
+const ModulatorOperator MIDIControllerReverb = 0x00DB;
+const ModulatorOperator MIDIControllerChorus = 0x00DD;
+
 class modulator_t
 {
 public:
@@ -135,6 +136,48 @@ public:
 };
 
 /// <summary>
+/// Implements an A-Law codec.
+/// </summary>
+class a_law_codec_t
+{
+public:
+    a_law_codec_t() noexcept
+    {
+        GenerateTable();
+    }
+
+    void ToPCM(const std::vector<uint8_t> src, std::span<int16_t> & dst) const noexcept
+    {
+        size_t i = 0;
+
+        for (uint8_t byte : src)
+            dst[i++] = _ALawToPCM[byte];
+    }
+
+private:
+    void GenerateTable() noexcept
+    {
+        for (size_t i = 0; i < 256; ++i)
+            _ALawToPCM[i] = DecodeALaw((uint8_t) i);
+    }
+
+    static constexpr int16_t DecodeALaw(uint8_t value) noexcept
+    {
+        value ^= 0x55;
+
+        const int16_t Sign     = (value & 0x80) ? -1 : 1;
+        const int16_t Exponent = (value & 0x70) >> 4;
+        const int16_t Mantissa = value & 0x0F;
+        const int16_t Sample   = (Exponent > 0) ? ((Mantissa + 16) << (Exponent + 3)) : ((Mantissa << 4) + 8);
+
+        return Sign * Sample;
+    }
+
+private:
+    std::array<int16_t, 256> _ALawToPCM;
+};
+
+/// <summary>
 /// Represents an SBK/SF2/SF3-compliant bank.
 /// </summary>
 class bank_t
@@ -157,24 +200,6 @@ private:
     static void ConvertDLSSourceToModulatorOperator(uint16_t oper, ModulatorOperator & modulatorOperator) noexcept;
     static void ConvertDLSDestinationToGeneratorOperator(const dls::connection_block_t & connectionBlock, GeneratorOperator & dstOperator, int16_t dstAmount) noexcept;
 
-    void GenerateALawTable() noexcept
-    {
-        for (size_t i = 0; i < 256; ++i)
-            _ALawTable[i] = DecodeALawValue((uint8_t) i);
-    }
-
-    static constexpr int16_t DecodeALawValue(uint8_t value) noexcept
-    {
-        value ^= 0x55;
-
-        int16_t Sign     = (value & 0x80) ? -1 : 1;
-        int16_t Exponent = (value & 0x70) >> 4;
-        int16_t Mantissa = value & 0x0F;
-        int16_t Sample   = (Exponent > 0) ? ((Mantissa + 16) << (Exponent + 3)) : ((Mantissa << 4) + 8);
-
-        return Sign * Sample;
-    }
-
 public:
     uint16_t Major;                         // SoundFont specification major version level to which the file complies.
     uint16_t Minor;                         // SoundFont specification minor version level to which the file complies.
@@ -185,6 +210,7 @@ public:
     uint16_t ROMMinor;                      // Wavetable sound data ROM minor revision to which any ROM samples refer.
 
     std::vector<std::string> SampleNames;   // SoundFont v1.0.0 only
+
     std::vector<uint8_t> SampleData;
     std::vector<uint8_t> SampleDataLSB;     // SoundFont v2.0.4 or later
 
@@ -203,9 +229,6 @@ public:
     std::vector<sample_t> Samples;
 
     properties_t Properties;
-
-private:
-    std::array<int16_t, 256> _ALawTable;
 };
 
 #pragma warning(default: 4820) // x bytes padding

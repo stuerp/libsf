@@ -446,7 +446,7 @@ static void ProcessDLS(const fs::path & filePath)
         {
             try
             {
-                dr.Process(dls, { true });
+                dr.Process(dls, sf::dls::reader_options_t(true));
             }
             catch (std::exception & e)
             {
@@ -1081,7 +1081,7 @@ static void DumpPresetZoneList(const bank_t & bank, size_t fromIndex, size_t toI
         // 7.3 A global zone is determined by the fact that the last generator in the list is not an instrument generator.
         bool IsGlobalZone = (fromIndex != toIndex) &&
             ((z1.GeneratorIndex == z2.GeneratorIndex) ||
-             (z1.GeneratorIndex < z2.GeneratorIndex) && (bank.PresetGenerators[z2.GeneratorIndex - 1].Operator != GeneratorOperator::instrument));
+             (z1.GeneratorIndex < z2.GeneratorIndex) && (bank.PresetGenerators[(size_t) z2.GeneratorIndex - 1].Operator != GeneratorOperator::instrument));
 
         ::printf("%*sZone %5zu. Generator: %d, Modulator: %d%s\n", __TRACE_LEVEL * 4, "", Index,
             z1.GeneratorIndex, z1.ModulatorIndex,
@@ -1204,7 +1204,7 @@ static void DumpInstrumentZoneList(const bank_t & bank, size_t fromIndex, size_t
         // 7.7 A global zone is determined by the fact that the last generator in the list is not a sampleID generator.
         bool IsGlobalZone = (fromIndex != toIndex) &&
             ((z1.GeneratorIndex == z2.GeneratorIndex) ||
-             (z1.GeneratorIndex < z2.GeneratorIndex) && (bank.InstrumentGenerators[z2.GeneratorIndex - 1].Operator != GeneratorOperator::sampleID));
+             (z1.GeneratorIndex < z2.GeneratorIndex) && (bank.InstrumentGenerators[(size_t) z2.GeneratorIndex - 1].Operator != GeneratorOperator::sampleID));
 
         ::printf("%*s%5zu. Generator: %d, Modulator: %d%s\n", __TRACE_LEVEL * 4, "", Index,
             z1.GeneratorIndex, z1.ModulatorIndex,

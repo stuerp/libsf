@@ -1,5 +1,5 @@
 
-/** $VER: SoundFont.cpp (2025.08.31) P. Stuer **/
+/** $VER: SoundFont.cpp (2025.09.03) P. Stuer **/
 
 #include "pch.h"
 
@@ -85,20 +85,20 @@ void bank_t::ConvertFrom(const dls::collection_t & collection)
                     if (!Instrument.Articulators.empty())
                         ConvertArticulators(Instrument.Articulators, Generators, Modulators);
 
-                    // Add a default reverb modulator unless one already exists.
+                    // Add a default reverb modulator unless one already exists. (Not defined in the SF2 spec.)
                     {
                         auto it = std::find_if(Modulators.begin(), Modulators.end(), [](modulator_t m) { return (m.DstOper == GeneratorOperator::reverbEffectsSend); });
 
                         if (it == Modulators.end())
-                            Modulators.push_back(modulator_t(0x00DB, GeneratorOperator::reverbEffectsSend, 1000, 0, 0));
+                            Modulators.push_back(modulator_t(MIDIControllerReverb, GeneratorOperator::reverbEffectsSend, 1000, 0, 0));
                     }
 
-                    // Add a default chorus modulator unless one already exists.
+                    // Add a default chorus modulator unless one already exists. (Not defined in the SF2 spec.)
                     {
                         auto it = std::find_if(Modulators.begin(), Modulators.end(), [](modulator_t m) { return (m.DstOper == GeneratorOperator::chorusEffectsSend); });
 
                         if (it == Modulators.end())
-                            Modulators.push_back(modulator_t(0x00DB, GeneratorOperator::chorusEffectsSend, 1000, 0, 0));
+                            Modulators.push_back(modulator_t(MIDIControllerChorus, GeneratorOperator::chorusEffectsSend, 1000, 0, 0));
                     }
 
                     InstrumentGenerators.insert(InstrumentGenerators.end(), Generators.begin(), Generators.end());
@@ -243,41 +243,41 @@ void bank_t::ConvertFrom(const dls::collection_t & collection)
 
         // Add the samples.
         {
+            a_law_codec_t ALawCodec;
+
             // Calculate the size of the sample data buffer.
             {
                 size_t Size = 0;
 
                 for (const auto & wave : collection.Waves)
                 {
-                    // FIXME: Support stereo samples
-                    if ((wave.Channels != 1) || ((wave.BitsPerSample != 8) && (wave.BitsPerSample != 16)))
-                        continue;
+                    if (wave.Channels != 1)
+                        throw sf::exception(FormatText("Unsupported number of channels (%d channels) in wave \"%s\"", wave.Channels, wave.Name.c_str()));
+
+                    if ((wave.BitsPerSample != 8) && (wave.BitsPerSample != 16))
+                        throw sf::exception(FormatText("Unsupported sample size (%d bit) in wave \"%s\"", wave.BitsPerSample, wave.Name.c_str()));
 
                     if (wave.FormatTag == WAVE_FORMAT_PCM)
                     {
                         if (wave.BitsPerSample == 16)
                             Size += wave.Data.size();
                         else
-                            Size += wave.Data.size() * 2; // Reserve space for conversion to 16-bit. 
+                            Size += wave.Data.size() * 2;   // Allow for 8-bit to 16-bit conversion. 
                     }
                     else
                     if (wave.FormatTag == WAVE_FORMAT_ALAW)
-                        Size += wave.Data.size() * 2; // A-Law uint8_t -> PCM int16_t
+                        Size += wave.Data.size() * 2;       // Allow for 8-bit A-Law to 16-bit PCM conversion.
+                    else
+                        throw sf::exception(FormatText("Unsupported sample format 0x%04X in wave \"%s\"", wave.FormatTag, wave.Name.c_str()));
                 }
 
                 SampleData.resize(Size);
             }
 
-            GenerateALawTable();
-
             size_t Offset = 0;
 
             for (const auto & wave : collection.Waves)
             {
-                // FIXME: Support stereo samples
-                if ((wave.Channels != 1) || ((wave.BitsPerSample != 8) && (wave.BitsPerSample != 16)))
-                    continue;
-
                 const size_t DataSize = (wave.BitsPerSample == 16) ? wave.Data.size() : wave.Data.size() * 2;
 
                 const auto BytesPerSample = 2;                                      // SF2 samples are always 16-bit (SoundFont 2.01 Technical Specification, 6 The sdta-list Chunk)
@@ -311,21 +311,22 @@ void bank_t::ConvertFrom(const dls::collection_t & collection)
                     else
                     {
                         // Convert 8-bit samples to 16-bit (Downloadable Sounds Level 2.2, 2.16.8 Data Format of the WAVE_FORMAT_PCM Samples).
-                        auto Ptr = (int16_t *) (SampleData.data() + Offset);
+                        auto PCM = std::span<int16_t>((int16_t *)(SampleData.data() + Offset), wave.Data.size());
+                        size_t i = 0;
 
                         for (const auto Byte : wave.Data)
-                            *Ptr++ = Map(Byte, (uint8_t) 0, (uint8_t) 255, (int16_t) -32768, (int16_t) 32767);
+                            PCM[i++] = Map(Byte, (uint8_t) 0, (uint8_t) 255, (int16_t) -32768, (int16_t) 32767);
                     }
                 }
                 else
                 if (wave.FormatTag == WAVE_FORMAT_ALAW)
                 {
-                    // Convert from A-Law to PCM.
-                    auto Ptr = (int16_t *) (SampleData.data() + Offset);
+                    auto PCM = std::span<int16_t>((int16_t *)(SampleData.data() + Offset), wave.Data.size());
 
-                    for (uint8_t byte : wave.Data)
-                        *Ptr++ = _ALawTable[byte];
+                    ALawCodec.ToPCM(wave.Data, PCM);
                 }
+                else
+                    assert(1 == 2); // Should not get here.
 
                 Offset += DataSize;
 
