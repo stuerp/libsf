@@ -57,9 +57,18 @@ void bank_t::ConvertFrom(const dls::collection_t & collection)
                 {
                     const std::string PresetName = !Instrument.Name.empty() ? Instrument.Name : FormatText("Preset %d-%d", Bank, Instrument.Program);
 
+                    if (PresetZones.size() >= 65536)
+                        throw sf::exception(FormatText("Maximum number of preset zones exceeded when creating preset \"%s\"", PresetName.c_str()));
+
                     Presets.push_back(sf::preset_t(PresetName, Instrument.Program, Bank, (uint16_t) PresetZones.size()));
 
                     {
+                        if (PresetGenerators.size() >= 65536)
+                            throw sf::exception(FormatText("Maximum number of preset generators exceeded when creating preset \"%s\"", PresetName.c_str()));
+
+                        if (PresetModulators.size() >= 65536)
+                            throw sf::exception(FormatText("Maximum number of preset modulators exceeded when creating preset \"%s\"", PresetName.c_str()));
+
                         // Add a global preset zone. FIXME: Is this really necessary? We're not adding any generators.
                         PresetZones.push_back(sf::preset_zone_t((uint16_t) PresetGenerators.size(), (uint16_t) PresetModulators.size()));
 
@@ -72,7 +81,16 @@ void bank_t::ConvertFrom(const dls::collection_t & collection)
 
                 const std::string InstrumentName = !Instrument.Name.empty() ? Instrument.Name : FormatText("Instrument %d-%d", Bank, Instrument.Program);
 
+                if (InstrumentZones.size() >= 65536)
+                    throw sf::exception(FormatText("Maximum number of instrument zones exceeded when creating instrument \"%s\"", InstrumentName.c_str()));
+
                 Instruments.push_back(sf::instrument_t(InstrumentName, (uint16_t) InstrumentZones.size()));
+
+                if (InstrumentGenerators.size() >= 65536)
+                    throw sf::exception(FormatText("Maximum number of instrument generators exceeded when creating preset \"%s\"", InstrumentName.c_str()));
+
+                if (InstrumentModulators.size() >= 65536)
+                    throw sf::exception(FormatText("Maximum number of instrument modulators exceeded when creating preset \"%s\"", InstrumentName.c_str()));
 
                 // Add a global instrument zone.
                 InstrumentZones.push_back(instrument_zone_t((uint16_t) InstrumentGenerators.size(), (uint16_t) InstrumentModulators.size()));

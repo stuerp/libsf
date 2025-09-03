@@ -199,11 +199,11 @@ static void ExamineFile(const fs::path & filePath)
         if (::_stricmp(FileExtension.c_str(), ".ecw") == 0)
             ProcessECW(filePath);
     }
-    catch (sf::exception e)
+    catch (const sf::exception & e)
     {
         ::printf("Failed to process soundfont: %s\n\n", e.what());
     }
-    catch (riff::exception e)
+    catch (const riff::exception & e)
     {
         ::printf("Failed to process RIFF file: %s\n\n", e.what());
     }
@@ -448,7 +448,7 @@ static void ProcessDLS(const fs::path & filePath)
             {
                 dr.Process(dls, sf::dls::reader_options_t(true));
             }
-            catch (std::exception & e)
+            catch (const std::exception & e)
             {
                 ::printf("Failed to process \"%s\": %s\n", filePath.string().c_str(), e.what());
 
@@ -571,11 +571,20 @@ static void ProcessDLS(const fs::path & filePath)
         Bank.ConvertFrom(dls);
 
         fs::path FilePath(filePath);
+    }
+    catch (const sf::exception & e)
+    {
+        ::printf("Failed to convert DLS to SF2: %s\n\n", e.what());
 
-        FilePath.replace_extension(L".sf2");
+        return;
+    } 
 
-        ::printf("\n\"%s\"\n", (const char *) FilePath.u8string().c_str());
+    FilePath.replace_extension(L".sf2");
 
+    ::printf("\n\"%s\"\n", (const char *) FilePath.u8string().c_str());
+
+    try
+    {
         // Tests the Sound Font writer.
         if (fs.Open(FilePath, true))
         {
@@ -589,8 +598,11 @@ static void ProcessDLS(const fs::path & filePath)
 
         ProcessSF(FilePath);
     }
-    catch (sf::exception e)
+    catch (const sf::exception & e)
     {
+        ::printf("Failed to write converted SF2: %s\n\n", e.what());
+
+        return;
     } 
 }
 
