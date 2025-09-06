@@ -1,5 +1,5 @@
 
-/** $VER: SoundFontReader.cpp (2025.08.20) P. Stuer - Reads a SoundFont bank. **/
+/** $VER: SF2Reader.cpp (2025.08.20) P. Stuer - Reads a SoundFont bank. **/
 
 #include "pch.h"
 
@@ -146,7 +146,7 @@ void reader_t::Process(bank_t & bank, const soundfont_reader_options_t & options
                 TRACE_INDENT();
 
                 if (bank.Major != 1)
-                    throw sf::exception(riff::FormatText("snam chunk not allowed in SoundFont v%d.%02d bank", bank.Major, bank.Minor).c_str());
+                    throw sf::exception(msc::FormatText("snam chunk not allowed in SoundFont v%d.%02d bank", bank.Major, bank.Minor).c_str());
 
                 char Data[20] = { };
                 const size_t Count = ch.Size / sizeof(Data);

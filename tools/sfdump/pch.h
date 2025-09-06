@@ -1,5 +1,5 @@
 
-/** $VER: pch.h (2025.08.24) P. Stuer **/
+/** $VER: pch.h (2025.09.06) P. Stuer **/
 
 #pragma once
 
@@ -28,7 +28,6 @@
 #pragma warning(default: 4242)
 #include <cmath>
 #include <cassert>
-#include <filesystem>
 #include <format>
 #include <functional>
 #include <iterator>
@@ -38,7 +37,7 @@
 #include <string>
 #include <vector>
 
-namespace fs = std::filesystem;
+#include <libmsc.h>
 
 #ifndef Assert
 #if defined(DEBUG) || defined(_DEBUG)

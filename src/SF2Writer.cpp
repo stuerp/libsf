@@ -1,5 +1,5 @@
 
-/** $VER: SoundFontWriter.cpp (2025.09.01) P. Stuer - Writes a SoundFont bank. **/
+/** $VER: SF2Writer.cpp (2025.09.01) P. Stuer - Writes a SoundFont bank. **/
 
 #include "pch.h"
 

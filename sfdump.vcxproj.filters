@@ -1,12 +1,11 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="src\Tools\sfdump\main.cpp" />
-    <ClCompile Include="src\Tools\sfdump\pch.cpp" />
+    <ClCompile Include="tools\sfdump\main.cpp" />
+    <ClCompile Include="tools\sfdump\pch.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\Tools\sfdump\pch.h" />
-    <ClInclude Include="src\Tools\sfdump\Support.h" />
+    <ClInclude Include="tools\sfdump\pch.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="LICENSE" />

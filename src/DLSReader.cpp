@@ -7,8 +7,8 @@
 
 #pragma warning(disable: 4100 4505 4625 4626 4710 4711 4738 5045 ALL_CPPCORECHECK_WARNINGS)
 
-//#define __TRACE
-//#define __DEEP_TRACE
+#define __TRACE
+#define __DEEP_TRACE
 
 #include "DLSReader.h"
 #include "Exception.h"
@@ -136,7 +136,7 @@ void reader_t::Process(collection_t & dls, const reader_options_t & options)
                 (void) ::StringFromGUID2(Id, Text, _countof(Text));
 
                 #ifdef __DEEP_TRACE
-                ::printf("%*sId: %s\n", __TRACE_LEVEL * 2, "", WideToUTF8(Text).c_str());
+                ::printf("%*sId: %s\n", __TRACE_LEVEL * 2, "", msc::WideToUTF8(Text).c_str());
                 #endif
 
                 TRACE_UNINDENT();
@@ -827,7 +827,7 @@ void reader_t::ReadWave(const riff::chunk_header_t & ch, wave_t & wave)
                     #endif
 
                     if ((wave.BitsPerSample != 8) && (wave.BitsPerSample != 16))
-                        throw sf::exception(FormatText("%d-bit samples are not supported.", wave.BitsPerSample));
+                        throw sf::exception(msc::FormatText("%d-bit samples are not supported.", wave.BitsPerSample));
                 }
 
                 Skip(Size);

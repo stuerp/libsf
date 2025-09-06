@@ -24,7 +24,7 @@ public:
     {
     }
 
-    bool Open(riff::stream_t * stream)
+    bool Open(msc::stream_t * stream)
     {
         _Stream = stream;
 
@@ -81,7 +81,7 @@ private:
     }
 
 protected:
-    riff::stream_t * _Stream;
+    msc::stream_t * _Stream;
 
 private:
 };

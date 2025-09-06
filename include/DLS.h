@@ -3,8 +3,6 @@
 
 #pragma once
 
-#include "pch.h"
-
 #include "BaseTypes.h"
 #include "Definitions.h"
 

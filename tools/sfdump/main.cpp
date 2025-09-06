@@ -1,5 +1,5 @@
 
-/** $VER: main.cpp (2025.08.25) P. Stuer **/
+/** $VER: main.cpp (2025.09.06) P. Stuer **/
 
 #include "pch.h"
 
@@ -42,7 +42,7 @@ static const char * GetChunkName(const uint32_t chunkId) noexcept;
 fs::path FilePath;
 uint32_t __TRACE_LEVEL = 0;
 
-const std::vector<fs::path> Filters = { ".sbk", ".sf2", ".sf3", ".dls", ".ecw" };
+const std::vector<fs::path> Filters = { ".sbk", ".sf2", ".sf3", ".dls", ".dlp", ".ecw" };
 
 class arguments_t
 {
@@ -112,7 +112,7 @@ int main(int argc, char * argv[])
         return -1;
     }
 
-    fs::path Path = std::filesystem::canonical(Arguments["pathname"]);
+    fs::path Path = fs::canonical(Arguments["pathname"]);
 
     if (fs::is_directory(Path))
         ProcessDirectory(Path);
@@ -159,13 +159,13 @@ static void ProcessDirectory(const fs::path & directoryPath)
 /// </summary>
 static void ProcessFile(const fs::path & filePath)
 {
-    int StdOutFD = ::_dup(::_fileno(stdout));
-
     FILE * fp = nullptr;
 
-    fs::path StdOut = filePath;
+    fs::path StdOut = filePath; StdOut.replace_extension(".log");
 
-    if ((::freopen_s(&fp, StdOut.replace_extension(".log").string().c_str(), "w", stdout) != 0) || (fp == nullptr))
+    (void) _chmod(StdOut.string().c_str(), _S_IWRITE | _S_IREAD);
+
+    if ((::freopen_s(&fp, StdOut.string().c_str(), "w", stdout) != 0) || (fp == nullptr))
         return;
 
     ::printf("\xEF\xBB\xBF"); // UTF-8 BOM
@@ -176,9 +176,12 @@ static void ProcessFile(const fs::path & filePath)
 
     ExamineFile(filePath);
 
-    (void) _dup2(StdOutFD, _fileno(stdout));
+    ::fflush(fp);
 
-    _close(StdOutFD);
+    ::fclose(fp);
+
+    if ((::freopen_s(&fp, "CON", "w", stdout) != 0) || (fp == nullptr))
+        return;
 }
 
 /// <summary>
@@ -190,7 +193,7 @@ static void ExamineFile(const fs::path & filePath)
 
     try
     {
-        if (::_stricmp(FileExtension.c_str(), ".dls") == 0)
+        if ((::_stricmp(FileExtension.c_str(), ".dls") == 0) || (::_stricmp(FileExtension.c_str(), ".dlp") == 0))
             ProcessDLS(filePath);
         else
         if ((::_stricmp(FileExtension.c_str(), ".sbk") == 0) || (::_stricmp(FileExtension.c_str(), ".sf2") == 0) || (::_stricmp(FileExtension.c_str(), ".sf3") == 0))
@@ -218,7 +221,7 @@ static void ProcessSF(const fs::path & filePath)
 {
     sf::bank_t Bank;
 
-    riff::memory_stream_t ms;
+    msc::memory_stream_t ms;
 
     if (ms.Open(filePath, 0, 0))
     {
@@ -245,7 +248,7 @@ static void ProcessSF(const fs::path & filePath)
 
         for (const auto & [ ChunkId, Value ] : Bank.Properties)
         {
-            ::printf("%*s%s: \"%s\"\n", __TRACE_LEVEL * 2, "", GetChunkName(ChunkId), riff::CodePageToUTF8(850, Value.c_str(), Value.length()).c_str());
+            ::printf("%*s%s: \"%s\"\n", __TRACE_LEVEL * 2, "", GetChunkName(ChunkId), msc::CodePageToUTF8(850, Value.c_str(), Value.length()).c_str());
         }
 
         __TRACE_LEVEL--;
@@ -436,7 +439,7 @@ static void ProcessDLS(const fs::path & filePath)
 {
     sf::dls::collection_t dls;
 
-    riff::file_stream_t fs;
+    msc::file_stream_t fs;
 
     if (fs.Open(filePath))
     {
@@ -569,8 +572,6 @@ static void ProcessDLS(const fs::path & filePath)
     try
     {
         Bank.ConvertFrom(dls);
-
-        fs::path FilePath(filePath);
     }
     catch (const sf::exception & e)
     {
@@ -578,6 +579,8 @@ static void ProcessDLS(const fs::path & filePath)
 
         return;
     } 
+
+    fs::path FilePath(filePath);
 
     FilePath.replace_extension(L".sf2");
 
@@ -613,7 +616,7 @@ static void ProcessECW(const fs::path & filePath)
 {
     ecw::waveset_t ws;
 
-    riff::file_stream_t fs;
+    msc::file_stream_t fs;
 
     if (fs.Open(filePath))
     {
@@ -628,11 +631,11 @@ static void ProcessECW(const fs::path & filePath)
 #ifdef _DEBUG
     uint32_t __TRACE_LEVEL = 0;
 
-    ::printf("%*sName: \"%s\"\n", __TRACE_LEVEL * 2, "", riff::CodePageToUTF8(850, ws.Name.c_str(), ws.Name.length()).c_str());
-    ::printf("%*sCopyright: \"%s\"\n", __TRACE_LEVEL * 2, "", riff::CodePageToUTF8(850, ws.Copyright.c_str(), ws.Copyright.length()).c_str());
-    ::printf("%*sDescription: \"%s\"\n", __TRACE_LEVEL * 2, "", riff::CodePageToUTF8(850, ws.Description.c_str(), ws.Description.length()).c_str());
-    ::printf("%*sInformation: \"%s\"\n", __TRACE_LEVEL * 2, "", riff::CodePageToUTF8(850, ws.Information.c_str(), ws.Information.length()).c_str());
-    ::printf("%*sFile Name: \"%s\"\n", __TRACE_LEVEL * 2, "", riff::CodePageToUTF8(850, ws.FileName.c_str(), ws.FileName.length()).c_str());
+    ::printf("%*sName: \"%s\"\n", __TRACE_LEVEL * 2, "", msc::CodePageToUTF8(850, ws.Name.c_str(), ws.Name.length()).c_str());
+    ::printf("%*sCopyright: \"%s\"\n", __TRACE_LEVEL * 2, "", msc::CodePageToUTF8(850, ws.Copyright.c_str(), ws.Copyright.length()).c_str());
+    ::printf("%*sDescription: \"%s\"\n", __TRACE_LEVEL * 2, "", msc::CodePageToUTF8(850, ws.Description.c_str(), ws.Description.length()).c_str());
+    ::printf("%*sInformation: \"%s\"\n", __TRACE_LEVEL * 2, "", msc::CodePageToUTF8(850, ws.Information.c_str(), ws.Information.length()).c_str());
+    ::printf("%*sFile Name: \"%s\"\n", __TRACE_LEVEL * 2, "", msc::CodePageToUTF8(850, ws.FileName.c_str(), ws.FileName.length()).c_str());
 
     // Dump the bank maps.
     {
@@ -901,11 +904,11 @@ static void ProcessECW(const fs::path & filePath)
 //      ConvertECW(ws, Bank);
 
         {
-            std::filesystem::path FilePath(filePath);
+            fs::path FilePath(filePath);
 
-            FilePath.replace_extension(L".sf2");
+            FilePath.replace_extension(".sf2");
 
-            riff::file_stream_t fs;
+            msc::file_stream_t fs;
 
             ::printf("\n\"%s\"\n", FilePath.string().c_str());
 
@@ -1377,84 +1380,84 @@ std::string bank_t::DescribeGenerator(uint16_t generator, uint16_t amount) const
     switch (generator & 0x007F)
     {
         // Index generators
-        case GeneratorOperator::instrument:                 Text = riff::FormatText("Instrument Index %d, \"%s\" (instrument)", amount, Instruments[amount].Name.c_str()); break;
-        case GeneratorOperator::sampleID:                   Text = riff::FormatText("Sample Index %d, \"%s\" (sampleID)", amount, Samples[amount].Name.c_str()); break;
+        case GeneratorOperator::instrument:                 Text = msc::FormatText("Instrument Index %d, \"%s\" (instrument)", amount, Instruments[amount].Name.c_str()); break;
+        case GeneratorOperator::sampleID:                   Text = msc::FormatText("Sample Index %d, \"%s\" (sampleID)", amount, Samples[amount].Name.c_str()); break;
 
         // Range generators
-        case GeneratorOperator::keyRange:                   Text = riff::FormatText("Key Range %d - %d (keyRange)", amount & 0x00FF, (amount >> 8) & 0x00FF); break;
-        case GeneratorOperator::velRange:                   Text = riff::FormatText("Velocity Range %d - %d (velRange)", amount & 0x00FF, (amount >> 8) & 0x00FF); break;
+        case GeneratorOperator::keyRange:                   Text = msc::FormatText("Key Range %d - %d (keyRange)", amount & 0x00FF, (amount >> 8) & 0x00FF); break;
+        case GeneratorOperator::velRange:                   Text = msc::FormatText("Velocity Range %d - %d (velRange)", amount & 0x00FF, (amount >> 8) & 0x00FF); break;
 
         // Substitution generators
 
         // Sample generators directly affect a sample's properties.
-        case GeneratorOperator::startAddrsOffset:           Text = riff::FormatText("Start Address Offset: %d data points (startAddrsOffset)", (int16_t) amount); break;
-        case GeneratorOperator::endAddrsOffset:             Text = riff::FormatText("End Address Offset: %d data points (endAddrsOffset)", (int16_t) amount); break;
+        case GeneratorOperator::startAddrsOffset:           Text = msc::FormatText("Start Address Offset: %d data points (startAddrsOffset)", (int16_t) amount); break;
+        case GeneratorOperator::endAddrsOffset:             Text = msc::FormatText("End Address Offset: %d data points (endAddrsOffset)", (int16_t) amount); break;
 
-        case GeneratorOperator::startAddrsCoarseOffset:     Text = riff::FormatText("Start Address Coarse Offset: %d data points (startAddrsCoarseOffset)", (int32_t) amount * 32768); break;
-        case GeneratorOperator::endAddrsCoarseOffset:       Text = riff::FormatText("End Address Coarse Offset: %d data points (endAddrsCoarseOffset)", (int32_t) amount * 32768); break;
+        case GeneratorOperator::startAddrsCoarseOffset:     Text = msc::FormatText("Start Address Coarse Offset: %d data points (startAddrsCoarseOffset)", (int32_t) amount * 32768); break;
+        case GeneratorOperator::endAddrsCoarseOffset:       Text = msc::FormatText("End Address Coarse Offset: %d data points (endAddrsCoarseOffset)", (int32_t) amount * 32768); break;
 
-        case GeneratorOperator::startloopAddrsOffset:       Text = riff::FormatText("Start Loop Address Offset: %d data points (startloopAddrsOffset)", (int16_t) amount); break;
-        case GeneratorOperator::endloopAddrsOffset:         Text = riff::FormatText("End Loop Address Offset: %d data points (endloopAddrsOffset)", (int16_t) amount); break;
+        case GeneratorOperator::startloopAddrsOffset:       Text = msc::FormatText("Start Loop Address Offset: %d data points (startloopAddrsOffset)", (int16_t) amount); break;
+        case GeneratorOperator::endloopAddrsOffset:         Text = msc::FormatText("End Loop Address Offset: %d data points (endloopAddrsOffset)", (int16_t) amount); break;
 
-        case GeneratorOperator::startloopAddrsCoarseOffset: Text = riff::FormatText("Start Loop Address Coarse Offset: %d data points (startloopAddrsCoarseOffset)", (int32_t) amount * 32768); break;
-        case GeneratorOperator::endloopAddrsCoarseOffset:   Text = riff::FormatText("End Loop Address Coarse Offset: %d data points (endloopAddrsCoarseOffset)", (int32_t) amount * 32768); break;
+        case GeneratorOperator::startloopAddrsCoarseOffset: Text = msc::FormatText("Start Loop Address Coarse Offset: %d data points (startloopAddrsCoarseOffset)", (int32_t) amount * 32768); break;
+        case GeneratorOperator::endloopAddrsCoarseOffset:   Text = msc::FormatText("End Loop Address Coarse Offset: %d data points (endloopAddrsCoarseOffset)", (int32_t) amount * 32768); break;
 
-        case GeneratorOperator::sampleModes:                Text = riff::FormatText("Sample Mode: %d (sampleModes)", amount); break;   // 0 = no loop, 1 = loop, 2 = reserved, 3 = loop and play till the end in release phase
+        case GeneratorOperator::sampleModes:                Text = msc::FormatText("Sample Mode: %d (sampleModes)", amount); break;   // 0 = no loop, 1 = loop, 2 = reserved, 3 = loop and play till the end in release phase
 
-        case GeneratorOperator::overridingRootKey:          Text = riff::FormatText("Overriding Root Key: %d (overridingRootKey)", amount); break;
+        case GeneratorOperator::overridingRootKey:          Text = msc::FormatText("Overriding Root Key: %d (overridingRootKey)", amount); break;
 
-        case GeneratorOperator::exclusiveClass:             Text = riff::FormatText("Exclusive Class: %s (exclusiveClass)", (amount != 0) ? "Yes" : "No"); break;
+        case GeneratorOperator::exclusiveClass:             Text = msc::FormatText("Exclusive Class: %s (exclusiveClass)", (amount != 0) ? "Yes" : "No"); break;
 
         // Value generators directly affects a signal processing parameter.
-        case GeneratorOperator::initialFilterFc:            Text = riff::FormatText("Initial Lowpass Filter Cutoff Frequency: %d cents (initialFilterFc)", (int16_t) amount); break;
-        case GeneratorOperator::initialFilterQ:             Text = riff::FormatText("Initial Lowpass Filter Resonance: %d centibels (initialFilterQ)", (int16_t) amount); break;
-        case GeneratorOperator::initialAttenuation:         Text = riff::FormatText("Initial Attenuation: %.0f dB (initialAttenuation)", (int16_t) amount / 10.); break;
+        case GeneratorOperator::initialFilterFc:            Text = msc::FormatText("Initial Lowpass Filter Cutoff Frequency: %d cents (initialFilterFc)", (int16_t) amount); break;
+        case GeneratorOperator::initialFilterQ:             Text = msc::FormatText("Initial Lowpass Filter Resonance: %d centibels (initialFilterQ)", (int16_t) amount); break;
+        case GeneratorOperator::initialAttenuation:         Text = msc::FormatText("Initial Attenuation: %.0f dB (initialAttenuation)", (int16_t) amount / 10.); break;
 
-        case GeneratorOperator::modLfoToPitch:              Text = riff::FormatText("Modulation LFO influence on Pitch: %d cents (modLfoToPitch)", (int16_t) amount); break;
-        case GeneratorOperator::modLfoToFilterFc:           Text = riff::FormatText("Modulation LFO influence on Filter Cutoff Frequency: %d cents (modLfoToFilterFc)", (int16_t) amount); break;
-        case GeneratorOperator::modLfoToVolume:             Text = riff::FormatText("Modulation LFO influence on Volume: %d centibels (modLfoToVolume)", (int16_t) amount); break;
+        case GeneratorOperator::modLfoToPitch:              Text = msc::FormatText("Modulation LFO influence on Pitch: %d cents (modLfoToPitch)", (int16_t) amount); break;
+        case GeneratorOperator::modLfoToFilterFc:           Text = msc::FormatText("Modulation LFO influence on Filter Cutoff Frequency: %d cents (modLfoToFilterFc)", (int16_t) amount); break;
+        case GeneratorOperator::modLfoToVolume:             Text = msc::FormatText("Modulation LFO influence on Volume: %d centibels (modLfoToVolume)", (int16_t) amount); break;
 
-        case GeneratorOperator::modEnvToPitch:              Text = riff::FormatText("Modulation Envelope influence on Pitch: %d cents (modEnvToPitch)", (int16_t) amount); break;
-        case GeneratorOperator::modEnvToFilterFc:           Text = riff::FormatText("Modulation Envelope influence on Filter Cutoff Frequency: %d cents (modEnvToFilterFc)", (int16_t) amount); break;
+        case GeneratorOperator::modEnvToPitch:              Text = msc::FormatText("Modulation Envelope influence on Pitch: %d cents (modEnvToPitch)", (int16_t) amount); break;
+        case GeneratorOperator::modEnvToFilterFc:           Text = msc::FormatText("Modulation Envelope influence on Filter Cutoff Frequency: %d cents (modEnvToFilterFc)", (int16_t) amount); break;
 
-        case GeneratorOperator::vibLfoToPitch:              Text = riff::FormatText("Vibrato LFO influence on Pitch: %d cents (vibLfoToPitch)", (int16_t) amount); break;
+        case GeneratorOperator::vibLfoToPitch:              Text = msc::FormatText("Vibrato LFO influence on Pitch: %d cents (vibLfoToPitch)", (int16_t) amount); break;
 
-        case GeneratorOperator::chorusEffectsSend:          Text = riff::FormatText("Chorus: %.1f%% (chorusEffectsSend)", (int16_t) amount / 10.); break;
-        case GeneratorOperator::reverbEffectsSend:          Text = riff::FormatText("Reverb: %.1f%% (reverbEffectsSend)", (int16_t) amount / 10.); break;
+        case GeneratorOperator::chorusEffectsSend:          Text = msc::FormatText("Chorus: %.1f%% (chorusEffectsSend)", (int16_t) amount / 10.); break;
+        case GeneratorOperator::reverbEffectsSend:          Text = msc::FormatText("Reverb: %.1f%% (reverbEffectsSend)", (int16_t) amount / 10.); break;
 
-        case GeneratorOperator::pan:                        Text = riff::FormatText("Pan: %.1f%% (pan)", (int16_t) amount / 10.f); break;
+        case GeneratorOperator::pan:                        Text = msc::FormatText("Pan: %.1f%% (pan)", (int16_t) amount / 10.f); break;
 
-        case GeneratorOperator::delayModLFO:                Text = riff::FormatText("Modulation LFO Delay: %.0f ms (delayModLFO)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
-        case GeneratorOperator::freqModLFO:                 Text = riff::FormatText("Modulation LFO Frequency: %.0f mHz (freqModLFO)", std::exp2((int16_t) amount / 1200.) * 8176.); break;
+        case GeneratorOperator::delayModLFO:                Text = msc::FormatText("Modulation LFO Delay: %.0f ms (delayModLFO)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
+        case GeneratorOperator::freqModLFO:                 Text = msc::FormatText("Modulation LFO Frequency: %.0f mHz (freqModLFO)", std::exp2((int16_t) amount / 1200.) * 8176.); break;
 
-        case GeneratorOperator::delayVibLFO:                Text = riff::FormatText("Vibrato LFO Delay: %.0f ms (delayVibLFO)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
-        case GeneratorOperator::freqVibLFO:                 Text = riff::FormatText("Vibrato LFO Frequency: %.0f mHz (freqVibLFO)", std::exp2((int16_t) amount / 1200.) * 8176.); break;
+        case GeneratorOperator::delayVibLFO:                Text = msc::FormatText("Vibrato LFO Delay: %.0f ms (delayVibLFO)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
+        case GeneratorOperator::freqVibLFO:                 Text = msc::FormatText("Vibrato LFO Frequency: %.0f mHz (freqVibLFO)", std::exp2((int16_t) amount / 1200.) * 8176.); break;
 
-        case GeneratorOperator::delayModEnv:                Text = riff::FormatText("Modulation Envelope Delay: %.0f ms (delayModEnv)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
-        case GeneratorOperator::attackModEnv:               Text = riff::FormatText("Modulation Envelope Attack: %.0f ms (attackModEnv)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
-        case GeneratorOperator::holdModEnv:                 Text = riff::FormatText("Modulation Envelope Hold: %.0f ms (holdModEnv)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
-        case GeneratorOperator::decayModEnv:                Text = riff::FormatText("Modulation Envelope Decay: %.0f ms (decayModEnv)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
-        case GeneratorOperator::sustainModEnv:              Text = riff::FormatText("Modulation Envelope Sustain: %.0f dB (sustainModEnv)", (int16_t) amount / 10.); break;
-        case GeneratorOperator::releaseModEnv:              Text = riff::FormatText("Modulation Envelope Release: %.0f ms (releaseModEnv)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
-        case GeneratorOperator::keynumToModEnvHold:         Text = riff::FormatText("Modulation Envelope Hold Decrease: %.0f ms (keynumToModEnvHold)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
-        case GeneratorOperator::keynumToModEnvDecay:        Text = riff::FormatText("Modulation Envelope Decay Decrease: %.0f ms (keynumToModEnvDecay)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
+        case GeneratorOperator::delayModEnv:                Text = msc::FormatText("Modulation Envelope Delay: %.0f ms (delayModEnv)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
+        case GeneratorOperator::attackModEnv:               Text = msc::FormatText("Modulation Envelope Attack: %.0f ms (attackModEnv)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
+        case GeneratorOperator::holdModEnv:                 Text = msc::FormatText("Modulation Envelope Hold: %.0f ms (holdModEnv)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
+        case GeneratorOperator::decayModEnv:                Text = msc::FormatText("Modulation Envelope Decay: %.0f ms (decayModEnv)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
+        case GeneratorOperator::sustainModEnv:              Text = msc::FormatText("Modulation Envelope Sustain: %.0f dB (sustainModEnv)", (int16_t) amount / 10.); break;
+        case GeneratorOperator::releaseModEnv:              Text = msc::FormatText("Modulation Envelope Release: %.0f ms (releaseModEnv)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
+        case GeneratorOperator::keynumToModEnvHold:         Text = msc::FormatText("Modulation Envelope Hold Decrease: %.0f ms (keynumToModEnvHold)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
+        case GeneratorOperator::keynumToModEnvDecay:        Text = msc::FormatText("Modulation Envelope Decay Decrease: %.0f ms (keynumToModEnvDecay)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
 
-        case GeneratorOperator::delayVolEnv:                Text = riff::FormatText("Volume Envelope Delay: %.0f ms (delayVolEnv)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
-        case GeneratorOperator::attackVolEnv:               Text = riff::FormatText("Volume Envelope Attack: %.0f ms (attackVolEnv)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
-        case GeneratorOperator::holdVolEnv:                 Text = riff::FormatText("Volume Envelope Hold: %.0f ms (holdVolEnv)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
-        case GeneratorOperator::decayVolEnv:                Text = riff::FormatText("Volume Envelope Decay: %.0f ms (decayVolEnv)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
-        case GeneratorOperator::sustainVolEnv:              Text = riff::FormatText("Volume Envelope Sustain: %.0f dB (sustainVolEnv)", (int16_t) amount / 10.); break;
-        case GeneratorOperator::releaseVolEnv:              Text = riff::FormatText("Volume Envelope Release: %.0f ms (releaseVolEnv)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
-        case GeneratorOperator::keynumToVolEnvHold:         Text = riff::FormatText("Volume Envelope Hold Decrease: %.0f ms (keynumToVolEnvHold)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
-        case GeneratorOperator::keynumToVolEnvDecay:        Text = riff::FormatText("Volume Envelope Decay Decrease: %.0f ms (keynumToVolEnvDecay)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
+        case GeneratorOperator::delayVolEnv:                Text = msc::FormatText("Volume Envelope Delay: %.0f ms (delayVolEnv)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
+        case GeneratorOperator::attackVolEnv:               Text = msc::FormatText("Volume Envelope Attack: %.0f ms (attackVolEnv)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
+        case GeneratorOperator::holdVolEnv:                 Text = msc::FormatText("Volume Envelope Hold: %.0f ms (holdVolEnv)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
+        case GeneratorOperator::decayVolEnv:                Text = msc::FormatText("Volume Envelope Decay: %.0f ms (decayVolEnv)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
+        case GeneratorOperator::sustainVolEnv:              Text = msc::FormatText("Volume Envelope Sustain: %.0f dB (sustainVolEnv)", (int16_t) amount / 10.); break;
+        case GeneratorOperator::releaseVolEnv:              Text = msc::FormatText("Volume Envelope Release: %.0f ms (releaseVolEnv)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
+        case GeneratorOperator::keynumToVolEnvHold:         Text = msc::FormatText("Volume Envelope Hold Decrease: %.0f ms (keynumToVolEnvHold)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
+        case GeneratorOperator::keynumToVolEnvDecay:        Text = msc::FormatText("Volume Envelope Decay Decrease: %.0f ms (keynumToVolEnvDecay)", std::exp2((int16_t) amount / 1200.) * 1000.); break;
 
-        case GeneratorOperator::keyNum:                     Text = riff::FormatText("MIDI Key: %d (keynum)", amount); break;
-        case GeneratorOperator::velocity:                   Text = riff::FormatText("MIDI Velocity: %d (velocity)", amount); break;
+        case GeneratorOperator::keyNum:                     Text = msc::FormatText("MIDI Key: %d (keynum)", amount); break;
+        case GeneratorOperator::velocity:                   Text = msc::FormatText("MIDI Velocity: %d (velocity)", amount); break;
 
-        case GeneratorOperator::coarseTune:                 Text = riff::FormatText("Coarse Tune: %d semitones (coarseTune)", (int16_t) amount); break;
-        case GeneratorOperator::fineTune:                   Text = riff::FormatText("Fine Tune: %d cents (fineTune)", (int16_t) amount); break;
+        case GeneratorOperator::coarseTune:                 Text = msc::FormatText("Coarse Tune: %d semitones (coarseTune)", (int16_t) amount); break;
+        case GeneratorOperator::fineTune:                   Text = msc::FormatText("Fine Tune: %d cents (fineTune)", (int16_t) amount); break;
 
-        case GeneratorOperator::scaleTuning:                Text = riff::FormatText("Scale Tuning: %d (scaleTuning)", (int16_t) amount); break;
+        case GeneratorOperator::scaleTuning:                Text = msc::FormatText("Scale Tuning: %d (scaleTuning)", (int16_t) amount); break;
 
         case 14: Text = "Unused"; break;
         case 18: Text = "Unused"; break;

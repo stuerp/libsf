@@ -5,30 +5,32 @@
     <ClCompile Include="src\DLSReader.cpp" />
     <ClCompile Include="src\ECWReader.cpp" />
     <ClCompile Include="src\pch.cpp" />
-    <ClCompile Include="src\SoundFontReader.cpp" />
-    <ClCompile Include="src\SoundFontWriter.cpp" />
-    <ClCompile Include="src\Encoding.cpp" />
-    <ClCompile Include="src\SoundFont.cpp" />
+    <ClCompile Include="src\SF2Reader.cpp" />
+    <ClCompile Include="src\SF2Writer.cpp" />
+    <ClCompile Include="src\libsf.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\BaseTypes.h" />
-    <ClInclude Include="src\Definitions.h" />
-    <ClInclude Include="src\DLS.h" />
-    <ClInclude Include="src\DLSReader.h" />
-    <ClInclude Include="src\ECW.h" />
-    <ClInclude Include="src\ECWReader.h" />
-    <ClInclude Include="src\Exception.h" />
-    <ClInclude Include="src\libsf.h" />
+    <ClInclude Include="include\BaseTypes.h" />
+    <ClInclude Include="include\Definitions.h" />
+    <ClInclude Include="include\DLS.h" />
+    <ClInclude Include="include\DLSReader.h" />
+    <ClInclude Include="include\ECW.h" />
+    <ClInclude Include="include\ECWReader.h" />
+    <ClInclude Include="include\Exception.h" />
     <ClInclude Include="src\pch.h" />
-    <ClInclude Include="src\SF2.h" />
-    <ClInclude Include="src\SoundFont.h" />
-    <ClInclude Include="src\SoundFontReader.h" />
-    <ClInclude Include="src\SoundFontWriter.h" />
-    <ClInclude Include="src\Waveset.h" />
-    <ClInclude Include="src\Encoding.h" />
-    <ClInclude Include="src\Support.h" />
+    <ClInclude Include="include\SF2.h" />
+    <ClInclude Include="include\Soundfont.h" />
+    <ClInclude Include="include\SF2Reader.h" />
+    <ClInclude Include="include\SF2Writer.h" />
+    <ClInclude Include="include\Waveset.h" />
+    <ClInclude Include="include\libsf.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="src\cpp.hint" />
+    <None Include=".editorconfig" />
+    <None Include=".gitattributes" />
+    <None Include=".gitignore" />
+    <None Include="LICENSE" />
+    <None Include="README.md" />
   </ItemGroup>
 </Project>

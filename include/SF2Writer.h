@@ -1,9 +1,7 @@
 
-/** $VER: SoundFontWriter.h (2025.09.01) P. Stuer **/
+/** $VER: SF2Writer.h (2025.09.01) P. Stuer **/
 
 #pragma once
-
-#include "pch.h"
 
 #include "SoundFont.h"
 

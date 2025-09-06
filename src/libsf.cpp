@@ -55,19 +55,19 @@ void bank_t::ConvertFrom(const dls::collection_t & collection)
 
                 // Add a preset.
                 {
-                    const std::string PresetName = !Instrument.Name.empty() ? Instrument.Name : FormatText("Preset %d-%d", Bank, Instrument.Program);
+                    const std::string PresetName = !Instrument.Name.empty() ? Instrument.Name : msc::FormatText("Preset %d-%d", Bank, Instrument.Program);
 
                     if (PresetZones.size() >= 65536)
-                        throw sf::exception(FormatText("Maximum number of preset zones exceeded when creating preset \"%s\"", PresetName.c_str()));
+                        throw sf::exception(msc::FormatText("Maximum number of preset zones exceeded when creating preset \"%s\"", PresetName.c_str()));
 
                     Presets.push_back(sf::preset_t(PresetName, Instrument.Program, Bank, (uint16_t) PresetZones.size()));
 
                     {
                         if (PresetGenerators.size() >= 65536)
-                            throw sf::exception(FormatText("Maximum number of preset generators exceeded when creating preset \"%s\"", PresetName.c_str()));
+                            throw sf::exception(msc::FormatText("Maximum number of preset generators exceeded when creating preset \"%s\"", PresetName.c_str()));
 
                         if (PresetModulators.size() >= 65536)
-                            throw sf::exception(FormatText("Maximum number of preset modulators exceeded when creating preset \"%s\"", PresetName.c_str()));
+                            throw sf::exception(msc::FormatText("Maximum number of preset modulators exceeded when creating preset \"%s\"", PresetName.c_str()));
 
                         // Add a global preset zone. FIXME: Is this really necessary? We're not adding any generators.
                         PresetZones.push_back(sf::preset_zone_t((uint16_t) PresetGenerators.size(), (uint16_t) PresetModulators.size()));
@@ -79,18 +79,18 @@ void bank_t::ConvertFrom(const dls::collection_t & collection)
                     }
                 }
 
-                const std::string InstrumentName = !Instrument.Name.empty() ? Instrument.Name : FormatText("Instrument %d-%d", Bank, Instrument.Program);
+                const std::string InstrumentName = !Instrument.Name.empty() ? Instrument.Name : msc::FormatText("Instrument %d-%d", Bank, Instrument.Program);
 
                 if (InstrumentZones.size() >= 65536)
-                    throw sf::exception(FormatText("Maximum number of instrument zones exceeded when creating instrument \"%s\"", InstrumentName.c_str()));
+                    throw sf::exception(msc::FormatText("Maximum number of instrument zones exceeded when creating instrument \"%s\"", InstrumentName.c_str()));
 
                 Instruments.push_back(sf::instrument_t(InstrumentName, (uint16_t) InstrumentZones.size()));
 
                 if (InstrumentGenerators.size() >= 65536)
-                    throw sf::exception(FormatText("Maximum number of instrument generators exceeded when creating preset \"%s\"", InstrumentName.c_str()));
+                    throw sf::exception(msc::FormatText("Maximum number of instrument generators exceeded when creating preset \"%s\"", InstrumentName.c_str()));
 
                 if (InstrumentModulators.size() >= 65536)
-                    throw sf::exception(FormatText("Maximum number of instrument modulators exceeded when creating preset \"%s\"", InstrumentName.c_str()));
+                    throw sf::exception(msc::FormatText("Maximum number of instrument modulators exceeded when creating preset \"%s\"", InstrumentName.c_str()));
 
                 // Add a global instrument zone.
                 InstrumentZones.push_back(instrument_zone_t((uint16_t) InstrumentGenerators.size(), (uint16_t) InstrumentModulators.size()));
@@ -273,10 +273,10 @@ void bank_t::ConvertFrom(const dls::collection_t & collection)
                 for (const auto & wave : collection.Waves)
                 {
                     if (wave.Channels != 1)
-                        throw sf::exception(FormatText("Unsupported number of channels (%d channels) in wave \"%s\"", wave.Channels, wave.Name.c_str()));
+                        throw sf::exception(msc::FormatText("Unsupported number of channels (%d channels) in wave \"%s\"", wave.Channels, wave.Name.c_str()));
 
                     if ((wave.BitsPerSample != 8) && (wave.BitsPerSample != 16))
-                        throw sf::exception(FormatText("Unsupported sample size (%d bit) in wave \"%s\"", wave.BitsPerSample, wave.Name.c_str()));
+                        throw sf::exception(msc::FormatText("Unsupported sample size (%d bit) in wave \"%s\"", wave.BitsPerSample, wave.Name.c_str()));
 
                     if (wave.FormatTag == WAVE_FORMAT_PCM)
                     {
@@ -289,7 +289,7 @@ void bank_t::ConvertFrom(const dls::collection_t & collection)
                     if (wave.FormatTag == WAVE_FORMAT_ALAW)
                         Size += wave.Data.size() * 2;       // Allow for 8-bit A-Law to 16-bit PCM conversion.
                     else
-                        throw sf::exception(FormatText("Unsupported sample format 0x%04X in wave \"%s\"", wave.FormatTag, wave.Name.c_str()));
+                        throw sf::exception(msc::FormatText("Unsupported sample format 0x%04X in wave \"%s\"", wave.FormatTag, wave.Name.c_str()));
                 }
 
                 SampleData.resize(Size);
@@ -336,7 +336,7 @@ void bank_t::ConvertFrom(const dls::collection_t & collection)
                         size_t i = 0;
 
                         for (const auto Byte : wave.Data)
-                            PCM[i++] = Map(Byte, (uint8_t) 0, (uint8_t) 255, (int16_t) -32768, (int16_t) 32767);
+                            PCM[i++] = msc::Map(Byte, (uint8_t) 0, (uint8_t) 255, (int16_t) -32768, (int16_t) 32767);
                     }
                 }
                 else
@@ -729,7 +729,7 @@ void bank_t::ConvertConnectionBlockToModulator(const dls::connection_block_t & c
     }
 
     if (dstOper == GeneratorOperator::initialAttenuation)
-        Amount = Clamp(Amount, (int16_t) 0, (int16_t) 1440);
+        Amount = std::clamp(Amount, (int16_t) 0, (int16_t) 1440);
 
     uint16_t srcOperAmtTransform  = connectionBlock.Transform & 0x00F0;
     uint16_t srcOperAmtIsBipolar  = connectionBlock.Transform & 0x0100;

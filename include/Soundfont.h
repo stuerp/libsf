@@ -1,9 +1,10 @@
 
-/** $VER: Soundfont.h (2025.09.03) P. Stuer - Soundfont data types **/
+/** $VER: Soundfont.h (2025.09.06) P. Stuer - Soundfont data types **/
 
 #pragma once
 
-#include "pch.h"
+#include <array>
+#include <span>
 
 #include "BaseTypes.h"
 #include "DLS.h"
