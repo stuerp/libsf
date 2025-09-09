@@ -1,5 +1,5 @@
 
-/** $VER: DLSReader.cpp (2025.09.03) P. Stuer - Implements a reader for a DLS-compliant sound font. **/
+/** $VER: DLSReader.cpp (2025.09.07) P. Stuer - Implements a reader for a DLS-compliant collection. **/
 
 #include "pch.h"
 
@@ -50,7 +50,7 @@ static std::string trim(const std::string & s)
 }
 
 /// <summary>
-/// Processes the complete sound font.
+/// Processes the complete collection.
 /// </summary>
 void reader_t::Process(collection_t & dls, const reader_options_t & options)
 {
@@ -86,7 +86,7 @@ void reader_t::Process(collection_t & dls, const reader_options_t & options)
                 dls.Instruments.reserve(InstrumentCount);
 
                 #ifdef __DEEP_TRACE
-                ::printf("%*s%d instruments\n", __TRACE_LEVEL * 2, "", InstrumentCount);
+                ::printf("%*s%d instruments\n", __TRACE_LEVEL * 4, "", InstrumentCount);
                 #endif
 
                 TRACE_UNINDENT();
@@ -111,7 +111,7 @@ void reader_t::Process(collection_t & dls, const reader_options_t & options)
                 dls.Build    = LOWORD(dwVersionMS);
 
                 #ifdef __DEEP_TRACE
-                ::printf("%*sVersion: %d.%d.%d.%d\n", __TRACE_LEVEL * 2, "", dls.Major, dls.Minor, dls.Revision, dls.Build);
+                ::printf("%*sVersion: %d.%d.%d.%d\n", __TRACE_LEVEL * 4, "", dls.Major, dls.Minor, dls.Revision, dls.Build);
                 #endif
 
                 TRACE_UNINDENT();
@@ -136,7 +136,7 @@ void reader_t::Process(collection_t & dls, const reader_options_t & options)
                 (void) ::StringFromGUID2(Id, Text, _countof(Text));
 
                 #ifdef __DEEP_TRACE
-                ::printf("%*sId: %s\n", __TRACE_LEVEL * 2, "", msc::WideToUTF8(Text).c_str());
+                ::printf("%*sId: %s\n", __TRACE_LEVEL * 4, "", msc::WideToUTF8(Text).c_str());
                 #endif
 
                 TRACE_UNINDENT();
@@ -163,7 +163,7 @@ void reader_t::Process(collection_t & dls, const reader_options_t & options)
                     Skip(Size - 8);
 
                 #ifdef __DEEP_TRACE
-                ::printf("%*sCues: %d\n", __TRACE_LEVEL * 2, "", CueCount);
+                ::printf("%*sCues: %d\n", __TRACE_LEVEL * 4, "", CueCount);
                 #endif
 
                 {
@@ -178,7 +178,7 @@ void reader_t::Process(collection_t & dls, const reader_options_t & options)
                         dls.Cues.push_back(Offset);
 
                         #ifdef __DEEP_TRACE
-                        ::printf("%*sOffset: %8d\n", __TRACE_LEVEL * 2, "", Offset);
+                        ::printf("%*sOffset: %8d\n", __TRACE_LEVEL * 4, "", Offset);
                         #endif
 
                         --CueCount;
@@ -342,7 +342,7 @@ void reader_t::ReadInstrument(const riff::chunk_header_t & ch, instrument_t & in
                 instrument.IsPercussion = ((Bank & F_INSTRUMENT_DRUMS) != 0);
 
                 #ifdef __DEEP_TRACE
-                ::printf("%*sRegions: %d, Bank: CC0 0x%02X CC32 0x%02X (MMA %d), Is Percussion: %s, Program: %d\n", __TRACE_LEVEL * 2, "", RegionCount, instrument.BankMSB, instrument.BankLSB, ((instrument.BankMSB * 128) + instrument.BankLSB), instrument.IsPercussion ? "true" : "false", instrument.Program);
+                ::printf("%*sRegions: %d, Bank: CC0 0x%02X CC32 0x%02X (MMA %d), Is Percussion: %s, Program: %d\n", __TRACE_LEVEL * 4, "", RegionCount, instrument.BankMSB, instrument.BankLSB, ((instrument.BankMSB * 128) + instrument.BankLSB), instrument.IsPercussion ? "true" : "false", instrument.Program);
                 #endif
 
                 TRACE_UNINDENT();
@@ -520,7 +520,7 @@ void reader_t::ReadRegion(const riff::chunk_header_t & ch, region_t & region)
                     Read(region.Layer);
 
                 #ifdef __DEEP_TRACE
-                ::printf("%*sKey: %3d - %3d, Velocity: %3d - %3d, Non exclusive: %d, Key Group: %d, Editing Layer: %d\n", __TRACE_LEVEL * 2, "", region.LowKey, region.HighKey, region.LowVelocity, region.HighVelocity, region.Options, region.KeyGroup, region.Layer);
+                ::printf("%*sKey: %3d - %3d, Velocity: %3d - %3d, Non exclusive: %d, Key Group: %d, Editing Layer: %d\n", __TRACE_LEVEL * 4, "", region.LowKey, region.HighKey, region.LowVelocity, region.HighVelocity, region.Options, region.KeyGroup, region.Layer);
                 #endif
 
                 TRACE_UNINDENT();
@@ -546,7 +546,7 @@ void reader_t::ReadRegion(const riff::chunk_header_t & ch, region_t & region)
                 Read(region.WaveLink.CueIndex);
 
                 #ifdef __DEEP_TRACE
-                ::printf("%*sOptions: 0x%08X, PhaseGroup: %d, Channel: %d, TableIndex: %d\n", __TRACE_LEVEL * 2, "", region.WaveLink.Options, region.WaveLink.PhaseGroup, region.WaveLink.Channel, region.WaveLink.CueIndex);
+                ::printf("%*sOptions: 0x%08X, PhaseGroup: %d, Channel: %d, TableIndex: %d\n", __TRACE_LEVEL * 4, "", region.WaveLink.Options, region.WaveLink.PhaseGroup, region.WaveLink.Channel, region.WaveLink.CueIndex);
                 #endif
 
                 TRACE_UNINDENT();
@@ -620,7 +620,7 @@ void reader_t::ReadArticulators(const riff::chunk_header_t & ch, std::vector<art
                 Articulator.ConnectionBlocks.reserve(ConnectionBlockCount);
 
                 #ifdef __DEEP_TRACE
-                ::printf("%*sConnection Blocks: %d\n", __TRACE_LEVEL * 2, "", ConnectionBlockCount);
+                ::printf("%*sConnection Blocks: %d\n", __TRACE_LEVEL * 4, "", ConnectionBlockCount);
                 #endif
 
                 {
@@ -639,7 +639,7 @@ void reader_t::ReadArticulators(const riff::chunk_header_t & ch, std::vector<art
                         Read(ConnectionBlock.Scale);
 
                         #ifdef __DEEP_TRACE
-                        ::printf("%*sSource: %d, Control: %3d, Destination: %3d, Transform: %d, Scale: %10d\n", __TRACE_LEVEL * 2, "", ConnectionBlock.Source, ConnectionBlock.Control, ConnectionBlock.Destination, ConnectionBlock.Transform, ConnectionBlock.Scale);
+                        ::printf("%*sSource: %d, Control: %3d, Destination: %3d, Transform: %d, Scale: %10d\n", __TRACE_LEVEL * 4, "", ConnectionBlock.Source, ConnectionBlock.Control, ConnectionBlock.Destination, ConnectionBlock.Transform, ConnectionBlock.Scale);
                         #endif
 
                         --ConnectionBlockCount;
@@ -671,7 +671,7 @@ void reader_t::ReadArticulators(const riff::chunk_header_t & ch, std::vector<art
                 Articulator.ConnectionBlocks.reserve(ConnectionBlockCount);
 
                 #ifdef __DEEP_TRACE
-                ::printf("%*sConnection Blocks: %d\n", __TRACE_LEVEL * 2, "", ConnectionBlockCount);
+                ::printf("%*sConnection Blocks: %d\n", __TRACE_LEVEL * 4, "", ConnectionBlockCount);
                 #endif
 
                 {
@@ -690,7 +690,7 @@ void reader_t::ReadArticulators(const riff::chunk_header_t & ch, std::vector<art
                         Read(ConnectionBlock.Scale);
 
                         #ifdef __DEEP_TRACE
-                        ::printf("%*sSource: %d, Control: %3d, Destination: %3d, Transform: %d, Scale: %+11d\n", __TRACE_LEVEL * 2, "", ConnectionBlock.Source, ConnectionBlock.Control, ConnectionBlock.Destination, ConnectionBlock.Transform, ConnectionBlock.Scale);
+                        ::printf("%*sSource: %d, Control: %3d, Destination: %3d, Transform: %d, Scale: %+11d\n", __TRACE_LEVEL * 4, "", ConnectionBlock.Source, ConnectionBlock.Control, ConnectionBlock.Destination, ConnectionBlock.Transform, ConnectionBlock.Scale);
                         #endif
 
                         --ConnectionBlockCount;
@@ -812,7 +812,7 @@ void reader_t::ReadWave(const riff::chunk_header_t & ch, wave_t & wave)
                 Size -= sizeof(wave.FormatTag) + sizeof(wave.Channels) + sizeof(wave.SamplesPerSec) + sizeof(wave.AvgBytesPerSec) + sizeof(wave.BlockAlign);
 
                 #ifdef __DEEP_TRACE
-                ::printf("%*sFormat: 0x%04X, Channels: %d, SamplesPerSec: %d, AvgBytesPerSec: %d, BlockAlign: %d\n", __TRACE_LEVEL * 2, "",
+                ::printf("%*sFormat: 0x%04X, Channels: %d, SamplesPerSec: %d, AvgBytesPerSec: %d, BlockAlign: %d\n", __TRACE_LEVEL * 4, "",
                     wave.FormatTag, wave.Channels, wave.SamplesPerSec, wave.AvgBytesPerSec, wave.BlockAlign);
                 #endif
 
@@ -823,7 +823,7 @@ void reader_t::ReadWave(const riff::chunk_header_t & ch, wave_t & wave)
                     Size -= sizeof(wave.BitsPerSample);
 
                     #ifdef __DEEP_TRACE
-                    ::printf("%*sBitsPerSample: %d\n", __TRACE_LEVEL * 2, "", wave.BitsPerSample);
+                    ::printf("%*sBitsPerSample: %d\n", __TRACE_LEVEL * 4, "", wave.BitsPerSample);
                     #endif
 
                     if ((wave.BitsPerSample != 8) && (wave.BitsPerSample != 16))
@@ -914,7 +914,7 @@ void reader_t::ReadWaveSample(const riff::chunk_header_t & ch, wave_sample_t & w
 
     #ifdef __DEEP_TRACE
     if (Size == 0)
-        ::printf("%*sInvalid Size field\n", __TRACE_LEVEL * 2, "");
+        ::printf("%*sInvalid Size field\n", __TRACE_LEVEL * 4, "");
     #endif
 
     Read(ws.UnityNote);
@@ -929,7 +929,7 @@ void reader_t::ReadWaveSample(const riff::chunk_header_t & ch, wave_sample_t & w
     ws.Loops.reserve(LoopCount);
 
     #ifdef __DEEP_TRACE
-    ::printf("%*sUnityNote: %d, FineTune: %d, Gain: %d, Options: 0x%08X, Loops: %d\n", __TRACE_LEVEL * 2, "", ws.UnityNote, ws.FineTune, ws.Gain, ws.Options, LoopCount);
+    ::printf("%*sUnityNote: %d, FineTune: %d, Gain: %d, Options: 0x%08X, Loops: %d\n", __TRACE_LEVEL * 4, "", ws.UnityNote, ws.FineTune, ws.Gain, ws.Options, LoopCount);
     #endif
 
     if (Size > 20)      // Size may be 0 in corrupt files.
@@ -947,7 +947,7 @@ void reader_t::ReadWaveSample(const riff::chunk_header_t & ch, wave_sample_t & w
 
         #ifdef __DEEP_TRACE
         if (Size == 0)
-            ::printf("%*sInvalid Size field\n", __TRACE_LEVEL * 2, "");
+            ::printf("%*sInvalid Size field\n", __TRACE_LEVEL * 4, "");
         #endif
 
         Read(LoopType);     // Specifies the loop type.
@@ -960,7 +960,7 @@ void reader_t::ReadWaveSample(const riff::chunk_header_t & ch, wave_sample_t & w
         ws.Loops.push_back(wave_sample_loop_t(LoopType, LoopStart, LoopLength));
 
         #ifdef __DEEP_TRACE
-        ::printf("%*sLoop Type: %d, Start: %6d, Length: %6d\n", __TRACE_LEVEL * 2, "", LoopType, LoopStart, LoopLength);
+        ::printf("%*sLoop Type: %d, Start: %6d, Length: %6d\n", __TRACE_LEVEL * 4, "", LoopType, LoopStart, LoopLength);
         #endif
 
         LoopCount--;

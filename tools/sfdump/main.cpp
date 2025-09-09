@@ -42,7 +42,7 @@ static const char * GetChunkName(const uint32_t chunkId) noexcept;
 fs::path FilePath;
 uint32_t __TRACE_LEVEL = 0;
 
-const std::vector<fs::path> Filters = { ".sbk", ".sf2", ".sf3", ".dls", ".dlp", ".ecw" };
+const std::vector<fs::path> Filters = { ".sbk", ".sf2", ".sf3", ".sf4", ".dls", ".dlp", ".ecw", ".arl" };
 
 class arguments_t
 {
@@ -193,10 +193,10 @@ static void ExamineFile(const fs::path & filePath)
 
     try
     {
-        if ((::_stricmp(FileExtension.c_str(), ".dls") == 0) || (::_stricmp(FileExtension.c_str(), ".dlp") == 0))
+        if (IsOneOf(filePath.extension(), { ".dls", ".dlp" }))
             ProcessDLS(filePath);
         else
-        if ((::_stricmp(FileExtension.c_str(), ".sbk") == 0) || (::_stricmp(FileExtension.c_str(), ".sf2") == 0) || (::_stricmp(FileExtension.c_str(), ".sf3") == 0))
+        if (IsOneOf(filePath.extension(), { ".sbk", ".sf2", ".sf3", ".sf4", ".arl" }))
             ProcessSF(filePath);
         else
         if (::_stricmp(FileExtension.c_str(), ".ecw") == 0)
@@ -233,29 +233,29 @@ static void ProcessSF(const fs::path & filePath)
         ms.Close();
     }
 
-    ::printf("%*sSoundFont specification version: v%d.%02d\n", __TRACE_LEVEL * 2, "", Bank.Major, Bank.Minor);
-    ::printf("%*sSound Engine: \"%s\"\n", __TRACE_LEVEL * 2, "", Bank.SoundEngine.c_str());
-    ::printf("%*sBank Name: \"%s\"\n", __TRACE_LEVEL * 2, "", Bank.Name.c_str());
+    ::printf("%*sSoundFont specification version: v%d.%02d\n", __TRACE_LEVEL * 4, "", Bank.Major, Bank.Minor);
+    ::printf("%*sSound Engine: \"%s\"\n", __TRACE_LEVEL * 4, "", Bank.SoundEngine.c_str());
+    ::printf("%*sBank Name: \"%s\"\n", __TRACE_LEVEL * 4, "", Bank.Name.c_str());
 
     if ((Bank.ROMName.length() != 0) && !((Bank.ROMMajor == 0) && (Bank.ROMMinor == 0)))
-        ::printf("%*sSound Data ROM: %s v%d.%02d\n", __TRACE_LEVEL * 2, "", Bank.ROMName.c_str(), Bank.ROMMajor, Bank.ROMMinor);
+        ::printf("%*sSound Data ROM: %s v%d.%02d\n", __TRACE_LEVEL * 4, "", Bank.ROMName.c_str(), Bank.ROMMajor, Bank.ROMMinor);
 
     {
-        ::printf("%*sProperties\n", __TRACE_LEVEL * 2, "");
+        ::printf("%*sProperties\n", __TRACE_LEVEL * 4, "");
         __TRACE_LEVEL++;
 
         size_t i = 0;
 
         for (const auto & [ ChunkId, Value ] : Bank.Properties)
         {
-            ::printf("%*s%s: \"%s\"\n", __TRACE_LEVEL * 2, "", GetChunkName(ChunkId), msc::CodePageToUTF8(850, Value.c_str(), Value.length()).c_str());
+            ::printf("%*s%s: \"%s\"\n", __TRACE_LEVEL * 4, "", GetChunkName(ChunkId), msc::CodePageToUTF8(850, Value.c_str(), Value.length()).c_str());
         }
 
         __TRACE_LEVEL--;
     }
 
-    ::printf("%*sSample Data: %zu bytes\n", __TRACE_LEVEL * 2, "", Bank.SampleData.size());
-    ::printf("%*sSample Data LSB: %zu bytes\n", __TRACE_LEVEL * 2, "", Bank.SampleDataLSB.size());
+    ::printf("%*sSample Data: %zu bytes\n", __TRACE_LEVEL * 4, "", Bank.SampleData.size());
+    ::printf("%*sSample Data LSB: %zu bytes\n", __TRACE_LEVEL * 4, "", Bank.SampleDataLSB.size());
 
     if (Arguments.IsSet("presets"))
         DumpPresets(Bank);
@@ -465,45 +465,45 @@ static void ProcessDLS(const fs::path & filePath)
 #ifdef _DEBUG
     uint32_t __TRACE_LEVEL = 0;
 
-    ::printf("%*sContent Version: %d.%d.%d.%d\n", __TRACE_LEVEL * 2, "", dls.Major, dls.Minor, dls.Revision, dls.Build);
+    ::printf("%*sContent Version: %d.%d.%d.%d\n", __TRACE_LEVEL * 4, "", dls.Major, dls.Minor, dls.Revision, dls.Build);
 
-    ::printf("%*s%zu instruments\n", __TRACE_LEVEL * 2, "", dls.Instruments.size());
+    ::printf("%*s%zu instruments\n", __TRACE_LEVEL * 4, "", dls.Instruments.size());
 
     size_t i = 1;
 
     for (const auto & Instrument : dls.Instruments)
     {
-        ::printf("%*s%4zu. Regions: %3zu, Articulators: %3zu, Bank: CC0 0x%02X CC32 0x%02X (MMA %5d), Program: %3d, Is Percussion: %-5s, Name: \"%s\"\n", __TRACE_LEVEL * 2, "", i++,
+        ::printf("%*s%4zu. Regions: %3zu, Articulators: %3zu, Bank: CC0 0x%02X CC32 0x%02X (MMA %5d), Program: %3d, Is Percussion: %-5s, Name: \"%s\"\n", __TRACE_LEVEL * 4, "", i++,
             Instrument.Regions.size(), Instrument.Articulators.size(), Instrument.BankMSB, Instrument.BankLSB, ((uint16_t) Instrument.BankMSB << 7) + Instrument.BankLSB, Instrument.Program, Instrument.IsPercussion ? "true" : "false", Instrument.Name.c_str());
 
         __TRACE_LEVEL += 2;
 
-        ::printf("%*sRegions:\n", __TRACE_LEVEL * 2, "");
+        ::printf("%*sRegions:\n", __TRACE_LEVEL * 4, "");
 
         __TRACE_LEVEL++;
 
         for (const auto & Region : Instrument.Regions)
         {
-            ::printf("%*sMIDI Key: %3d - %3d, Velocity: %3d - %3d, Options: 0x%04X, Key Group: %d, Zone: %d\n", __TRACE_LEVEL * 2, "",
+            ::printf("%*sMIDI Key: %3d - %3d, Velocity: %3d - %3d, Options: 0x%04X, Key Group: %d, Zone: %d\n", __TRACE_LEVEL * 4, "",
                 Region.LowKey, Region.HighKey, Region.LowVelocity, Region.HighVelocity, Region.Options, Region.KeyGroup, Region.Layer);
 
             if (!Region.Articulators.empty())
             {
                 __TRACE_LEVEL += 2;
 
-                ::printf("%*sArticulators:\n", __TRACE_LEVEL * 2, "");
+                ::printf("%*sArticulators:\n", __TRACE_LEVEL * 4, "");
 
                 __TRACE_LEVEL++;
 
                 for (const auto & Articulator : Region.Articulators)
                 {
-                    ::printf("%*s%3zu connection blocks\n", __TRACE_LEVEL * 2, "", Articulator.ConnectionBlocks.size());
+                    ::printf("%*s%3zu connection blocks\n", __TRACE_LEVEL * 4, "", Articulator.ConnectionBlocks.size());
 
                     __TRACE_LEVEL++;
 
                     for (const auto & ConnectionBlock: Articulator.ConnectionBlocks)
                     {
-                        ::printf("%*sSource: 0x%04X, Control: 0x%04X, Destination: 0x%04X, Transform: 0x%04X, Scale: 0x%08X\n", __TRACE_LEVEL * 2, "",
+                        ::printf("%*sSource: 0x%04X, Control: 0x%04X, Destination: 0x%04X, Transform: 0x%04X, Scale: 0x%08X\n", __TRACE_LEVEL * 4, "",
                             ConnectionBlock.Source, ConnectionBlock.Control, ConnectionBlock.Destination, ConnectionBlock.Transform, ConnectionBlock.Scale);
                     }
 
@@ -520,19 +520,19 @@ static void ProcessDLS(const fs::path & filePath)
 
         __TRACE_LEVEL += 2;
 
-        ::printf("%*sArticulators:\n", __TRACE_LEVEL * 2, "");
+        ::printf("%*sArticulators:\n", __TRACE_LEVEL * 4, "");
 
         __TRACE_LEVEL++;
 
         for (const auto & Articulator : Instrument.Articulators)
         {
-            ::printf("%*s%3zu connection blocks\n", __TRACE_LEVEL * 2, "", Articulator.ConnectionBlocks.size());
+            ::printf("%*s%3zu connection blocks\n", __TRACE_LEVEL * 4, "", Articulator.ConnectionBlocks.size());
 
             __TRACE_LEVEL++;
 
             for (const auto & ConnectionBlock: Articulator.ConnectionBlocks)
             {
-                ::printf("%*sSource: 0x%04X, Control: 0x%04X, Destination: 0x%04X, Transform: 0x%04X, Scale: 0x%08X\n", __TRACE_LEVEL * 2, "",
+                ::printf("%*sSource: 0x%04X, Control: 0x%04X, Destination: 0x%04X, Transform: 0x%04X, Scale: 0x%08X\n", __TRACE_LEVEL * 4, "",
                     ConnectionBlock.Source, ConnectionBlock.Control, ConnectionBlock.Destination, ConnectionBlock.Transform, ConnectionBlock.Scale);
             }
 
@@ -545,25 +545,25 @@ static void ProcessDLS(const fs::path & filePath)
 
     ::putchar('\n');
 
-    ::printf("%*s%zu waves\n", __TRACE_LEVEL * 2, "", dls.Waves.size());
+    ::printf("%*s%zu waves\n", __TRACE_LEVEL * 4, "", dls.Waves.size());
 
     i = 1;
 
     for (const auto & Wave : dls.Waves)
     {
-        ::printf("%*s%4zu. Channels: %d, %5d samples/s, %5d avg. bytes/s, Block Align: %5d, Name: \"%s\"\n", __TRACE_LEVEL * 2, "", i++,
+        ::printf("%*s%4zu. Channels: %d, %5d samples/s, %5d avg. bytes/s, Block Align: %5d, Name: \"%s\"\n", __TRACE_LEVEL * 4, "", i++,
             Wave.Channels, Wave.SamplesPerSec, Wave.AvgBytesPerSec, Wave.BlockAlign, Wave.Name.c_str());
     }
 
     ::putchar('\n');
 
-    ::printf("%*sProperties:\n", __TRACE_LEVEL * 2, "");
+    ::printf("%*sProperties:\n", __TRACE_LEVEL * 4, "");
 
     i = 1;
 
     for (const auto & [ ChunkId, Value ] : dls.Properties)
     {
-        ::printf("%*s%4zu. %s: %s\n", __TRACE_LEVEL * 2, "", i++, GetChunkName(ChunkId), Value.c_str());
+        ::printf("%*s%4zu. %s: %s\n", __TRACE_LEVEL * 4, "", i++, GetChunkName(ChunkId), Value.c_str());
     }
 #endif
 
@@ -631,29 +631,29 @@ static void ProcessECW(const fs::path & filePath)
 #ifdef _DEBUG
     uint32_t __TRACE_LEVEL = 0;
 
-    ::printf("%*sName: \"%s\"\n", __TRACE_LEVEL * 2, "", msc::CodePageToUTF8(850, ws.Name.c_str(), ws.Name.length()).c_str());
-    ::printf("%*sCopyright: \"%s\"\n", __TRACE_LEVEL * 2, "", msc::CodePageToUTF8(850, ws.Copyright.c_str(), ws.Copyright.length()).c_str());
-    ::printf("%*sDescription: \"%s\"\n", __TRACE_LEVEL * 2, "", msc::CodePageToUTF8(850, ws.Description.c_str(), ws.Description.length()).c_str());
-    ::printf("%*sInformation: \"%s\"\n", __TRACE_LEVEL * 2, "", msc::CodePageToUTF8(850, ws.Information.c_str(), ws.Information.length()).c_str());
-    ::printf("%*sFile Name: \"%s\"\n", __TRACE_LEVEL * 2, "", msc::CodePageToUTF8(850, ws.FileName.c_str(), ws.FileName.length()).c_str());
+    ::printf("%*sName: \"%s\"\n", __TRACE_LEVEL * 4, "", msc::CodePageToUTF8(850, ws.Name.c_str(), ws.Name.length()).c_str());
+    ::printf("%*sCopyright: \"%s\"\n", __TRACE_LEVEL * 4, "", msc::CodePageToUTF8(850, ws.Copyright.c_str(), ws.Copyright.length()).c_str());
+    ::printf("%*sDescription: \"%s\"\n", __TRACE_LEVEL * 4, "", msc::CodePageToUTF8(850, ws.Description.c_str(), ws.Description.length()).c_str());
+    ::printf("%*sInformation: \"%s\"\n", __TRACE_LEVEL * 4, "", msc::CodePageToUTF8(850, ws.Information.c_str(), ws.Information.length()).c_str());
+    ::printf("%*sFile Name: \"%s\"\n", __TRACE_LEVEL * 4, "", msc::CodePageToUTF8(850, ws.FileName.c_str(), ws.FileName.length()).c_str());
 
     // Dump the bank maps.
     {
-        ::printf("\n%*sBank Maps\n", __TRACE_LEVEL * 2, "");
+        ::printf("\n%*sBank Maps\n", __TRACE_LEVEL * 4, "");
         __TRACE_LEVEL++;
 
         size_t i = 0;
 
         for (const auto & BankMap : ws.BankMaps)
         {
-            ::printf("%*sBank Map %zu\n", __TRACE_LEVEL * 2, "", i++);
+            ::printf("%*sBank Map %zu\n", __TRACE_LEVEL * 4, "", i++);
             __TRACE_LEVEL++;
 
             size_t j = 0;
 
             for (const auto & MIDIPatchMap : BankMap.MIDIPatchMaps)
             {
-                ::printf("%*s%5zu. Patch Map %5d\n", __TRACE_LEVEL * 2, "", j++, MIDIPatchMap);
+                ::printf("%*s%5zu. Patch Map %5d\n", __TRACE_LEVEL * 4, "", j++, MIDIPatchMap);
             }
 
             __TRACE_LEVEL--;
@@ -664,21 +664,21 @@ static void ProcessECW(const fs::path & filePath)
 
     // Dump the drum kit maps.
     {
-        ::printf("\n%*sDrum Kit Maps\n", __TRACE_LEVEL * 2, "");
+        ::printf("\n%*sDrum Kit Maps\n", __TRACE_LEVEL * 4, "");
         __TRACE_LEVEL++;
 
         size_t i = 0;
 
         for (const auto & DrumKitMap : ws.DrumKitMaps)
         {
-            ::printf("%*sDrum Kit Map %zu\n", __TRACE_LEVEL * 2, "", i++);
+            ::printf("%*sDrum Kit Map %zu\n", __TRACE_LEVEL * 4, "", i++);
             __TRACE_LEVEL++;
 
             size_t j = 0;
 
             for (const auto & DrumNoteMap : DrumKitMap.DrumNoteMaps)
             {
-                ::printf("%*s%5zu. Drum Note Map %5d\n", __TRACE_LEVEL * 2, "", j++, DrumNoteMap);
+                ::printf("%*s%5zu. Drum Note Map %5d\n", __TRACE_LEVEL * 4, "", j++, DrumNoteMap);
             }
 
             __TRACE_LEVEL--;
@@ -689,21 +689,21 @@ static void ProcessECW(const fs::path & filePath)
 
     // Dump the MIDI Patch maps.
     {
-        ::printf("\n%*sMIDI Patch Maps\n", __TRACE_LEVEL * 2, "");
+        ::printf("\n%*sMIDI Patch Maps\n", __TRACE_LEVEL * 4, "");
         __TRACE_LEVEL++;
 
         size_t i = 0;
 
         for (const auto & MIDIPatchMap : ws.MIDIPatchMaps)
         {
-            ::printf("%*sMIDI Patch Map %zu\n", __TRACE_LEVEL * 2, "", i++);
+            ::printf("%*sMIDI Patch Map %zu\n", __TRACE_LEVEL * 4, "", i++);
             __TRACE_LEVEL++;
 
             size_t j = 0;
 
             for (const auto & Instrument : MIDIPatchMap.Instruments)
             {
-                ::printf("%*sMIDI Program %3zu = ECW Instrument %5d\n", __TRACE_LEVEL * 2, "", j++, Instrument);
+                ::printf("%*sMIDI Program %3zu = ECW Instrument %5d\n", __TRACE_LEVEL * 4, "", j++, Instrument);
             }
 
             __TRACE_LEVEL--;
@@ -714,21 +714,21 @@ static void ProcessECW(const fs::path & filePath)
 
     // Dump the MIDI Drum Note maps.
     {
-        ::printf("\n%*sDrum Note Maps\n", __TRACE_LEVEL * 2, "");
+        ::printf("\n%*sDrum Note Maps\n", __TRACE_LEVEL * 4, "");
         __TRACE_LEVEL++;
 
         size_t i = 0;
 
         for (const auto & DrumNoteMap : ws.DrumNoteMaps)
         {
-            ::printf("%*sDrum Note Map %zu\n", __TRACE_LEVEL * 2, "", i++);
+            ::printf("%*sDrum Note Map %zu\n", __TRACE_LEVEL * 4, "", i++);
             __TRACE_LEVEL++;
 
             size_t j = 0;
 
             for (const auto & Instrument : DrumNoteMap.Instruments)
             {
-                ::printf("%*sMIDI Program %3zu = ECW Instrument %5d\n", __TRACE_LEVEL * 2, "", j++, Instrument);
+                ::printf("%*sMIDI Program %3zu = ECW Instrument %5d\n", __TRACE_LEVEL * 4, "", j++, Instrument);
             }
 
             __TRACE_LEVEL--;
@@ -739,7 +739,7 @@ static void ProcessECW(const fs::path & filePath)
 
     // Dump the instruments.
     {
-        ::printf("\n%*sInstruments\n", __TRACE_LEVEL * 2, "");
+        ::printf("\n%*sInstruments\n", __TRACE_LEVEL * 4, "");
         __TRACE_LEVEL++;
 
         size_t i = 0;
@@ -750,12 +750,12 @@ static void ProcessECW(const fs::path & filePath)
             {
                 const auto & ih = (ecw::instrument_v1_t &) InstrumentHeader;
 
-                ::printf("%*s%5zu. v1, Sub Type: %d, Note: %3d\n", __TRACE_LEVEL * 2, "", i++, ih.SubType, ih.NoteThreshold);
+                ::printf("%*s%5zu. v1, Sub Type: %d, Note: %3d\n", __TRACE_LEVEL * 4, "", i++, ih.SubType, ih.NoteThreshold);
 
                 __TRACE_LEVEL++;
 
                 if (ih.SubType < 3)
-                    ::printf("%*s       Header 0, Patch: %5d, Amplitude: %4d, Pan: %4d, Coarse Tune: %4d, Fine Tune: %4d, Delay: %5d, Group: %3d\n", __TRACE_LEVEL * 2, "",
+                    ::printf("%*s       Header 0, Patch: %5d, Amplitude: %4d, Pan: %4d, Coarse Tune: %4d, Fine Tune: %4d, Delay: %5d, Group: %3d\n", __TRACE_LEVEL * 4, "",
                         ih.SubHeaders[0].PatchIndex,
                         ih.SubHeaders[0].Amplitude,
                         ih.SubHeaders[0].Pan,
@@ -766,7 +766,7 @@ static void ProcessECW(const fs::path & filePath)
                     );
 
                 if (ih.SubType > 0)
-                    ::printf("%*s       Header 1, Patch: %5d, Amplitude: %4d, Pan: %4d, Coarse Tune: %4d, Fine Tune: %4d, Delay: %5d, Group: %3d\n", __TRACE_LEVEL * 2, "",
+                    ::printf("%*s       Header 1, Patch: %5d, Amplitude: %4d, Pan: %4d, Coarse Tune: %4d, Fine Tune: %4d, Delay: %5d, Group: %3d\n", __TRACE_LEVEL * 4, "",
                         ih.SubHeaders[1].PatchIndex,
                         ih.SubHeaders[1].Amplitude,
                         ih.SubHeaders[1].Pan,
@@ -783,13 +783,13 @@ static void ProcessECW(const fs::path & filePath)
             {
                 const auto & ih = (ecw::instrument_v2_t &) InstrumentHeader;
 
-                ::printf("%*s%5zu. v2\n", __TRACE_LEVEL * 2, "", i++);
+                ::printf("%*s%5zu. v2\n", __TRACE_LEVEL * 4, "", i++);
 
                 for (const auto & sh : ih.SubHeaders)
-                    ::printf("%*s       Instrument: %5d, Note: %3d\n", __TRACE_LEVEL * 2, "", sh.InstrumentIndex, sh.NoteThreshold);
+                    ::printf("%*s       Instrument: %5d, Note: %3d\n", __TRACE_LEVEL * 4, "", sh.InstrumentIndex, sh.NoteThreshold);
             }
             else
-                ::printf("%*s%5zu. Unknown instrument type\n", __TRACE_LEVEL * 2, "", i++);
+                ::printf("%*s%5zu. Unknown instrument type\n", __TRACE_LEVEL * 4, "", i++);
         }
 
         __TRACE_LEVEL--;
@@ -797,14 +797,14 @@ static void ProcessECW(const fs::path & filePath)
 
     // Dump the patches.
     {
-        ::printf("\n%*sPatches\n", __TRACE_LEVEL * 2, "");
+        ::printf("\n%*sPatches\n", __TRACE_LEVEL * 4, "");
         __TRACE_LEVEL++;
 
         size_t i = 0;
 
         for (const auto & ph : ws.Patches)
         {
-            ::printf("%*s%5zu. Pitch Env: %4d, Modulation: %4d, Scale: %4d, Array 1 Index: %5d, Detune: %4d\n", __TRACE_LEVEL * 2, "", i++,
+            ::printf("%*s%5zu. Pitch Env: %4d, Modulation: %4d, Scale: %4d, Array 1 Index: %5d, Detune: %4d\n", __TRACE_LEVEL * 4, "", i++,
                 ph.PitchEnvelopeLevel,
                 ph.ModulationSensitivity,
                 ph.Scale,
@@ -817,7 +817,7 @@ static void ProcessECW(const fs::path & filePath)
     }
 
     {
-        ::printf("\n%*sArray 1 (%d)\n", __TRACE_LEVEL * 2, "", (int) ws.Array1.size());
+        ::printf("\n%*sArray 1 (%d)\n", __TRACE_LEVEL * 4, "", (int) ws.Array1.size());
         __TRACE_LEVEL++;
 
         size_t i = 0;
@@ -825,9 +825,9 @@ static void ProcessECW(const fs::path & filePath)
         for (const auto & Item : ws.Array1)
         {
             if (Item.Index != 0xFFFF)
-                ::printf("%*s%5zu. Slot: %5d, Name: \"%s\"\n", __TRACE_LEVEL * 2, "", i, Item.Index, Item.Name.c_str());
+                ::printf("%*s%5zu. Slot: %5d, Name: \"%s\"\n", __TRACE_LEVEL * 4, "", i, Item.Index, Item.Name.c_str());
             else
-                ::printf("%*s%5zu. Unused\n", __TRACE_LEVEL * 2, "", i);
+                ::printf("%*s%5zu. Unused\n", __TRACE_LEVEL * 4, "", i);
 
             ++i;
         }
@@ -836,7 +836,7 @@ static void ProcessECW(const fs::path & filePath)
     }
 
     {
-        ::printf("\n%*sArray 2 (%d)\n", __TRACE_LEVEL * 2, "", (int) ws.Array2.size());
+        ::printf("\n%*sArray 2 (%d)\n", __TRACE_LEVEL * 4, "", (int) ws.Array2.size());
         __TRACE_LEVEL++;
 
         size_t i = 0;
@@ -844,9 +844,9 @@ static void ProcessECW(const fs::path & filePath)
         for (const auto & Item : ws.Array2)
         {
             if (Item.Index != 0)
-                ::printf("%*s%5zu. Slot: %5d, Name: \"%s\"\n", __TRACE_LEVEL * 2, "", i, Item.Index, Item.Name.c_str());
+                ::printf("%*s%5zu. Slot: %5d, Name: \"%s\"\n", __TRACE_LEVEL * 4, "", i, Item.Index, Item.Name.c_str());
             else
-                ::printf("%*s%5zu. Unused\n", __TRACE_LEVEL * 2, "", i);
+                ::printf("%*s%5zu. Unused\n", __TRACE_LEVEL * 4, "", i);
 
             ++i;
         }
@@ -855,7 +855,7 @@ static void ProcessECW(const fs::path & filePath)
     }
 
     {
-        ::printf("\n%*sArray 3 (%d)\n", __TRACE_LEVEL * 2, "", (int) ws.Array3.size());
+        ::printf("\n%*sArray 3 (%d)\n", __TRACE_LEVEL * 4, "", (int) ws.Array3.size());
         __TRACE_LEVEL++;
 
         size_t i = 0;
@@ -863,9 +863,9 @@ static void ProcessECW(const fs::path & filePath)
         for (const auto & Item : ws.Array3)
         {
             if (Item.Index != 0)
-                ::printf("%*s%5zu. Slot: %5d, Name: \"%s\"\n", __TRACE_LEVEL * 2, "", i, Item.Index, Item.Name.c_str());
+                ::printf("%*s%5zu. Slot: %5d, Name: \"%s\"\n", __TRACE_LEVEL * 4, "", i, Item.Index, Item.Name.c_str());
             else
-                ::printf("%*s%5zu. Unused\n", __TRACE_LEVEL * 2, "", i);
+                ::printf("%*s%5zu. Unused\n", __TRACE_LEVEL * 4, "", i);
 
             ++i;
         }
@@ -874,14 +874,14 @@ static void ProcessECW(const fs::path & filePath)
     }
 
     {
-        ::printf("\n%*sSamples\n", __TRACE_LEVEL * 2, "");
+        ::printf("\n%*sSamples\n", __TRACE_LEVEL * 4, "");
         __TRACE_LEVEL++;
 
         size_t i = 0;
 
         for (const auto & s : ws.Samples)
         {
-            ::printf("%*s%5zu. \"%-14s\", MIDI Key: %3d-%3d, Flags: 0x%02X, Fine Tune: %4d, Coarse Tune: %4d, Offset: %9d, Loop: %9d-%9d\n", __TRACE_LEVEL * 2, "", i++,
+            ::printf("%*s%5zu. \"%-14s\", MIDI Key: %3d-%3d, Flags: 0x%02X, Fine Tune: %4d, Coarse Tune: %4d, Offset: %9d, Loop: %9d-%9d\n", __TRACE_LEVEL * 4, "", i++,
                 s.Name.c_str(),
                 s.LowKey, s.HighKey,
                 s.Flags,
@@ -1308,7 +1308,7 @@ static void DumpInstrumentZoneModulators(const bank_t & bank, size_t fromIndex, 
 /// </summary>
 static void DumpPresetZones(const bank_t & bank) noexcept
 {
-    ::printf("%*sPreset Zones (%zu)\n", __TRACE_LEVEL * 2, "", bank.PresetZones.size());
+    ::printf("%*sPreset Zones (%zu)\n", __TRACE_LEVEL * 4, "", bank.PresetZones.size());
 
     __TRACE_LEVEL++;
 
@@ -1316,7 +1316,7 @@ static void DumpPresetZones(const bank_t & bank) noexcept
 
     for (const auto & pz : bank.PresetZones)
     {
-        ::printf("%*s%5zu. Generator: %5d, Modulator: %5d\n", __TRACE_LEVEL * 2, "", i++, pz.GeneratorIndex, pz.ModulatorIndex);
+        ::printf("%*s%5zu. Generator: %5d, Modulator: %5d\n", __TRACE_LEVEL * 4, "", i++, pz.GeneratorIndex, pz.ModulatorIndex);
     }
 
     __TRACE_LEVEL--;

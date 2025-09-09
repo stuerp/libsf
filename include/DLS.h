@@ -1,5 +1,5 @@
 
-/** $VER: DLS.h (2025.09.03) P. Stuer - DLS data types (Based on "Downloadable Sounds Level 2.2 Version 1.0", April 2006) **/
+/** $VER: DLS.h (2025.09.07) P. Stuer - DLS data types (Based on "Downloadable Sounds Level 2.2 Version 1.0", April 2006) **/
 
 #pragma once
 
@@ -192,7 +192,7 @@ public:
 public:
     properties_t Properties;
 
-    // Represents the version of the contents of the sound font.
+    // Represents the version of the contents of the soundfont.
     uint16_t Major;
     uint16_t Minor;
     uint16_t Revision;

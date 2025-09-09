@@ -1,5 +1,5 @@
 
-/** $VER: BaseTypes.cpp (2025.08.24) P. Stuer - Base types for sound font handling **/
+/** $VER: BaseTypes.cpp (2025.09.07) P. Stuer - Base types for soundfont handling **/
 
 #include "pch.h"
 

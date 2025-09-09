@@ -59,7 +59,7 @@ void reader_t::Process(bank_t & bank, const soundfont_reader_options_t & options
                 Read(&bank.Minor, sizeof(bank.Minor));
 
                 #ifdef __TRACE
-                ::printf("%*sSoundFont specification version: %d.%02d\n", __TRACE_LEVEL * 2, "", bank.Major, bank.Minor);
+                ::printf("%*sSoundFont specification version: %d.%02d\n", __TRACE_LEVEL * 4, "", bank.Major, bank.Minor);
                 #endif
 
                 TRACE_UNINDENT();
@@ -77,7 +77,7 @@ void reader_t::Process(bank_t & bank, const soundfont_reader_options_t & options
                 Read((void *) bank.SoundEngine.c_str(), ch.Size);
 
                 #ifdef __TRACE
-                ::printf("%*sSound Engine: \"%s\"\n", __TRACE_LEVEL * 2, "", bank.SoundEngine.c_str());
+                ::printf("%*sSound Engine: \"%s\"\n", __TRACE_LEVEL * 4, "", bank.SoundEngine.c_str());
                 #endif
 
                 TRACE_UNINDENT();
@@ -95,7 +95,7 @@ void reader_t::Process(bank_t & bank, const soundfont_reader_options_t & options
                 Read((void *) bank.Name.data(), ch.Size);
 
                 #ifdef __TRACE
-                ::printf("%*sBank Name: \"%s\"\n", __TRACE_LEVEL * 2, "", bank.Name.c_str());
+                ::printf("%*sBank Name: \"%s\"\n", __TRACE_LEVEL * 4, "", bank.Name.c_str());
                 #endif
 
                 TRACE_UNINDENT();
@@ -113,7 +113,7 @@ void reader_t::Process(bank_t & bank, const soundfont_reader_options_t & options
                 Read((void *) bank.ROMName.data(), ch.Size);
 
                 #ifdef __TRACE
-                ::printf("%*sROM: \"%s\"\n", __TRACE_LEVEL * 2, "", bank.ROMName.c_str());
+                ::printf("%*sROM: \"%s\"\n", __TRACE_LEVEL * 4, "", bank.ROMName.c_str());
                 #endif
 
                 TRACE_UNINDENT();
@@ -130,7 +130,7 @@ void reader_t::Process(bank_t & bank, const soundfont_reader_options_t & options
                 Read(&bank.ROMMinor, sizeof(bank.ROMMinor));
 
                 #ifdef __TRACE
-                ::printf("%*sROM Version: %d.%02d\n", __TRACE_LEVEL * 2, "", bank.ROMMajor, bank.ROMMinor);
+                ::printf("%*sROM Version: %d.%02d\n", __TRACE_LEVEL * 4, "", bank.ROMMajor, bank.ROMMinor);
                 #endif
 
                 TRACE_UNINDENT();
@@ -160,7 +160,7 @@ void reader_t::Process(bank_t & bank, const soundfont_reader_options_t & options
                     bank.SampleNames[i] = std::string(Data, sizeof(Data));
 
                     #ifdef __TRACE
-                    ::printf("%*s%5zu. \"%-20s\"\n", __TRACE_LEVEL * 2, "", i, Data);
+                    ::printf("%*s%5zu. \"%-20s\"\n", __TRACE_LEVEL * 4, "", i, Data);
                     #endif
                 }
 
@@ -223,7 +223,7 @@ void reader_t::Process(bank_t & bank, const soundfont_reader_options_t & options
                     bank.Presets[i] = preset_t(std::string(ph.Name, sizeof(ph.Name)), ph.wPreset, ph.Bank, ph.ZoneIndex, ph.Library, ph.Genre, ph.Morphology);
 
                     #ifdef __TRACE
-                    ::printf("%*s%5zu. \"%-20s\", MIDI Preset %3d, MIDI Bank %3d, Zone %6d\n", __TRACE_LEVEL * 2, "", i, ph.Name, ph.wPreset, ph.Bank, ph.ZoneIndex);
+                    ::printf("%*s%5zu. \"%-20s\", MIDI Preset %3d, MIDI Bank %3d, Zone %6d\n", __TRACE_LEVEL * 4, "", i, ph.Name, ph.wPreset, ph.Bank, ph.ZoneIndex);
                     #endif
                 }
 
@@ -249,7 +249,7 @@ void reader_t::Process(bank_t & bank, const soundfont_reader_options_t & options
                     bank.PresetZones[i] = preset_zone_t(Zone.GeneratorIndex, Zone.ModulatorIndex);
 
                     #ifdef __TRACE
-                    ::printf("%*s%5zu. Generator %5d, Modulator %5d\n", __TRACE_LEVEL * 2, "", i, Zone.GeneratorIndex, Zone.ModulatorIndex);
+                    ::printf("%*s%5zu. Generator %5d, Modulator %5d\n", __TRACE_LEVEL * 4, "", i, Zone.GeneratorIndex, Zone.ModulatorIndex);
                     #endif
                 }
 
@@ -277,7 +277,7 @@ void reader_t::Process(bank_t & bank, const soundfont_reader_options_t & options
                         bank.PresetModulators[i] = modulator_t((ModulatorOperator) Modulator.SrcOperator, (GeneratorOperator) Modulator.DstOperator, Modulator.Amount, (ModulatorOperator) Modulator.AmountSource, (TransformOperator) Modulator.SourceTransform);
 
                         #ifdef __TRACE
-                        ::printf("%*s%5zu. Src Op: 0x%04X, Dst Op: 0x%04X, Amount: %6d, Amount Source: 0x%04X, Source Transform: 0x%04X\n", __TRACE_LEVEL * 2, "", i,
+                        ::printf("%*s%5zu. Src Op: 0x%04X, Dst Op: 0x%04X, Amount: %6d, Amount Source: 0x%04X, Source Transform: 0x%04X\n", __TRACE_LEVEL * 4, "", i,
                             Modulator.SrcOperator, Modulator.DstOperator, Modulator.Amount, Modulator.AmountSource, Modulator.SourceTransform);
                         #endif
                     }
@@ -307,7 +307,7 @@ void reader_t::Process(bank_t & bank, const soundfont_reader_options_t & options
                     bank.PresetGenerators[i] = generator_t(Generator.Operator, Generator.Amount);
 
                     #ifdef __TRACE
-                    ::printf("%*s%5zu. Operator: 0x%04X, Amount: 0x%04X\n", __TRACE_LEVEL * 2, "", i, Generator.Operator, Generator.Amount);
+                    ::printf("%*s%5zu. Operator: 0x%04X, Amount: 0x%04X\n", __TRACE_LEVEL * 4, "", i, Generator.Operator, Generator.Amount);
                     #endif
                 }
 
@@ -333,7 +333,7 @@ void reader_t::Process(bank_t & bank, const soundfont_reader_options_t & options
                     bank.Instruments[i] = instrument_t(std::string(Data.Name, sizeof(Data.Name)), Data.ZoneIndex);
 
                     #ifdef __TRACE
-                    ::printf("%*s%5zu. \"%-20s\", Zone %5d\n", __TRACE_LEVEL * 2, "", i, Instrument.Name, Instrument.ZoneIndex);
+                    ::printf("%*s%5zu. \"%-20s\", Zone %5d\n", __TRACE_LEVEL * 4, "", i, Instrument.Name, Instrument.ZoneIndex);
                     #endif
                 }
 
@@ -359,7 +359,7 @@ void reader_t::Process(bank_t & bank, const soundfont_reader_options_t & options
                     bank.InstrumentZones[i] = instrument_zone_t(ib.GeneratorIndex, ib.ModulatorIndex);
 
                     #ifdef __TRACE
-                    ::printf("%*s%5zu. Generator %5d, Modulator %5d\n", __TRACE_LEVEL * 2, "", i, ib.GeneratorIndex, ib.ModulatorIndex);
+                    ::printf("%*s%5zu. Generator %5d, Modulator %5d\n", __TRACE_LEVEL * 4, "", i, ib.GeneratorIndex, ib.ModulatorIndex);
                     #endif
                 }
 
@@ -387,7 +387,7 @@ void reader_t::Process(bank_t & bank, const soundfont_reader_options_t & options
                         bank.InstrumentModulators[i] = modulator_t((ModulatorOperator) Modulator.SrcOperator, (GeneratorOperator) Modulator.DstOperator, Modulator.Amount, (ModulatorOperator) Modulator.AmountSource, (TransformOperator) Modulator.SourceTransform);
 
                         #ifdef __TRACE
-                        ::printf("%*s%5zu. Src Op: 0x%04X, Dst Op: %2d, Amount: %6d, Amount Source: 0x%04X, Source Transform: 0x%04X\n", __TRACE_LEVEL * 2, "", i,
+                        ::printf("%*s%5zu. Src Op: 0x%04X, Dst Op: %2d, Amount: %6d, Amount Source: 0x%04X, Source Transform: 0x%04X\n", __TRACE_LEVEL * 4, "", i,
                             Modulator.SrcOperator, Modulator.DstOperator, Modulator.Amount, Modulator.AmountSource, Modulator.SourceTransform);
                         #endif
                     }
@@ -417,7 +417,7 @@ void reader_t::Process(bank_t & bank, const soundfont_reader_options_t & options
                     bank.InstrumentGenerators[i] = generator_t(Generator.Operator, Generator.Amount);
 
                     #ifdef __TRACE
-                    ::printf("%*s%5zu. Operator: 0x%04X, Amount: 0x%04X\n", __TRACE_LEVEL * 2, "", i,
+                    ::printf("%*s%5zu. Operator: 0x%04X, Amount: 0x%04X\n", __TRACE_LEVEL * 4, "", i,
                         Generator.Operator, Generator.Amount);
                     #endif
                 }
@@ -452,7 +452,7 @@ void reader_t::Process(bank_t & bank, const soundfont_reader_options_t & options
                         bank.Samples[i] = sample_t("", sh.Start, sh.End, sh.LoopStart, sh.LoopEnd, 22050, 60, 0, 0, (uint16_t) SampleType);
 
                         #ifdef __TRACE
-                        ::printf("%*s%5zu.%9d-%9d, Loop: %9d-%9d\n", __TRACE_LEVEL * 2, "", i, sh.Start, sh.End, sh.LoopStart, sh.LoopEnd);
+                        ::printf("%*s%5zu.%9d-%9d, Loop: %9d-%9d\n", __TRACE_LEVEL * 4, "", i, sh.Start, sh.End, sh.LoopStart, sh.LoopEnd);
                         #endif
                     }
                 }
@@ -470,7 +470,7 @@ void reader_t::Process(bank_t & bank, const soundfont_reader_options_t & options
                         bank.Samples[i] = sample_t(std::string(sh.Name, sizeof(sh.Name)), sh.Start, sh.End, sh.LoopStart, sh.LoopEnd, sh.SampleRate, sh.Pitch, sh.PitchCorrection, sh.SampleLink, sh.SampleType);
 
                         #ifdef __TRACE
-                        ::printf("%*s%5zu. \"%-20s\", %9d-%9d, Loop: %9d-%9d, %6dHz, Pitch: %3d, Pitch Correction: %3d, Type: 0x%04X, Link: %5d\n", __TRACE_LEVEL * 2, "", i,
+                        ::printf("%*s%5zu. \"%-20s\", %9d-%9d, Loop: %9d-%9d, %6dHz, Pitch: %3d, Pitch Correction: %3d, Type: 0x%04X, Link: %5d\n", __TRACE_LEVEL * 4, "", i,
                             sh.Name, sh.Start, sh.End, sh.LoopStart, sh.LoopEnd,
                             sh.SampleRate, sh.Pitch, sh.PitchCorrection,
                             sh.SampleType, sh.SampleLink);

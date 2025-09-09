@@ -1,5 +1,5 @@
 
-/** $VER: BaseTypes.h (2025.08.24) P. Stuer - Base types for sound font handling **/
+/** $VER: BaseTypes.h (2025.09.07) P. Stuer - Base types for soundfont handling **/
 
 #pragma once
 
