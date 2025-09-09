@@ -1,5 +1,5 @@
 
-/** $VER: Soundfont.h (2025.09.06) P. Stuer - Soundfont data types **/
+/** $VER: Soundfont.h (2025.09.09) P. Stuer - Soundfont data types **/
 
 #pragma once
 
@@ -194,6 +194,14 @@ public:
     std::string DescribeSampleType(uint16_t sampleType) const noexcept;
 
 private:
+    void ConvertInstruments(const dls::collection_t & collection);
+    void AddPreset(const sf::dls::instrument_t & instrument, uint16_t bank);
+    void AddInstrument(const sf::dls::instrument_t & instrument, uint16_t bank);
+    void ConvertInstrumentArticulators(const sf::dls::instrument_t & instrument);
+    void ConvertRegions(const dls::collection_t & collection, const sf::dls::instrument_t & instrument);
+
+    void ConvertWaves(const dls::collection_t & collection);
+
     static void ConvertArticulators(const std::vector<dls::articulator_t> & articulators, std::vector<generator_t> & generators, std::vector<modulator_t> & modulators);
     static void ConvertConnectionBlockToModulator(const dls::connection_block_t & connectionBlock, std::vector<modulator_t> & modulators);
     static GeneratorOperator GetSpecialGeneratorOperator(const dls::connection_block_t & connectionBlock) noexcept;

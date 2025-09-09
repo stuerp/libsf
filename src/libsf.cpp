@@ -1,5 +1,5 @@
 
-/** $VER: SoundFont.cpp (2025.09.03) P. Stuer **/
+/** $VER: SoundFont.cpp (2025.09.09) P. Stuer **/
 
 #include "pch.h"
 
@@ -46,330 +46,358 @@ void bank_t::ConvertFrom(const dls::collection_t & collection)
     }
 
     // Write the Hydra.
+    ConvertInstruments(collection);
+    ConvertWaves(collection);
+}
+
+/// <summary>
+/// Converts the DLS instruments to SF2 presets and instruments.
+/// </summary>
+void bank_t::ConvertInstruments(const dls::collection_t & collection)
+{
+    for (const auto & Instrument : collection.Instruments)
     {
-        // Add the instruments.
-        {
-            for (const auto & Instrument : collection.Instruments)
-            {
-                const uint16_t Bank = !Instrument.IsPercussion ? ((Instrument.BankMSB != 0) ? Instrument.BankMSB : Instrument.BankLSB) : 128;
+        // Use bank LSB if bank MSB is zero. This might indicate we're converting an XG collection.
+        const uint16_t Bank = !Instrument.IsPercussion ? ((Instrument.BankMSB != 0) ? Instrument.BankMSB : Instrument.BankLSB) : 128;
 
-                // Add a preset.
-                {
-                    const std::string PresetName = !Instrument.Name.empty() ? Instrument.Name : msc::FormatText("Preset %d-%d", Bank, Instrument.Program);
+        AddPreset(Instrument, Bank);
+        AddInstrument(Instrument, Bank);
 
-                    if (PresetZones.size() >= 65536)
-                        throw sf::exception(msc::FormatText("Maximum number of preset zones exceeded when creating preset \"%s\"", PresetName.c_str()));
-
-                    Presets.push_back(sf::preset_t(PresetName, Instrument.Program, Bank, (uint16_t) PresetZones.size()));
-
-                    {
-                        if (PresetGenerators.size() >= 65536)
-                            throw sf::exception(msc::FormatText("Maximum number of preset generators exceeded when creating preset \"%s\"", PresetName.c_str()));
-
-                        if (PresetModulators.size() >= 65536)
-                            throw sf::exception(msc::FormatText("Maximum number of preset modulators exceeded when creating preset \"%s\"", PresetName.c_str()));
-
-                        // Add a global preset zone. FIXME: Is this really necessary? We're not adding any generators.
-                        PresetZones.push_back(sf::preset_zone_t((uint16_t) PresetGenerators.size(), (uint16_t) PresetModulators.size()));
-
-                        // Add a local zone.
-                        PresetZones.push_back(sf::preset_zone_t((uint16_t) PresetGenerators.size(), (uint16_t) PresetModulators.size()));
-
-                        PresetGenerators.push_back(sf::generator_t(GeneratorOperator::instrument, (uint16_t) Instruments.size()));
-                    }
-                }
-
-                const std::string InstrumentName = !Instrument.Name.empty() ? Instrument.Name : msc::FormatText("Instrument %d-%d", Bank, Instrument.Program);
-
-                if (InstrumentZones.size() >= 65536)
-                    throw sf::exception(msc::FormatText("Maximum number of instrument zones exceeded when creating instrument \"%s\"", InstrumentName.c_str()));
-
-                Instruments.push_back(sf::instrument_t(InstrumentName, (uint16_t) InstrumentZones.size()));
-
-                if (InstrumentGenerators.size() >= 65536)
-                    throw sf::exception(msc::FormatText("Maximum number of instrument generators exceeded when creating preset \"%s\"", InstrumentName.c_str()));
-
-                if (InstrumentModulators.size() >= 65536)
-                    throw sf::exception(msc::FormatText("Maximum number of instrument modulators exceeded when creating preset \"%s\"", InstrumentName.c_str()));
-
-                // Add a global instrument zone.
-                InstrumentZones.push_back(instrument_zone_t((uint16_t) InstrumentGenerators.size(), (uint16_t) InstrumentModulators.size()));
-
-                {
-                    std::vector<generator_t> Generators;
-                    std::vector<modulator_t> Modulators;
-
-                    // Convert the instrument articulators, if any.
-                    if (!Instrument.Articulators.empty())
-                        ConvertArticulators(Instrument.Articulators, Generators, Modulators);
-
-                    // Add a default reverb modulator unless one already exists. (Not defined in the SF2 spec.)
-                    {
-                        auto it = std::find_if(Modulators.begin(), Modulators.end(), [](modulator_t m) { return (m.DstOper == GeneratorOperator::reverbEffectsSend); });
-
-                        if (it == Modulators.end())
-                            Modulators.push_back(modulator_t(MIDIControllerReverb, GeneratorOperator::reverbEffectsSend, 1000, 0, 0));
-                    }
-
-                    // Add a default chorus modulator unless one already exists. (Not defined in the SF2 spec.)
-                    {
-                        auto it = std::find_if(Modulators.begin(), Modulators.end(), [](modulator_t m) { return (m.DstOper == GeneratorOperator::chorusEffectsSend); });
-
-                        if (it == Modulators.end())
-                            Modulators.push_back(modulator_t(MIDIControllerChorus, GeneratorOperator::chorusEffectsSend, 1000, 0, 0));
-                    }
-
-                    InstrumentGenerators.insert(InstrumentGenerators.end(), Generators.begin(), Generators.end());
-                    InstrumentModulators.insert(InstrumentModulators.end(), Modulators.begin(), Modulators.end());
-                }
-
-                // Convert the regions to instrument zones.
-                for (const auto & Region : Instrument.Regions)
-                {
-                    // Add a local instrument zone.
-                    InstrumentZones.push_back(instrument_zone_t((uint16_t) InstrumentGenerators.size(), (uint16_t) InstrumentModulators.size()));
-
-                    InstrumentGenerators.push_back(sf::generator_t(GeneratorOperator::keyRange, MAKEWORD(Region.LowKey,      Region.HighKey)));         // Must be the first generator.
-                    InstrumentGenerators.push_back(sf::generator_t(GeneratorOperator::velRange, MAKEWORD(Region.LowVelocity, Region.HighVelocity)));    // Must only be preceded by keyRange.
-
-                    if (Region.KeyGroup != 0)
-                        InstrumentGenerators.push_back(sf::generator_t(GeneratorOperator::exclusiveClass, Region.KeyGroup));
-
-                    // Convert the region articulators, if any.
-                    if (!Region.Articulators.empty())
-                    {
-                        std::vector<generator_t> Generators;
-                        std::vector<modulator_t> Modulators;
-
-                        ConvertArticulators(Region.Articulators, Generators, Modulators);
-
-                        InstrumentGenerators.insert(InstrumentGenerators.end(), Generators.begin(), Generators.end());
-                        InstrumentModulators.insert(InstrumentModulators.end(), Modulators.begin(), Modulators.end());
-                    }
-
-                    // dls.Cues[CueIndex] is actually an offset in the wave pool but we can use the cue index as an index into the wave list.
-                    const uint16_t SampleID = (uint16_t) Region.WaveLink.CueIndex;
-
-                    const auto & Wave = collection.Waves[SampleID];
-
-                    // Add an Initial Attenuation generator.
-                    {
-                        // Decide which gain value to use. (See DLS Spec 3.1 Coding Requirements and Recommendations)
-                        int32_t Gain = 0;
-
-                        if (Region.WaveSample.IsInitialized())
-                            Gain = Region.WaveSample.Gain;
-                        else
-                        if (Wave.WaveSample.IsInitialized())
-                            Gain = Wave.WaveSample.Gain;
-
-                        const double EmuCorrection = 0.4;
-
-                        // Convert DLS gain from 1/655360 dB units to SF2 attenuation in centibels. (See DLS Spec 1.14.4 Gain)
-                        const double Attenuation = ((double) Gain / -65536.) / EmuCorrection;
-
-                        InstrumentGenerators.push_back(sf::generator_t(GeneratorOperator::initialAttenuation, (uint16_t) Attenuation));
-                    }
-
-                    // Add a Sample Mode generator.
-                    {
-                        uint16_t SampleMode = 0; // No loop
-
-                        if (!Wave.WaveSample.Loops.empty())
-                        {
-                            if (Wave.WaveSample.Loops[0].Type == dls::wave_sample_loop_t::WLOOP_TYPE_FORWARD)
-                                SampleMode = 1; // Loop
-                            else
-                            if (Wave.WaveSample.Loops[0].Type == dls::wave_sample_loop_t::WLOOP_TYPE_RELEASE)
-                                SampleMode = 3; // Loop and play till the end in release phase
-                        }
-
-                        if (SampleMode != 0)
-                        {
-                            InstrumentGenerators.push_back(sf::generator_t(GeneratorOperator::sampleModes, SampleMode));
-
-                            // Adjust the loop if necessary.
-                            if (!Wave.WaveSample.Loops.empty() && !Region.WaveSample.Loops.empty())
-                            {
-                                const auto & SrcLoop = Wave  .WaveSample.Loops[0];
-                                const auto & DstLoop = Region.WaveSample.Loops[0];
-
-                                const int32_t StartDiff = DstLoop.Start - SrcLoop.Start;
-                                const int32_t EndDiff   = (DstLoop.Start + DstLoop.Length) - (SrcLoop.Start + SrcLoop.Length);
-
-                                if (StartDiff != 0)
-                                {
-                                    const int32_t CoarseOffset = StartDiff / 32768;
-
-                                    if (CoarseOffset != 0)
-                                        InstrumentGenerators.push_back(sf::generator_t(GeneratorOperator::startloopAddrsCoarseOffset, (uint16_t) CoarseOffset));
-
-                                    const int32_t FineOffset = StartDiff % 32768;
-
-                                    InstrumentGenerators.push_back(sf::generator_t(GeneratorOperator::startloopAddrsOffset, (uint16_t) FineOffset));
-                                }
-
-                                if (EndDiff != 0)
-                                {
-                                    const int32_t CoarseOffset = EndDiff / 32768;
-
-                                    if (CoarseOffset != 0)
-                                        InstrumentGenerators.push_back(sf::generator_t(GeneratorOperator::endloopAddrsCoarseOffset, (uint16_t) CoarseOffset));
-
-                                    const int32_t FineOffset = EndDiff % 32768;
-
-                                    InstrumentGenerators.push_back(sf::generator_t(GeneratorOperator::endloopAddrsOffset, (uint16_t) FineOffset));
-                                }
-                            }
-                        }
-                    }
-
-                    // Adjust the tuning if necessary.
-                    {
-                        int16_t FineTune = Region.WaveSample.FineTune - Wave.WaveSample.FineTune;
-
-                        int16_t CoarseTune = FineTune / 100;
-
-                        if (CoarseTune != 0)
-                            InstrumentGenerators.push_back(sf::generator_t(GeneratorOperator::coarseTune, (uint16_t) CoarseTune));
-
-                        FineTune = FineTune % 100;
-
-                        if (FineTune != 0)
-                            InstrumentGenerators.push_back(sf::generator_t(GeneratorOperator::fineTune, FineTune));
-                    }
-
-                    // Adjust the root key if necessary.
-                    if (Region.WaveSample.UnityNote != Wave.WaveSample.UnityNote)
-                        InstrumentGenerators.push_back(sf::generator_t(GeneratorOperator::overridingRootKey, Region.WaveSample.UnityNote));
-
-                    InstrumentGenerators.push_back(sf::generator_t(GeneratorOperator::sampleID, SampleID));                                             // Must be the last generator.
-                }
-            }
-
-            // Add the instrument list terminator.
-            Instruments.push_back(sf::instrument_t("EOI", (uint16_t) InstrumentZones.size()));
-            InstrumentZones.push_back(instrument_zone_t((uint16_t) InstrumentGenerators.size(), (uint16_t) InstrumentModulators.size()));
-
-            // Add the instrument zone modulator.
-            InstrumentModulators.push_back(sf::modulator_t());
-
-            // Add the preset list terminator.
-            Presets.push_back(sf::preset_t("EOP", 0, 0,  (uint16_t) PresetZones.size()));
-            PresetZones.push_back(sf::preset_zone_t((uint16_t) PresetGenerators.size(), (uint16_t) PresetModulators.size()));
-
-            // Add the preset zone modulator.
-            PresetModulators.push_back(sf::modulator_t());
-        }
-
-        // Add the samples.
-        {
-            a_law_codec_t ALawCodec;
-
-            // Calculate the size of the sample data buffer.
-            {
-                size_t Size = 0;
-
-                for (const auto & wave : collection.Waves)
-                {
-                    if (wave.Channels != 1)
-                        throw sf::exception(msc::FormatText("Unsupported number of channels (%d channels) in wave \"%s\"", wave.Channels, wave.Name.c_str()));
-
-                    if ((wave.BitsPerSample != 8) && (wave.BitsPerSample != 16))
-                        throw sf::exception(msc::FormatText("Unsupported sample size (%d bit) in wave \"%s\"", wave.BitsPerSample, wave.Name.c_str()));
-
-                    if (wave.FormatTag == WAVE_FORMAT_PCM)
-                    {
-                        if (wave.BitsPerSample == 16)
-                            Size += wave.Data.size();
-                        else
-                            Size += wave.Data.size() * 2;   // Allow for 8-bit to 16-bit conversion. 
-                    }
-                    else
-                    if (wave.FormatTag == WAVE_FORMAT_ALAW)
-                        Size += wave.Data.size() * 2;       // Allow for 8-bit A-Law to 16-bit PCM conversion.
-                    else
-                        throw sf::exception(msc::FormatText("Unsupported sample format 0x%04X in wave \"%s\"", wave.FormatTag, wave.Name.c_str()));
-                }
-
-                SampleData.resize(Size);
-            }
-
-            size_t Offset = 0;
-
-            for (const auto & wave : collection.Waves)
-            {
-                const size_t DataSize = (wave.BitsPerSample == 16) ? wave.Data.size() : wave.Data.size() * 2;
-
-                const auto BytesPerSample = 2;                                      // SF2 samples are always 16-bit (SoundFont 2.01 Technical Specification, 6 The sdta-list Chunk)
-
-                // Pitch correction: convert 1/100 to note units.
-                const  int16_t Semitones = wave.WaveSample.FineTune / 100;          // FineTune in Relative Pitch units (1/65536 cents) (See 1.14.2 Relative Pitch)
-
-                const uint16_t UnityNote = wave.WaveSample.UnityNote + Semitones;
-                const  int16_t FineTune  = wave.WaveSample.FineTune % 100;          // FineTune in cents
-
-                sf::sample_t Sample =
-                {
-                    .Name            = wave.Name,
-
-                    .Start           = (uint32_t) ( Offset             / BytesPerSample),
-                    .End             = (uint32_t) ((Offset + DataSize) / BytesPerSample),
-
-                    .SampleRate      = wave.SamplesPerSec,
-                    .Pitch           = (uint8_t) UnityNote,
-                    .PitchCorrection =  (int8_t) FineTune,
-
-                    .SampleType      = sf::SampleTypes::MonoSample
-                };
-
-                if (wave.FormatTag == WAVE_FORMAT_PCM)
-                {
-                    if (wave.BitsPerSample == 16)
-                    {
-                        std::memcpy(SampleData.data() + Offset, wave.Data.data(), wave.Data.size());
-                    }
-                    else
-                    {
-                        // Convert 8-bit samples to 16-bit (Downloadable Sounds Level 2.2, 2.16.8 Data Format of the WAVE_FORMAT_PCM Samples).
-                        auto PCM = std::span<int16_t>((int16_t *)(SampleData.data() + Offset), wave.Data.size());
-                        size_t i = 0;
-
-                        for (const auto Byte : wave.Data)
-                            PCM[i++] = msc::Map(Byte, (uint8_t) 0, (uint8_t) 255, (int16_t) -32768, (int16_t) 32767);
-                    }
-                }
-                else
-                if (wave.FormatTag == WAVE_FORMAT_ALAW)
-                {
-                    auto PCM = std::span<int16_t>((int16_t *)(SampleData.data() + Offset), wave.Data.size());
-
-                    ALawCodec.ToPCM(wave.Data, PCM);
-                }
-                else
-                    assert(1 == 2); // Should not get here.
-
-                Offset += DataSize;
-
-                if (!wave.WaveSample.Loops.empty())
-                {
-                    const auto & Loop = wave.WaveSample.Loops[0];
-
-                    Sample.LoopStart = Sample.Start     + Loop.Start;
-                    Sample.LoopEnd   = Sample.LoopStart + Loop.Length;
-                }
-                else
-                {
-                    Sample.LoopStart = Sample.Start;
-                    Sample.LoopEnd   = Sample.End - 1;
-                }
-
-                Samples.push_back(Sample);
-            }
-
-            Samples.push_back(sf::sample_t("EOS"));
-        }
+        ConvertInstrumentArticulators(Instrument);
+        ConvertRegions(collection, Instrument);
     }
+
+    // Add the instrument list terminator.
+    Instruments.push_back(sf::instrument_t("EOI", (uint16_t) InstrumentZones.size()));
+    InstrumentZones.push_back(instrument_zone_t((uint16_t) InstrumentGenerators.size(), (uint16_t) InstrumentModulators.size()));
+
+    // Add the instrument zone modulator.
+    InstrumentModulators.push_back(sf::modulator_t());
+
+    // Add the preset list terminator.
+    Presets.push_back(sf::preset_t("EOP", 0, 0,  (uint16_t) PresetZones.size()));
+    PresetZones.push_back(sf::preset_zone_t((uint16_t) PresetGenerators.size(), (uint16_t) PresetModulators.size()));
+
+    // Add the preset zone modulator.
+    PresetModulators.push_back(sf::modulator_t());
+}
+
+/// <summary>
+/// Adds a preset to the SF2 bank based on information from the DLS instrument.
+/// </summary>
+void bank_t::AddPreset(const sf::dls::instrument_t & instrument, uint16_t bank)
+{
+    const std::string PresetName = !instrument.Name.empty() ? instrument.Name : msc::FormatText("Preset %d-%d", bank, instrument.Program);
+
+    if (PresetZones.size() >= 65536)
+        throw sf::exception(msc::FormatText("Maximum number of preset zones exceeded when creating preset \"%s\"", PresetName.c_str()));
+
+    Presets.push_back(sf::preset_t(PresetName, instrument.Program, bank, (uint16_t) PresetZones.size()));
+
+    if (PresetGenerators.size() >= 65536)
+        throw sf::exception(msc::FormatText("Maximum number of preset generators exceeded when creating preset \"%s\"", PresetName.c_str()));
+
+    if (PresetModulators.size() >= 65536)
+        throw sf::exception(msc::FormatText("Maximum number of preset modulators exceeded when creating preset \"%s\"", PresetName.c_str()));
+
+    // Add a global preset zone. FIXME: Is this really necessary? We're not adding any generators.
+    PresetZones.push_back(sf::preset_zone_t((uint16_t) PresetGenerators.size(), (uint16_t) PresetModulators.size()));
+
+    // Add a local zone.
+    PresetZones.push_back(sf::preset_zone_t((uint16_t) PresetGenerators.size(), (uint16_t) PresetModulators.size()));
+
+    PresetGenerators.push_back(sf::generator_t(GeneratorOperator::instrument, (uint16_t) Instruments.size()));
+}
+
+/// <summary>
+/// Adds an instrument to the SF2 bank based on information from the DLS instrument.
+/// </summary>
+void bank_t::AddInstrument(const sf::dls::instrument_t & instrument, uint16_t bank)
+{
+    const std::string InstrumentName = !instrument.Name.empty() ? instrument.Name : msc::FormatText("Instrument %d-%d", bank, instrument.Program);
+
+    if (InstrumentZones.size() >= 65536)
+        throw sf::exception(msc::FormatText("Maximum number of instrument zones exceeded when creating instrument \"%s\"", InstrumentName.c_str()));
+
+    Instruments.push_back(sf::instrument_t(InstrumentName, (uint16_t) InstrumentZones.size()));
+
+    if (InstrumentGenerators.size() >= 65536)
+        throw sf::exception(msc::FormatText("Maximum number of instrument generators exceeded when creating preset \"%s\"", InstrumentName.c_str()));
+
+    if (InstrumentModulators.size() >= 65536)
+        throw sf::exception(msc::FormatText("Maximum number of instrument modulators exceeded when creating preset \"%s\"", InstrumentName.c_str()));
+
+    // Add a global instrument zone.
+    InstrumentZones.push_back(instrument_zone_t((uint16_t) InstrumentGenerators.size(), (uint16_t) InstrumentModulators.size()));
+}
+
+/// <summary>
+/// Converts the DLS instrument articulators to SF2 generators and modulators.
+/// </summary>
+void bank_t::ConvertInstrumentArticulators(const sf::dls::instrument_t & instrument)
+{
+    std::vector<generator_t> Generators;
+    std::vector<modulator_t> Modulators;
+
+    // Convert the instrument articulators, if any.
+    if (!instrument.Articulators.empty())
+        ConvertArticulators(instrument.Articulators, Generators, Modulators);
+
+    // Add a default reverb modulator unless one already exists. (Not defined in the SF2 spec.)
+    {
+        auto it = std::find_if(Modulators.begin(), Modulators.end(), [](modulator_t m) { return (m.DstOper == GeneratorOperator::reverbEffectsSend); });
+
+        if (it == Modulators.end())
+            Modulators.push_back(modulator_t(MIDIControllerReverb, GeneratorOperator::reverbEffectsSend, 1000, 0, 0));
+    }
+
+    // Add a default chorus modulator unless one already exists. (Not defined in the SF2 spec.)
+    {
+        auto it = std::find_if(Modulators.begin(), Modulators.end(), [](modulator_t m) { return (m.DstOper == GeneratorOperator::chorusEffectsSend); });
+
+        if (it == Modulators.end())
+            Modulators.push_back(modulator_t(MIDIControllerChorus, GeneratorOperator::chorusEffectsSend, 1000, 0, 0));
+    }
+
+    InstrumentGenerators.insert(InstrumentGenerators.end(), Generators.begin(), Generators.end());
+    InstrumentModulators.insert(InstrumentModulators.end(), Modulators.begin(), Modulators.end());
+}
+
+// Convert the regions to instrument zones.
+void bank_t::ConvertRegions(const dls::collection_t & collection, const sf::dls::instrument_t & instrument)
+{
+    for (const auto & Region : instrument.Regions)
+    {
+        // Add a local instrument zone.
+        InstrumentZones.push_back(instrument_zone_t((uint16_t) InstrumentGenerators.size(), (uint16_t) InstrumentModulators.size()));
+
+        InstrumentGenerators.push_back(sf::generator_t(GeneratorOperator::keyRange, MAKEWORD(Region.LowKey,      Region.HighKey)));         // Must be the first generator.
+        InstrumentGenerators.push_back(sf::generator_t(GeneratorOperator::velRange, MAKEWORD(Region.LowVelocity, Region.HighVelocity)));    // Must only be preceded by keyRange.
+
+        if (Region.KeyGroup != 0)
+            InstrumentGenerators.push_back(sf::generator_t(GeneratorOperator::exclusiveClass, Region.KeyGroup));
+
+        // Convert the region articulators, if any.
+        if (!Region.Articulators.empty())
+        {
+            std::vector<generator_t> Generators;
+            std::vector<modulator_t> Modulators;
+
+            ConvertArticulators(Region.Articulators, Generators, Modulators);
+
+            InstrumentGenerators.insert(InstrumentGenerators.end(), Generators.begin(), Generators.end());
+            InstrumentModulators.insert(InstrumentModulators.end(), Modulators.begin(), Modulators.end());
+        }
+
+        // dls.Cues[CueIndex] is actually an offset in the wave pool but we can use the cue index as an index into the wave list.
+        const uint16_t SampleID = (uint16_t) Region.WaveLink.CueIndex;
+
+        const auto & Wave = collection.Waves[SampleID];
+
+        // Add an Initial Attenuation generator.
+        {
+            // Decide which gain value to use. (See DLS Spec 3.1 Coding Requirements and Recommendations)
+            int32_t Gain = 0;
+
+            if (Region.WaveSample.IsInitialized())
+                Gain = Region.WaveSample.Gain;
+            else
+            if (Wave.WaveSample.IsInitialized())
+                Gain = Wave.WaveSample.Gain;
+
+            const double EmuCorrection = 0.4;
+
+            // Convert DLS gain from 1/655360 dB units to SF2 attenuation in centibels. (See DLS Spec 1.14.4 Gain)
+            const double Attenuation = ((double) Gain / -65536.) / EmuCorrection;
+
+            InstrumentGenerators.push_back(sf::generator_t(GeneratorOperator::initialAttenuation, (uint16_t) Attenuation));
+        }
+
+        // Add a Sample Mode generator.
+        {
+            uint16_t SampleMode = 0; // No loop
+
+            if (!Wave.WaveSample.Loops.empty())
+            {
+                if (Wave.WaveSample.Loops[0].Type == dls::wave_sample_loop_t::WLOOP_TYPE_FORWARD)
+                    SampleMode = 1; // Loop
+                else
+                if (Wave.WaveSample.Loops[0].Type == dls::wave_sample_loop_t::WLOOP_TYPE_RELEASE)
+                    SampleMode = 3; // Loop and play till the end in release phase
+            }
+
+            if (SampleMode != 0)
+            {
+                InstrumentGenerators.push_back(sf::generator_t(GeneratorOperator::sampleModes, SampleMode));
+
+                // Adjust the loop if necessary.
+                if (!Wave.WaveSample.Loops.empty() && !Region.WaveSample.Loops.empty())
+                {
+                    const auto & SrcLoop = Wave  .WaveSample.Loops[0];
+                    const auto & DstLoop = Region.WaveSample.Loops[0];
+
+                    const int32_t StartDiff = DstLoop.Start - SrcLoop.Start;
+                    const int32_t EndDiff   = (DstLoop.Start + DstLoop.Length) - (SrcLoop.Start + SrcLoop.Length);
+
+                    if (StartDiff != 0)
+                    {
+                        const int32_t CoarseOffset = StartDiff / 32768;
+
+                        if (CoarseOffset != 0)
+                            InstrumentGenerators.push_back(sf::generator_t(GeneratorOperator::startloopAddrsCoarseOffset, (uint16_t) CoarseOffset));
+
+                        const int32_t FineOffset = StartDiff % 32768;
+
+                        InstrumentGenerators.push_back(sf::generator_t(GeneratorOperator::startloopAddrsOffset, (uint16_t) FineOffset));
+                    }
+
+                    if (EndDiff != 0)
+                    {
+                        const int32_t CoarseOffset = EndDiff / 32768;
+
+                        if (CoarseOffset != 0)
+                            InstrumentGenerators.push_back(sf::generator_t(GeneratorOperator::endloopAddrsCoarseOffset, (uint16_t) CoarseOffset));
+
+                        const int32_t FineOffset = EndDiff % 32768;
+
+                        InstrumentGenerators.push_back(sf::generator_t(GeneratorOperator::endloopAddrsOffset, (uint16_t) FineOffset));
+                    }
+                }
+            }
+        }
+
+        // Adjust the tuning if necessary.
+        {
+            int16_t FineTune = Region.WaveSample.FineTune - Wave.WaveSample.FineTune;
+
+            int16_t CoarseTune = FineTune / 100;
+
+            if (CoarseTune != 0)
+                InstrumentGenerators.push_back(sf::generator_t(GeneratorOperator::coarseTune, (uint16_t) CoarseTune));
+
+            FineTune = FineTune % 100;
+
+            if (FineTune != 0)
+                InstrumentGenerators.push_back(sf::generator_t(GeneratorOperator::fineTune, FineTune));
+        }
+
+        // Adjust the root key if necessary.
+        if (Region.WaveSample.UnityNote != Wave.WaveSample.UnityNote)
+            InstrumentGenerators.push_back(sf::generator_t(GeneratorOperator::overridingRootKey, Region.WaveSample.UnityNote));
+
+        InstrumentGenerators.push_back(sf::generator_t(GeneratorOperator::sampleID, SampleID));                                             // Must be the last generator.
+    }
+}
+
+/// <summary>
+/// Converts the DLS waves to SF2 samples.
+/// </summary>
+void bank_t::ConvertWaves(const dls::collection_t & collection)
+{
+    a_law_codec_t ALawCodec;
+
+    // Calculate the size of the sample data buffer.
+    {
+        size_t Size = 0;
+
+        for (const auto & wave : collection.Waves)
+        {
+            if (wave.Channels != 1)
+                throw sf::exception(msc::FormatText("Unsupported number of channels (%d channels) in wave \"%s\"", wave.Channels, wave.Name.c_str()));
+
+            if ((wave.BitsPerSample != 8) && (wave.BitsPerSample != 16))
+                throw sf::exception(msc::FormatText("Unsupported sample size (%d bit) in wave \"%s\"", wave.BitsPerSample, wave.Name.c_str()));
+
+            if (wave.FormatTag == WAVE_FORMAT_PCM)
+            {
+                if (wave.BitsPerSample == 16)
+                    Size += wave.Data.size();
+                else
+                    Size += wave.Data.size() * 2;   // Allow for 8-bit to 16-bit conversion. 
+            }
+            else
+            if (wave.FormatTag == WAVE_FORMAT_ALAW)
+                Size += wave.Data.size() * 2;       // Allow for 8-bit A-Law to 16-bit PCM conversion.
+            else
+                throw sf::exception(msc::FormatText("Unsupported sample format 0x%04X in wave \"%s\"", wave.FormatTag, wave.Name.c_str()));
+        }
+
+        SampleData.resize(Size);
+    }
+
+    size_t Offset = 0;
+
+    for (const auto & wave : collection.Waves)
+    {
+        const size_t DataSize = (wave.BitsPerSample == 16) ? wave.Data.size() : wave.Data.size() * 2;
+
+        const auto BytesPerSample = 2;                                      // SF2 samples are always 16-bit (SoundFont 2.01 Technical Specification, 6 The sdta-list Chunk)
+
+        // Pitch correction: convert 1/100 to note units.
+        const  int16_t Semitones = wave.WaveSample.FineTune / 100;          // FineTune in Relative Pitch units (1/65536 cents) (See 1.14.2 Relative Pitch)
+
+        const uint16_t UnityNote = wave.WaveSample.UnityNote + Semitones;
+        const  int16_t FineTune  = wave.WaveSample.FineTune % 100;          // FineTune in cents
+
+        sf::sample_t Sample =
+        {
+            .Name            = wave.Name,
+
+            .Start           = (uint32_t) ( Offset             / BytesPerSample),
+            .End             = (uint32_t) ((Offset + DataSize) / BytesPerSample),
+
+            .SampleRate      = wave.SamplesPerSec,
+            .Pitch           = (uint8_t) UnityNote,
+            .PitchCorrection =  (int8_t) FineTune,
+
+            .SampleType      = sf::SampleTypes::MonoSample
+        };
+
+        if (wave.FormatTag == WAVE_FORMAT_PCM)
+        {
+            if (wave.BitsPerSample == 16)
+            {
+                std::memcpy(SampleData.data() + Offset, wave.Data.data(), wave.Data.size());
+            }
+            else
+            {
+                // Convert 8-bit samples to 16-bit (Downloadable Sounds Level 2.2, 2.16.8 Data Format of the WAVE_FORMAT_PCM Samples).
+                auto PCM = std::span<int16_t>((int16_t *)(SampleData.data() + Offset), wave.Data.size());
+                size_t i = 0;
+
+                for (const auto Byte : wave.Data)
+                    PCM[i++] = msc::Map(Byte, (uint8_t) 0, (uint8_t) 255, (int16_t) -32768, (int16_t) 32767);
+            }
+        }
+        else
+        if (wave.FormatTag == WAVE_FORMAT_ALAW)
+        {
+            auto PCM = std::span<int16_t>((int16_t *)(SampleData.data() + Offset), wave.Data.size());
+
+            ALawCodec.ToPCM(wave.Data, PCM);
+        }
+        else
+            throw sf::exception(msc::FormatText("Unsupported sample format 0x%04X in wave \"%s\"", wave.FormatTag, wave.Name.c_str())); // Should not get here.
+
+        Offset += DataSize;
+
+        if (!wave.WaveSample.Loops.empty())
+        {
+            const auto & Loop = wave.WaveSample.Loops[0];
+
+            Sample.LoopStart = Sample.Start     + Loop.Start;
+            Sample.LoopEnd   = Sample.LoopStart + Loop.Length;
+        }
+        else
+        {
+            Sample.LoopStart = Sample.Start;
+            Sample.LoopEnd   = Sample.End - 1;
+        }
+
+        Samples.push_back(Sample);
+    }
+
+    Samples.push_back(sf::sample_t("EOS"));
 }
 
 /// <summary>
