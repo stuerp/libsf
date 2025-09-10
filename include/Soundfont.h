@@ -147,7 +147,7 @@ public:
         GenerateTable();
     }
 
-    void ToPCM(const std::vector<uint8_t> src, std::span<int16_t> & dst) const noexcept
+    void ToPCM(const std::vector<uint8_t> & src, std::span<int16_t> & dst) const noexcept
     {
         size_t i = 0;
 
